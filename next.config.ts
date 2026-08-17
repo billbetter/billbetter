@@ -1,4 +1,9 @@
-/** @type {import('next').NextConfig} */
-const nextConfig = {};
+"import type { NextConfig } from \"next\";
 
-export default nextConfig;
+const nextConfig: NextConfig = {
+  images: {
+    unoptimized: true,
+  },
+};
+
+export default nextConfig;"
