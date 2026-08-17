@@ -43,4 +43,4 @@ export interface ButtonProps extends React.ButtonHTMLAttributes<HTMLButtonElemen
                                                                                                                           
                                                                                                                           Button.displayName = 'Button';
                                                                                                                           
-                                                                                                                          export { Button, buttonVariants };
+                                                                                                                          export { Button };
