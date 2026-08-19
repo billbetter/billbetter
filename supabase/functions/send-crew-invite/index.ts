@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail } from '../_shared/resend.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 import { renderEmailLayout, escapeHtml } from '../_shared/email-templates.ts';
@@ -64,13 +64,13 @@ Deno.serve(async (req) => {
     });
 
     return new Response(JSON.stringify({ success: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (err) {
     console.error('send-crew-invite error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 500,
     });
   }

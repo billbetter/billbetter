@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { getAuthUrl } from '../_shared/google.ts';
 import { getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 
@@ -10,12 +10,12 @@ Deno.serve(async (req) => {
     if (!user) throw new Error('Not authenticated');
     const url = getAuthUrl(user.id);
     return new Response(JSON.stringify({ success: true, url }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (err) {
     return new Response(JSON.stringify({ error: err.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 500,
     });
   }

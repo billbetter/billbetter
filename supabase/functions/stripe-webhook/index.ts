@@ -1,4 +1,4 @@
-import { corsHeaders } from '../_shared/cors.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { db } from '../_shared/supabase-admin.ts';
 
 // Mirrors PLAN_LIMITS in confirm-and-activate. A cancelled subscription drops
@@ -48,7 +48,7 @@ async function verifySignature(payload: string, sigHeader: string, secret: strin
 }
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: getCorsHeaders(req) });
 
   try {
     const raw = await req.text();
@@ -160,7 +160,7 @@ Deno.serve(async (req) => {
     }
 
     return new Response(JSON.stringify({ received: true }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (err) {

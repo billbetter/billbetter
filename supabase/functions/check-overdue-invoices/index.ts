@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 
 Deno.serve(async (req) => {
@@ -24,13 +24,13 @@ Deno.serve(async (req) => {
       }
     }
     return new Response(JSON.stringify({ success: true, updated_count: updated }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (err) {
     console.error('check-overdue-invoices error:', err);
     return new Response(JSON.stringify({ error: err.message }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 500,
     });
   }

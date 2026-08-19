@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail } from '../_shared/resend.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 import { renderEmailLayout, formatCurrency, escapeHtml } from '../_shared/email-templates.ts';
@@ -80,13 +80,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, id: data?.id, to: recipient }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (err) {
     console.error('send-test-analytics-email error:', err);
     return new Response(
       JSON.stringify({ error: err.message || 'Unknown error' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

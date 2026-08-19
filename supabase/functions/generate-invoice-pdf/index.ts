@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { buildInvoicePDF } from '../_shared/pdf-utils.ts';
 
 Deno.serve(async (req) => {
@@ -16,13 +16,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ pdf_url: `data:application/pdf;base64,${pdfBase64}` }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (err) {
     console.error('generate-invoice-pdf error:', err, err?.stack);
     return new Response(
       JSON.stringify({ error: err.message || 'Unknown error', stack: String(err?.stack || '').slice(0, 500) }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

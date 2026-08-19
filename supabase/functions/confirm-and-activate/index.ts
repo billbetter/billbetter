@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
@@ -43,7 +43,7 @@ Deno.serve(async (req) => {
       if (session.payment_status !== 'paid' && session.status !== 'complete') {
         return new Response(
           JSON.stringify({ ok: false, status: 'pending' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
         );
       }
     } else {
@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
       if (!good) {
         return new Response(
           JSON.stringify({ ok: false, status: subscription.status || 'pending' }),
-          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+          { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
         );
       }
 
@@ -120,13 +120,13 @@ Deno.serve(async (req) => {
         monthly_transaction_limit: limits.transactions,
         payment_processing_fee: limits.fee,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (err) {
     console.error('confirm-and-activate error:', err);
     return new Response(
       JSON.stringify({ error: err.message || 'Unknown error' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

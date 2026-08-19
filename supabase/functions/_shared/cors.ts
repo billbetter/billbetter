@@ -37,13 +37,11 @@ export function getCorsHeaders(req: Request) {
   return {
     "Access-Control-Allow-Origin": allowedOrigin,
     "Access-Control-Allow-Headers":
-      "authorization, x-client-info, apikey, content-type",
+      "authorization, x-client-info, apikey, content-type, x-supabase-api-version, x-region",
     "Access-Control-Allow-Methods": "POST, OPTIONS",
     Vary: "Origin",
   };
 }
-
-export const corsHeaders = getCorsHeaders(new Request("https://invoicium.ca"));
 
 export function handleCors(req: Request) {
   if (req.method === "OPTIONS") {

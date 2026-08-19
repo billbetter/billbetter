@@ -1,9 +1,9 @@
-import { corsHeaders } from '../_shared/cors.ts';
+import { getCorsHeaders } from '../_shared/cors.ts';
 import { exchangeCode } from '../_shared/google.ts';
 import { db } from '../_shared/supabase-admin.ts';
 
 Deno.serve(async (req) => {
-  if (req.method === 'OPTIONS') return new Response('ok', { headers: corsHeaders });
+  if (req.method === 'OPTIONS') return new Response('ok', { headers: getCorsHeaders(req) });
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');

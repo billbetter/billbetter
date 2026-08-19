@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db } from '../_shared/supabase-admin.ts';
 
 Deno.serve(async (req) => {
@@ -52,13 +52,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, payment_link: session.url, session_id: session.id }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (err) {
     console.error('create-invoice-payment-link error:', err);
     return new Response(
       JSON.stringify({ error: err.message || 'Unknown error' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

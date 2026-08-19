@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { getValidAccessTokenForUser } from '../_shared/google.ts';
 import { getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 
@@ -26,13 +26,13 @@ Deno.serve(async (req) => {
     if (!res.ok) throw new Error(data?.error?.message || `Calendar API ${res.status}`);
 
     return new Response(JSON.stringify({ success: true, events: data.items || [] }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 200,
     });
   } catch (err) {
     console.error('google-calendar-events error:', err);
     return new Response(JSON.stringify({ error: err.message, events: [] }), {
-      headers: { ...corsHeaders, 'Content-Type': 'application/json' },
+      headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 500,
     });
   }

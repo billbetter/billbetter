@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { sendSMS } from '../_shared/twilio.ts';
 
 function money(v: unknown) {
@@ -46,13 +46,13 @@ Deno.serve(async (req) => {
 
     return new Response(
       JSON.stringify({ success: true, sid: data?.sid }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (err) {
     console.error('send-quote-sms error:', err);
     return new Response(
       JSON.stringify({ error: err.message || 'Unknown error' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });

@@ -1,4 +1,4 @@
-import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
@@ -48,7 +48,7 @@ Deno.serve(async (req) => {
     if (existing && (existing.status === 'active' || existing.status === 'trial' || existing.status === 'trialing')) {
       return new Response(
         JSON.stringify({ error: 'You already have an active subscription.', already_subscribed: true }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 409 }
+        { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 409 }
       );
     }
 
@@ -110,13 +110,13 @@ Deno.serve(async (req) => {
         mode: invoiceSecret ? 'payment' : 'setup',
         is_trial: trialEligible,
       }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (err) {
     console.error('stripe-create-subscription error:', err);
     return new Response(
       JSON.stringify({ error: err.message || 'Unknown error' }),
-      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+      { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 500 }
     );
   }
 });
