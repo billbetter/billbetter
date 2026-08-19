@@ -1,0 +1,58 @@
+import { handleCors, corsHeaders } from '../_shared/cors.ts';
+import { sendSMS } from '../_shared/twilio.ts';
+
+function money(v: unknown) {
+  return `$${Number(v || 0).toFixed(2)}`;
+}
+
+function shortDate(v?: string | null) {
+  if (!v) return null;
+  const d = new Date(v);
+  if (isNaN(d.getTime())) return null;
+  return d.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+}
+
+Deno.serve(async (req) => {
+  const cors = handleCors(req);
+  if (cors) return cors;
+
+  try {
+    const {
+      to,
+      invoice_number,
+      client_name,
+      total,
+      due_date,
+      payment_link,
+      business_name,
+      sender_phone,
+    } = await req.json();
+
+    if (!to) throw new Error('Recipient phone number (to) is required');
+
+    const biz = business_name || 'Invoicium';
+    const hello = client_name ? `Hi ${String(client_name).split(' ')[0]}, ` : '';
+    const due = shortDate(due_date);
+
+    const lines: string[] = [];
+    lines.push(`${hello}${biz} here with invoice${invoice_number ? ` #${invoice_number}` : ''}.`);
+    lines.push(`Amount due: ${money(total)}${due ? ` by ${due}` : ''}.`);
+    if (payment_link) lines.push(`Pay securely: ${payment_link}`);
+    lines.push(`Questions? ${sender_phone ? `Call ${sender_phone}` : 'Reply here'}. Thanks!`);
+
+    const body = lines.join('\n');
+
+    const data = await sendSMS({ to, body });
+
+    return new Response(
+      JSON.stringify({ success: true, sid: data?.sid }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+    );
+  } catch (err) {
+    console.error('send-invoice-sms error:', err);
+    return new Response(
+      JSON.stringify({ error: err.message || 'Unknown error' }),
+      { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 500 }
+    );
+  }
+});

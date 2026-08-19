@@ -1,0 +1,12 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(npm run:*)",
+      "Bash(echo \"EXIT=$?\")",
+      "Read(//tmp/**)",
+      "Bash(python scripts/deploy-functions.py)",
+      "Bash(python -c ' *)",
+      "Bash(grep -E \"\\\\.\\(jsx|js|css\\)$\")"
+    ]
+  }
+}

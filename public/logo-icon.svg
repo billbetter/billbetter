@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none">
+  <!-- A shape - navy blue -->
+  <path d="M60 8L16 108h22l8-20h28l8 20h22L60 8zm-6 64l14-35 14 35H54z" fill="#2B3674"/>
+  <!-- Checkmark/bolt - green gradient -->
+  <path d="M72 42L56 72h16L58 108l30-46H72l14-20z" fill="url(#g)"/>
+  <defs>
+    <linearGradient id="g" x1="58" y1="42" x2="78" y2="108" gradientUnits="userSpaceOnUse">
+      <stop stop-color="#45B84A"/>
+      <stop offset="1" stop-color="#3DA542"/>
+    </linearGradient>
+  </defs>
+</svg>

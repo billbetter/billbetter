@@ -1,0 +1,352 @@
+-- Run this in the Supabase SQL Editor (https://supabase.com/dashboard/project/_/sql/new)
+-- This creates all tables needed for Invoicium with Row Level Security (RLS) enabled.
+
+-- ============================================
+-- 1. Profiles (extends auth.users)
+-- ============================================
+create table if not exists public.profiles (
+  id uuid references auth.users on delete cascade primary key,
+  full_name text,
+  onboarding_completed boolean default false,
+  role text default 'admin',
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.profiles enable row level security;
+
+create policy "Users can view own profile"
+  on public.profiles for select
+  using (auth.uid() = id);
+
+create policy "Users can update own profile"
+  on public.profiles for update
+  using (auth.uid() = id);
+
+-- Trigger to create profile on signup
+CREATE OR REPLACE FUNCTION public.handle_new_user()
+RETURNS trigger AS $$
+BEGIN
+  INSERT INTO public.profiles (id, full_name)
+  VALUES (new.id, new.raw_user_meta_data->>'full_name');
+  RETURN new;
+END;
+$$ LANGUAGE plpgsql SECURITY DEFINER;
+
+DROP TRIGGER IF EXISTS on_auth_user_created on auth.users;
+CREATE TRIGGER on_auth_user_created
+  AFTER INSERT ON auth.users
+  FOR EACH ROW EXECUTE FUNCTION public.handle_new_user();
+
+-- ============================================
+-- 2. Core Business Tables
+-- ============================================
+
+create table if not exists public.BusinessSettings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  business_name text,
+  email text,
+  phone text,
+  address text,
+  website text,
+  timezone text default 'America/Chicago',
+  tax_rate numeric default 0,
+  hourly_rate numeric default 0,
+  invoice_prefix text default 'INV',
+  payment_terms text default 'Net 30',
+  pdf_color_scheme text default '#10b981',
+  pdf_footer_text text,
+  show_pdf_branding boolean default true,
+  font_family text default 'helvetica',
+  invoice_template text default 'professional',
+  stripe_account_status text default 'not_connected',
+  stripe_onboarding_completed boolean default false,
+  google_calendar_connected boolean default false,
+  booking_enabled boolean default false,
+  default_appointment_duration integer default 60,
+  booking_buffer_time integer default 0,
+  booking_notice_time integer default 60,
+  send_review_requests boolean default false,
+  analytics_email_frequency text default 'biweekly',
+  analytics_email_day integer default 1,
+  analytics_email_time text default '09:00',
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.BusinessSettings enable row level security;
+create policy "Users can CRUD own BusinessSettings" on public.BusinessSettings for all using (auth.uid() = user_id);
+
+create table if not exists public.Subscription (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  plan_name text default 'essential',
+  billing_cycle text default 'monthly',
+  monthly_transaction_limit integer default 100,
+  lifetime_documents_created integer default 0,
+  transactions_used_this_month integer default 0,
+  invoices_used_this_month integer default 0,
+  quotes_used_this_month integer default 0,
+  payment_processing_fee numeric default 1,
+  status text default 'active',
+  subscription_start_date timestamp with time zone,
+  next_billing_date timestamp with time zone,
+  features jsonb default '{}',
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.Subscription enable row level security;
+create policy "Users can CRUD own Subscription" on public.Subscription for all using (auth.uid() = user_id);
+
+create table if not exists public.Client (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  name text not null,
+  email text,
+  phone text,
+  address text,
+  notes text,
+  total_invoiced numeric default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.Client enable row level security;
+create policy "Users can CRUD own Clients" on public.Client for all using (auth.uid() = user_id);
+
+create table if not exists public.Invoice (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  invoice_number text not null,
+  client_id uuid references public.Client on delete set null,
+  client_name text,
+  client_email text,
+  client_phone text,
+  client_address text,
+  items jsonb default '[]',
+  subtotal numeric default 0,
+  tax_rate numeric default 0,
+  tax_amount numeric default 0,
+  total numeric default 0,
+  status text default 'draft',
+  due_date timestamp with time zone,
+  paid_date timestamp with time zone,
+  notes text,
+  delivery_method text,
+  payment_link text,
+  pdf_url text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.Invoice enable row level security;
+create policy "Users can CRUD own Invoices" on public.Invoice for all using (auth.uid() = user_id);
+
+create table if not exists public.Quote (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  quote_number text not null,
+  client_id uuid references public.Client on delete set null,
+  client_name text,
+  client_email text,
+  items jsonb default '[]',
+  subtotal numeric default 0,
+  tax_rate numeric default 0,
+  tax_amount numeric default 0,
+  total numeric default 0,
+  status text default 'draft',
+  date_issued timestamp with time zone,
+  expiry_date timestamp with time zone,
+  notes text,
+  public_id text,
+  approval_token text,
+  linked_invoice_id uuid,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.Quote enable row level security;
+create policy "Users can CRUD own Quotes" on public.Quote for all using (auth.uid() = user_id);
+
+create table if not exists public.Job (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  job_title text not null,
+  client_id uuid references public.Client on delete set null,
+  client_name text,
+  description text,
+  status text default 'planning',
+  location text,
+  start_date timestamp with time zone,
+  completion_date timestamp with time zone,
+  estimated_hours numeric,
+  hourly_rate numeric,
+  labor_cost numeric,
+  materials_cost numeric,
+  estimated_cost numeric,
+  actual_cost numeric,
+  linked_invoice_id uuid,
+  linked_quote_id uuid,
+  scheduled_start_time timestamp with time zone,
+  scheduled_end_time timestamp with time zone,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.Job enable row level security;
+create policy "Users can CRUD own Jobs" on public.Job for all using (auth.uid() = user_id);
+
+create table if not exists public.JobPhoto (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  job_id uuid references public.Job on delete cascade,
+  client_id uuid references public.Client on delete set null,
+  uploaded_by_user_id uuid references auth.users,
+  uploaded_by_name text,
+  photo_url text,
+  thumbnail_url text,
+  category text,
+  caption text,
+  position integer default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.JobPhoto enable row level security;
+create policy "Users can CRUD own JobPhotos" on public.JobPhoto for all using (auth.uid() = user_id);
+
+create table if not exists public.JobMaterial (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  job_id uuid references public.Job on delete cascade,
+  item_name text,
+  quantity numeric,
+  unit text,
+  price_estimate numeric,
+  total_estimate numeric,
+  purchased boolean default false,
+  purchase_date timestamp with time zone,
+  position integer default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.JobMaterial enable row level security;
+create policy "Users can CRUD own JobMaterials" on public.JobMaterial for all using (auth.uid() = user_id);
+
+create table if not exists public.JobNote (
+  id uuid primary key default gen_random_uuid(),
+  job_id uuid references public.Job on delete cascade,
+  user_id uuid references auth.users not null,
+  user_name text,
+  user_email text,
+  content text,
+  note_type text default 'general',
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.JobNote enable row level security;
+create policy "Users can CRUD own JobNotes" on public.JobNote for all using (auth.uid() = user_id);
+
+create table if not exists public.RecurringInvoice (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  client_id uuid references public.Client on delete set null,
+  client_name text,
+  client_email text,
+  items jsonb default '[]',
+  subtotal numeric default 0,
+  tax_rate numeric default 0,
+  tax_amount numeric default 0,
+  total numeric default 0,
+  frequency text,
+  start_date timestamp with time zone,
+  end_type text,
+  occurrences integer,
+  next_generation_date timestamp with time zone,
+  last_generated_date timestamp with time zone,
+  invoices_generated integer default 0,
+  status text default 'active',
+  template_name text,
+  created_at timestamp with time zone default timezone('utc'::text, now()),
+  updated_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.RecurringInvoice enable row level security;
+create policy "Users can CRUD own RecurringInvoices" on public.RecurringInvoice for all using (auth.uid() = user_id);
+
+create table if not exists public.InvoiceTemplate (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  template_name text,
+  items jsonb default '[]',
+  notes text,
+  tax_rate numeric default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.InvoiceTemplate enable row level security;
+create policy "Users can CRUD own InvoiceTemplates" on public.InvoiceTemplate for all using (auth.uid() = user_id);
+
+create table if not exists public.EmployeeProfile (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  owner_id uuid references auth.users not null,
+  custom_title text,
+  role text default 'employee',
+  permissions jsonb default '{}',
+  is_active boolean default true,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.EmployeeProfile enable row level security;
+create policy "Users can view EmployeeProfiles they own or belong to" on public.EmployeeProfile for all using (auth.uid() = user_id or auth.uid() = owner_id);
+
+create table if not exists public.CrewMemberSettings (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  profile_picture_url text,
+  theme text default 'light',
+  notifications_enabled boolean default true,
+  email_notifications boolean default true,
+  sms_notifications boolean default false,
+  display_name text,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.CrewMemberSettings enable row level security;
+create policy "Users can CRUD own CrewMemberSettings" on public.CrewMemberSettings for all using (auth.uid() = user_id);
+
+create table if not exists public.CrewInvite (
+  id uuid primary key default gen_random_uuid(),
+  owner_id uuid references auth.users not null,
+  email text not null,
+  name text,
+  role text,
+  custom_title text,
+  status text default 'pending',
+  accepted_at timestamp with time zone,
+  accepted_by_user_id uuid references auth.users,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.CrewInvite enable row level security;
+create policy "Users can CRUD own CrewInvites" on public.CrewInvite for all using (auth.uid() = owner_id);
+
+create table if not exists public.Receipt (
+  id uuid primary key default gen_random_uuid(),
+  user_id uuid references auth.users not null,
+  vendor_name text,
+  vendor_city text,
+  vendor_state text,
+  vendor_country text,
+  receipt_date timestamp with time zone,
+  total_amount numeric default 0,
+  items jsonb default '[]',
+  file_url text,
+  status text default 'pending',
+  total_savings numeric default 0,
+  created_at timestamp with time zone default timezone('utc'::text, now())
+);
+
+alter table public.Receipt enable row level security;
+create policy "Users can CRUD own Receipts" on public.Receipt for all using (auth.uid() = user_id);

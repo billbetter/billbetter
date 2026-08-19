@@ -1,0 +1,21 @@
+{
+  "short_name": "Invoicium",
+  "name": "Invoicium - Contractor Invoicing",
+  "icons": [
+    {
+      "src": "/favicon.png",
+      "type": "image/png",
+      "sizes": "256x256"
+    },
+    {
+      "src": "/logo-icon.png",
+      "type": "image/png",
+      "sizes": "512x512",
+      "purpose": "any maskable"
+    }
+  ],
+  "start_url": "/",
+  "display": "standalone",
+  "theme_color": "#10b981",
+  "background_color": "#ffffff"
+}

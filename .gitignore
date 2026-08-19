@@ -1,0 +1,49 @@
+# Environment variables — NEVER commit these
+.env
+.env.*
+.env.local
+.env.production
+.env.development
+
+# Secrets & tokens
+supabase_token.txt
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Logs
+logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+lerna-debug.log*
+
+node_modules
+dist
+dist-ssr
+*.local
+
+# Editor directories and files
+.vscode/*
+!.vscode/extensions.json
+.idea
+.DS_Store
+*.suo
+*.ntvs*
+*.njsproj
+*.sln
+*.sw?
+.vercel
+.env*
+
+# Legacy deploy scripts with hardcoded live credentials (target the dead
+# rtflrrugewkphoxukymw project). Kept on disk, never committed.
+scripts/deploy-secrets.py
+scripts/deploy-functions.py
+scripts/apply-schema.py
+scripts/deploy-test.py
+scripts/fix-table-names.py
+scripts/test_api.py

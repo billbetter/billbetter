@@ -1,0 +1,898 @@
+@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  /* ────────────────────────────────────────────────────────────────────
+     DESIGN TOKENS — single source of truth for every colour on the site.
+     Edit values HERE; nothing else hardcodes a colour.
+
+     Stored as space-separated RGB channels (not hex) so Tailwind's alpha
+     modifiers keep working: `bg-brand-700/25` compiles to
+     rgb(var(--brand-700) / 0.25). 656 such usages exist in this codebase,
+     and every one of them would break under plain hex variables.
+
+     Layer 1 — PRIMITIVES: the raw ramps.
+     Layer 2 — SEMANTIC ALIASES (below): what the UI actually asks for.
+     Re-theme the site by repointing Layer 2, or by changing Layer 1 values.
+     ──────────────────────────────────────────────────────────────────── */
+  :root {
+    /* ink — was tailwind slate */
+    --ink-50: 248 250 252;
+    --ink-100: 241 245 249;
+    --ink-200: 226 232 240;
+    --ink-300: 203 213 225;
+    --ink-400: 148 163 184;
+    --ink-500: 100 116 139;
+    --ink-600: 71 85 105;
+    --ink-700: 51 65 85;
+    --ink-800: 30 41 59;
+    --ink-900: 15 23 42;
+    --ink-950: 2 6 23;
+
+    /* brand — was tailwind sky */
+    --brand-50: 240 249 255;
+    --brand-100: 224 242 254;
+    --brand-200: 186 230 253;
+    --brand-300: 125 211 252;
+    --brand-400: 56 189 248;
+    --brand-500: 14 165 233;
+    --brand-600: 2 132 199;
+    --brand-700: 3 105 161;
+    --brand-800: 7 89 133;
+    --brand-900: 12 74 110;
+    --brand-950: 8 47 73;
+
+    /* success — was tailwind emerald */
+    --success-50: 236 253 245;
+    --success-100: 209 250 229;
+    --success-200: 167 243 208;
+    --success-300: 110 231 183;
+    --success-400: 52 211 153;
+    --success-500: 16 185 129;
+    --success-600: 5 150 105;
+    --success-700: 4 120 87;
+    --success-800: 6 95 70;
+    --success-900: 6 78 59;
+    --success-950: 2 44 34;
+
+    /* danger — was tailwind red */
+    --danger-50: 254 242 242;
+    --danger-100: 254 226 226;
+    --danger-200: 254 202 202;
+    --danger-300: 252 165 165;
+    --danger-400: 248 113 113;
+    --danger-500: 239 68 68;
+    --danger-600: 220 38 38;
+    --danger-700: 185 28 28;
+    --danger-800: 153 27 27;
+    --danger-900: 127 29 29;
+    --danger-950: 69 10 10;
+
+    /* warning — was tailwind amber */
+    --warning-50: 255 251 235;
+    --warning-100: 254 243 199;
+    --warning-200: 253 230 138;
+    --warning-300: 252 211 77;
+    --warning-400: 251 191 36;
+    --warning-500: 245 158 11;
+    --warning-600: 217 119 6;
+    --warning-700: 180 83 9;
+    --warning-800: 146 64 14;
+    --warning-900: 120 53 15;
+    --warning-950: 69 26 3;
+
+    /* caution — was tailwind yellow */
+    --caution-50: 254 252 232;
+    --caution-100: 254 249 195;
+    --caution-200: 254 240 138;
+    --caution-300: 253 224 71;
+    --caution-400: 250 204 21;
+    --caution-500: 234 179 8;
+    --caution-600: 202 138 4;
+    --caution-700: 161 98 7;
+    --caution-800: 133 77 14;
+    --caution-900: 113 63 18;
+    --caution-950: 66 32 6;
+
+    /* info — was tailwind blue */
+    --info-50: 239 246 255;
+    --info-100: 219 234 254;
+    --info-200: 191 219 254;
+    --info-300: 147 197 253;
+    --info-400: 96 165 250;
+    --info-500: 59 130 246;
+    --info-600: 37 99 235;
+    --info-700: 29 78 216;
+    --info-800: 30 64 175;
+    --info-900: 30 58 138;
+    --info-950: 23 37 84;
+
+    /* accent — was tailwind teal */
+    --accent-50: 240 253 250;
+    --accent-100: 204 251 241;
+    --accent-200: 153 246 228;
+    --accent-300: 94 234 212;
+    --accent-400: 45 212 191;
+    --accent-500: 20 184 166;
+    --accent-600: 13 148 136;
+    --accent-700: 15 118 110;
+    --accent-800: 17 94 89;
+    --accent-900: 19 78 74;
+    --accent-950: 4 47 46;
+
+    /* positive — was tailwind green */
+    --positive-50: 240 253 244;
+    --positive-100: 220 252 231;
+    --positive-200: 187 247 208;
+    --positive-300: 134 239 172;
+    --positive-400: 74 222 128;
+    --positive-500: 34 197 94;
+    --positive-600: 22 163 74;
+    --positive-700: 21 128 61;
+    --positive-800: 22 101 52;
+    --positive-900: 20 83 45;
+    --positive-950: 5 46 22;
+
+    /* alert — was tailwind orange */
+    --alert-50: 255 247 237;
+    --alert-100: 255 237 213;
+    --alert-200: 254 215 170;
+    --alert-300: 253 186 116;
+    --alert-400: 251 146 60;
+    --alert-500: 249 115 22;
+    --alert-600: 234 88 12;
+    --alert-700: 194 65 12;
+    --alert-800: 154 52 18;
+    --alert-900: 124 45 18;
+    --alert-950: 67 20 7;
+
+    /* aqua — was tailwind cyan */
+    --aqua-50: 236 254 255;
+    --aqua-100: 207 250 254;
+    --aqua-200: 165 243 252;
+    --aqua-300: 103 232 249;
+    --aqua-400: 34 211 238;
+    --aqua-500: 6 182 212;
+    --aqua-600: 8 145 178;
+    --aqua-700: 14 116 144;
+    --aqua-800: 21 94 117;
+    --aqua-900: 22 78 99;
+    --aqua-950: 8 51 68;
+
+    /* blush — was tailwind rose */
+    --blush-50: 255 241 242;
+    --blush-100: 255 228 230;
+    --blush-200: 254 205 211;
+    --blush-300: 253 164 175;
+    --blush-400: 251 113 133;
+    --blush-500: 244 63 94;
+    --blush-600: 225 29 72;
+    --blush-700: 190 18 60;
+    --blush-800: 159 18 57;
+    --blush-900: 136 19 55;
+    --blush-950: 76 5 25;
+
+    /* magenta — was tailwind pink */
+    --magenta-50: 253 242 248;
+    --magenta-100: 252 231 243;
+    --magenta-200: 251 207 232;
+    --magenta-300: 249 168 212;
+    --magenta-400: 244 114 182;
+    --magenta-500: 236 72 153;
+    --magenta-600: 219 39 119;
+    --magenta-700: 190 24 93;
+    --magenta-800: 157 23 77;
+    --magenta-900: 131 24 67;
+    --magenta-950: 80 7 36;
+
+    /* sand — was tailwind stone (warm neutral, password-strength only) */
+    --sand-50: 250 250 249;
+    --sand-100: 245 245 244;
+    --sand-200: 231 229 228;
+    --sand-300: 214 211 209;
+    --sand-400: 168 162 158;
+    --sand-500: 120 113 108;
+    --sand-600: 87 83 78;
+    --sand-700: 68 64 60;
+    --sand-800: 41 37 36;
+    --sand-900: 28 25 23;
+    --sand-950: 12 10 9;
+
+    /* ── Layer 2: semantic aliases ─────────────────────────────────── */
+
+    /* Brand */
+    --color-primary: var(--brand-700);
+    /* brand-800, not brand-600: hover must DARKEN. White-on-brand-600 is
+       4.10:1, which fails WCAG AA for the text-sm labels these buttons use.
+       brand-800 gives 7.56:1. */
+    --color-primary-hover: var(--brand-800);
+    --color-primary-on-dark: var(--brand-500);
+    --color-primary-tint: var(--brand-50);
+    --color-primary-tint-border: var(--brand-200);
+
+    /* Surfaces */
+    --color-background: var(--ink-50);
+    --color-surface: 255 255 255;
+    --color-surface-sunken: var(--ink-50);
+    --color-surface-inverted: var(--ink-900);
+    --color-surface-inverted-deep: var(--ink-950);
+
+    /* Text */
+    --color-text-primary: var(--ink-900);
+    --color-text-body: var(--ink-600);
+    --color-text-muted: var(--ink-500);
+    --color-text-subtle: var(--ink-400);
+    --color-text-inverted: 255 255 255;
+    --color-text-on-inverted-body: var(--ink-300);
+
+    /* Lines */
+    --color-border: var(--ink-200);
+    --color-border-subtle: var(--ink-100);
+    --color-border-strong: var(--ink-300);
+    --color-border-hover: var(--brand-300);
+
+    /* Status */
+    --color-success: var(--success-600);
+    --color-success-tint: var(--success-50);
+    --color-warning: var(--warning-600);
+    --color-warning-tint: var(--warning-50);
+    --color-danger: var(--danger-600);
+    --color-danger-tint: var(--danger-50);
+    --color-info: var(--info-600);
+    --color-info-tint: var(--info-50);
+  }
+}
+
+@layer base {
+  :root {
+    /* Invoicium design system — Trust & Authority (design-system/invoicium/MASTER.md) */
+    --background: 204 100% 97%;
+    --foreground: 202 80% 24%;
+    --card: 0 0% 100%;
+    --card-foreground: 202 80% 24%;
+    --popover: 0 0% 100%;
+    --popover-foreground: 202 80% 24%;
+    --primary: 201 96% 32%;
+    --primary-foreground: 0 0% 100%;
+    --secondary: 199 89% 48%;
+    --secondary-foreground: 222 47% 11%;
+    --muted: 206 6% 93%;
+    --muted-foreground: 215 19% 35%;
+    --accent: 142 76% 36%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 72% 51%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 198 93% 82%;
+    --input: 198 93% 82%;
+    --ring: 201 96% 32%;
+    --radius: 0.625rem;
+
+    --sidebar-background: 210 40% 8%;
+    --sidebar-foreground: 204 40% 75%;
+    --sidebar-primary: 199 89% 48%;
+    --sidebar-primary-foreground: 210 40% 8%;
+    --sidebar-accent: 210 30% 14%;
+    --sidebar-accent-foreground: 204 60% 88%;
+    --sidebar-border: 210 25% 16%;
+    --sidebar-ring: 199 89% 48%;
+  }
+
+  .dark {
+    --background: 210 40% 6%;
+    --foreground: 204 60% 92%;
+    --card: 210 35% 10%;
+    --card-foreground: 204 60% 92%;
+    --popover: 210 35% 10%;
+    --popover-foreground: 204 60% 92%;
+    --primary: 199 89% 55%;
+    --primary-foreground: 210 40% 8%;
+    --secondary: 210 30% 16%;
+    --secondary-foreground: 204 60% 90%;
+    --muted: 210 30% 14%;
+    --muted-foreground: 214 20% 65%;
+    --accent: 142 60% 45%;
+    --accent-foreground: 0 0% 100%;
+    --destructive: 0 63% 55%;
+    --destructive-foreground: 0 0% 100%;
+    --border: 210 25% 20%;
+    --input: 210 25% 20%;
+    --ring: 199 89% 55%;
+
+    --sidebar-background: 210 45% 4%;
+    --sidebar-foreground: 204 40% 75%;
+    --sidebar-primary: 199 89% 55%;
+    --sidebar-primary-foreground: 210 40% 8%;
+    --sidebar-accent: 210 30% 12%;
+    --sidebar-accent-foreground: 204 60% 88%;
+    --sidebar-border: 210 25% 14%;
+    --sidebar-ring: 199 89% 55%;
+  }
+}
+
+@layer base {
+  * {
+    border-color: hsl(var(--border));
+  }
+
+  html {
+    text-rendering: optimizeLegibility;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    font-family:
+      "Inter",
+      ui-sans-serif,
+      system-ui,
+      -apple-system,
+      sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    font-feature-settings:
+      "rlig" 1,
+      "calt" 1,
+      "ss01" 1;
+    letter-spacing: -0.011em;
+    /* Ambient blur fields are wider than the viewport on mobile. `clip` (not
+       `hidden`) contains them without creating a scroll container, so the
+       sticky header keeps working. */
+    overflow-x: clip;
+  }
+
+  .dark body {
+    background-color: hsl(var(--background));
+  }
+
+  h1,
+  h2,
+  h3,
+  h4 {
+    letter-spacing: -0.02em;
+  }
+
+  button {
+    cursor: pointer;
+  }
+
+  button:focus-visible,
+  a:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  textarea:focus-visible {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+}
+
+@layer components {
+  /* ─── Dropdown / Menu ──────────────────────────────────────── */
+  [data-radix-popper-content-wrapper] {
+    z-index: 50;
+  }
+
+  .dropdown-content,
+  [role="menu"],
+  [role="listbox"],
+  .popover-content,
+  [data-radix-popper-content-wrapper] > div {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+    box-shadow:
+      0 0 0 1px hsl(0 0% 0% / 0.04),
+      0 4px 6px -1px hsl(0 0% 0% / 0.07),
+      0 10px 20px -5px hsl(0 0% 0% / 0.08);
+    min-width: 8rem;
+    padding: 0.25rem;
+  }
+
+  .dark .dropdown-content,
+  .dark [role="menu"],
+  .dark [role="listbox"],
+  .dark .popover-content,
+  .dark [data-radix-popper-content-wrapper] > div {
+    box-shadow:
+      0 0 0 1px hsl(0 0% 0% / 0.3),
+      0 4px 8px -2px hsl(0 0% 0% / 0.4),
+      0 12px 24px -6px hsl(0 0% 0% / 0.4);
+  }
+
+  [role="menuitem"],
+  [role="option"],
+  .dropdown-item {
+    position: relative;
+    display: flex;
+    cursor: default;
+    user-select: none;
+    align-items: center;
+    border-radius: calc(var(--radius) - 3px);
+    padding: 0.4rem 0.6rem;
+    font-size: 0.875rem;
+    outline: none;
+    transition:
+      background-color 0.1s ease,
+      color 0.1s ease;
+    color: hsl(var(--popover-foreground));
+  }
+
+  [role="menuitem"]:hover,
+  [role="menuitem"]:focus,
+  [role="option"]:hover,
+  [role="option"]:focus,
+  .dropdown-item:hover,
+  .dropdown-item:focus {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+
+  [role="menuitem"][data-highlighted],
+  [role="option"][data-highlighted] {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+
+  [role="menuitem"] svg,
+  [role="option"] svg,
+  .dropdown-item svg {
+    width: 0.875rem;
+    height: 0.875rem;
+    margin-right: 0.5rem;
+    opacity: 0.7;
+  }
+
+  [role="separator"],
+  .dropdown-separator {
+    height: 1px;
+    background-color: hsl(var(--border));
+    margin: 0.25rem -0.25rem;
+  }
+
+  /* ─── Select ───────────────────────────────────────────────── */
+  .select-content {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+  }
+
+  .select-item {
+    padding: 0.5rem 0.625rem;
+    cursor: pointer;
+    border-radius: calc(var(--radius) - 3px);
+  }
+
+  .select-item:hover {
+    background-color: hsl(var(--accent));
+  }
+
+  /* ─── Command palette ──────────────────────────────────────── */
+  [cmdk-root] {
+    background-color: hsl(var(--popover));
+    color: hsl(var(--popover-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: var(--radius);
+  }
+
+  [cmdk-item] {
+    padding: 0.5rem 0.625rem;
+    border-radius: calc(var(--radius) - 3px);
+  }
+
+  [cmdk-item][data-selected="true"] {
+    background-color: hsl(var(--accent));
+    color: hsl(var(--accent-foreground));
+  }
+
+  /* ─── Tables ───────────────────────────────────────────────── */
+  table {
+    width: 100%;
+    text-align: left;
+    font-size: 0.875rem;
+    border-collapse: collapse;
+  }
+
+  thead {
+    background-color: hsl(var(--muted));
+  }
+
+  .dark thead {
+    background-color: hsl(var(--muted));
+  }
+
+  th {
+    font-weight: 600;
+    font-size: 0.75rem;
+    letter-spacing: 0.04em;
+    text-transform: uppercase;
+    color: hsl(var(--muted-foreground));
+    padding: 0.75rem 1.25rem;
+  }
+
+  td {
+    padding: 0.875rem 1.25rem;
+    border-bottom: 1px solid hsl(var(--border));
+    vertical-align: middle;
+  }
+
+  tr:last-child td {
+    border-bottom: none;
+  }
+
+  tbody tr:hover {
+    background-color: hsl(var(--muted) / 0.6);
+  }
+
+  .dark tbody tr:hover {
+    background-color: hsl(var(--accent) / 0.4);
+  }
+
+  /* ─── Badges ───────────────────────────────────────────────── */
+  .badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.25rem;
+    border-radius: 9999px;
+    padding: 0.2rem 0.625rem;
+    font-size: 0.75rem;
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    transition: background-color 0.15s ease;
+  }
+
+  .badge-primary {
+    background-color: hsl(var(--primary) / 0.12);
+    color: hsl(var(--primary));
+    border: 1px solid hsl(var(--primary) / 0.2);
+  }
+
+  .badge-secondary {
+    background-color: hsl(var(--secondary));
+    color: hsl(var(--secondary-foreground));
+  }
+
+  .badge-outline {
+    border: 1px solid hsl(var(--border));
+    color: hsl(var(--foreground));
+  }
+
+  .badge-destructive {
+    background-color: hsl(var(--destructive) / 0.1);
+    color: hsl(var(--destructive));
+    border: 1px solid hsl(var(--destructive) / 0.2);
+  }
+
+  .badge-sent {
+    background-color: hsl(214 89% 52% / 0.1);
+    color: hsl(214 89% 45%);
+    border: 1px solid hsl(214 89% 52% / 0.2);
+  }
+
+  .dark .badge-sent {
+    color: hsl(214 89% 65%);
+    background-color: hsl(214 89% 52% / 0.15);
+  }
+
+  .badge-approved {
+    background-color: hsl(152 69% 38% / 0.1);
+    color: hsl(152 69% 30%);
+    border: 1px solid hsl(152 69% 38% / 0.2);
+  }
+
+  .dark .badge-approved {
+    color: hsl(152 69% 55%);
+    background-color: hsl(152 69% 38% / 0.15);
+  }
+
+  .badge-draft {
+    background-color: hsl(215 14% 50% / 0.1);
+    color: hsl(215 14% 40%);
+    border: 1px solid hsl(215 14% 50% / 0.2);
+  }
+
+  .dark .badge-draft {
+    color: hsl(215 14% 65%);
+    background-color: hsl(215 14% 50% / 0.12);
+  }
+
+  .badge-expired {
+    background-color: hsl(0 84% 60% / 0.1);
+    color: hsl(0 84% 50%);
+    border: 1px solid hsl(0 84% 60% / 0.2);
+  }
+
+  .dark .badge-expired {
+    color: hsl(0 84% 68%);
+    background-color: hsl(0 84% 60% / 0.12);
+  }
+
+  /* ─── Form inputs ──────────────────────────────────────────── */
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]),
+  textarea,
+  select {
+    background-color: hsl(var(--background));
+    color: hsl(var(--foreground));
+    border: 1px solid hsl(var(--input));
+    border-radius: calc(var(--radius) - 1px);
+    padding: 0.5rem 0.75rem;
+    font-size: 0.875rem;
+    transition:
+      border-color 0.15s ease,
+      box-shadow 0.15s ease;
+    outline: none;
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
+  textarea:hover,
+  select:hover {
+    border-color: hsl(var(--muted-foreground) / 0.5);
+  }
+
+  input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+  textarea:focus,
+  select:focus {
+    border-color: hsl(var(--ring) / 0.6);
+    box-shadow: 0 0 0 3px hsl(var(--ring) / 0.12);
+  }
+
+  /* ─── Cards ────────────────────────────────────────────────── */
+  .card {
+    background-color: hsl(var(--card));
+    color: hsl(var(--card-foreground));
+    border: 1px solid hsl(var(--border));
+    border-radius: calc(var(--radius) + 4px);
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.04),
+      0 2px 4px hsl(0 0% 0% / 0.03);
+  }
+
+  .dark .card {
+    box-shadow:
+      0 1px 2px hsl(0 0% 0% / 0.3),
+      0 2px 8px hsl(0 0% 0% / 0.2);
+    border-color: hsl(var(--border));
+  }
+
+  /* ─── Page container standard ──────────────────────────────── */
+  .page-container {
+    max-width: 72rem;
+    margin-left: auto;
+    margin-right: auto;
+    padding-left: 1rem;
+    padding-right: 1rem;
+    padding-top: 1.5rem;
+    padding-bottom: 2rem;
+  }
+
+  @media (min-width: 640px) {
+    .page-container {
+      padding-left: 1.5rem;
+      padding-right: 1.5rem;
+      padding-top: 2rem;
+    }
+  }
+
+  @media (min-width: 1024px) {
+    .page-container {
+      padding-left: 2rem;
+      padding-right: 2rem;
+      padding-top: 2.5rem;
+    }
+  }
+}
+
+@layer utilities {
+  .scrollbar-hide {
+    -ms-overflow-style: none;
+    scrollbar-width: none;
+  }
+  .scrollbar-hide::-webkit-scrollbar {
+    display: none;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar {
+    width: 5px;
+    height: 5px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb {
+    background: hsl(var(--muted-foreground) / 0.25);
+    border-radius: 99px;
+  }
+
+  .custom-scrollbar::-webkit-scrollbar-thumb:hover {
+    background: hsl(var(--muted-foreground) / 0.4);
+  }
+
+  .animate-in {
+    animation: animateIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
+  }
+
+  .animate-out {
+    animation: animateOut 0.14s ease-in;
+  }
+
+  @keyframes animateIn {
+    from {
+      opacity: 0;
+      transform: scale(0.97) translateY(-3px);
+    }
+    to {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+  }
+
+  @keyframes animateOut {
+    from {
+      opacity: 1;
+      transform: scale(1) translateY(0);
+    }
+    to {
+      opacity: 0;
+      transform: scale(0.97) translateY(-3px);
+    }
+  }
+
+  .backdrop-blur-modal {
+    backdrop-filter: blur(8px);
+    background-color: hsl(0 0% 0% / 0.35);
+  }
+
+  .ring-focus {
+    outline: 2px solid hsl(var(--ring));
+    outline-offset: 2px;
+  }
+
+  .text-balance {
+    text-wrap: balance;
+  }
+
+  .bg-page {
+    background-color: hsl(210 20% 97%);
+  }
+
+  .dark .bg-page {
+    background-color: hsl(var(--background));
+  }
+}
+
+/* ==========================================================================
+   Auth page entrance choreography (Login / Register)
+   --------------------------------------------------------------------------
+   Written as plain CSS rather than tailwind.config keyframes because the
+   markup uses bare state classes (.animate-element + .animate-delay-N) that
+   compose, which Tailwind 3's `animation` theme key can't express.
+   Elements start blurred + offset; `forwards` holds the settled end state.
+   ========================================================================== */
+
+@keyframes fadeSlideIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px);
+  }
+}
+
+@keyframes slideRightIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateX(0px);
+  }
+}
+
+@keyframes testimonialIn {
+  to {
+    opacity: 1;
+    filter: blur(0px);
+    transform: translateY(0px) scale(1);
+  }
+}
+
+@layer utilities {
+  .animate-element {
+    opacity: 0;
+    filter: blur(4px);
+    transform: translateY(14px);
+    animation: fadeSlideIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-slide-right {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateX(36px);
+    animation: slideRightIn 0.9s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-testimonial {
+    opacity: 0;
+    filter: blur(6px);
+    transform: translateY(18px) scale(0.96);
+    animation: testimonialIn 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+  }
+
+  .animate-delay-100 {
+    animation-delay: 100ms;
+  }
+  .animate-delay-200 {
+    animation-delay: 200ms;
+  }
+  .animate-delay-300 {
+    animation-delay: 300ms;
+  }
+  .animate-delay-400 {
+    animation-delay: 400ms;
+  }
+  .animate-delay-500 {
+    animation-delay: 500ms;
+  }
+  .animate-delay-600 {
+    animation-delay: 600ms;
+  }
+  .animate-delay-700 {
+    animation-delay: 700ms;
+  }
+  .animate-delay-800 {
+    animation-delay: 800ms;
+  }
+  .animate-delay-900 {
+    animation-delay: 900ms;
+  }
+  .animate-delay-1000 {
+    animation-delay: 1000ms;
+  }
+  .animate-delay-1200 {
+    animation-delay: 1200ms;
+  }
+  .animate-delay-1400 {
+    animation-delay: 1400ms;
+  }
+
+  /* Checkbox styled to the brand token instead of the UA default blue. */
+  .custom-checkbox {
+    appearance: none;
+    -webkit-appearance: none;
+    width: 1.05rem;
+    height: 1.05rem;
+    flex-shrink: 0;
+    border-radius: 0.375rem;
+    border: 1px solid rgb(var(--color-border-strong));
+    background-color: rgb(var(--color-surface));
+    cursor: pointer;
+    transition:
+      background-color 0.15s ease,
+      border-color 0.15s ease;
+  }
+
+  .custom-checkbox:checked {
+    background-color: rgb(var(--color-primary));
+    border-color: rgb(var(--color-primary));
+    background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 16 16' fill='none' stroke='white' stroke-width='2.5' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpolyline points='3.5 8.5 6.5 11.5 12.5 4.5'/%3E%3C/svg%3E");
+    background-size: 100% 100%;
+  }
+
+  .custom-checkbox:focus-visible {
+    outline: 2px solid rgb(var(--color-primary));
+    outline-offset: 2px;
+  }
+}
+
+/* Respect the OS "reduce motion" setting — show the settled state immediately. */
+@media (prefers-reduced-motion: reduce) {
+  .animate-element,
+  .animate-slide-right,
+  .animate-testimonial {
+    animation: none;
+    opacity: 1;
+    filter: none;
+    transform: none;
+  }
+}

@@ -1,0 +1,16 @@
+User-agent: *
+Allow: /
+
+# Private app routes - no value indexing these
+Disallow: /Dashboard
+Disallow: /Invoices
+Disallow: /Quotes
+Disallow: /Clients
+Disallow: /Expenses
+Disallow: /Reports
+Disallow: /Settings
+Disallow: /PaymentSuccess
+Disallow: /PublicQuote
+Disallow: /PublicBooking
+
+Sitemap: https://invoicium.ca/sitemap.xml
