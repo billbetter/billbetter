@@ -35,6 +35,13 @@ import GlobalVoiceAssistant from "./components/voice/GlobalVoiceAssistant";
 import NotificationPermissionPrompt from "./components/notifications/NotificationPermissionPrompt";
 import NotificationBell from "./components/notifications/NotificationBell";
 
+// Statuses that grant access to the app. Defined once: this test previously
+// existed as three separate inline copies, and any one of them drifting would
+// silently lock paying users out of a page.
+const LIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trial", "trialing"]);
+const isLiveSubscription = (sub) =>
+  !!sub && LIVE_SUBSCRIPTION_STATUSES.has(sub.status);
+
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -94,6 +101,31 @@ export default function Layout({ children, currentPageName }) {
     checkAuthAndSubscription();
   }, []); // Only check auth once on mount, not on every route change
 
+  // The mount-only check above cannot re-run on navigation -- it redirects to
+  // login and would fight the router. But the subscription is created AFTER
+  // Layout has mounted: checkout activates it, then navigates client-side, so
+  // Layout kept the `null` it read at mount and the gate below bounced the user
+  // straight back to Pricing. Re-read it on route change, but only while access
+  // is not yet granted, so ordinary in-app navigation costs no extra queries.
+  useEffect(() => {
+    if (!user || isLiveSubscription(subscription)) return;
+    let cancelled = false;
+    (async () => {
+      try {
+        const rows = await sdk.entities.Subscription.filter({
+          user_id: user.id,
+        });
+        if (!cancelled && rows.length > 0) setSubscription(rows[0]);
+      } catch {
+        // Keep the last known value. A transient query failure must never be
+        // the reason someone loses access to the app they paid for.
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, subscription, location.pathname]);
+
   useEffect(() => {
     // Only load settings if user is authenticated and we've checked employee status
     if (user && !loading) {
@@ -115,11 +147,7 @@ export default function Layout({ children, currentPageName }) {
         // LOGGED IN - but an account alone does not grant access. Without a
         // live subscription send them to Pricing to choose a plan; feature
         // gates within pages then handle plan-level restrictions.
-        const hasLiveSubscription =
-          subscription &&
-          (subscription.status === "active" ||
-            subscription.status === "trial" ||
-            subscription.status === "trialing");
+        const hasLiveSubscription = isLiveSubscription(subscription);
         if (
           !hasLiveSubscription &&
           !subscriptionExemptPages.includes(currentPageName)
@@ -359,11 +387,7 @@ export default function Layout({ children, currentPageName }) {
   // ---------- PUBLIC LAYOUT ----------
   if (isPublicPage) {
     const isLoggedIn = !!user;
-    const hasActiveSub =
-      subscription &&
-      (subscription.status === "active" ||
-        subscription.status === "trial" ||
-        subscription.status === "trialing");
+    const hasActiveSub = isLiveSubscription(subscription);
 
     return (
       /* audit:light-only:start — the signed-out marketing shell renders for
