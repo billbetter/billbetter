@@ -39,11 +39,6 @@ dist-ssr
 .vercel
 .env*
 
-# Legacy deploy scripts with hardcoded live credentials (target the dead
-# rtflrrugewkphoxukymw project). Kept on disk, never committed.
-scripts/deploy-secrets.py
-scripts/deploy-functions.py
-scripts/apply-schema.py
-scripts/deploy-test.py
-scripts/fix-table-names.py
-scripts/test_api.py
+# Python
+__pycache__/
+*.pyc

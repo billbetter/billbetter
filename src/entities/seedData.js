@@ -4,7 +4,7 @@ const OWNER_USER_ID = "usr_owner_001";
 
 const ownerUser = {
   id: OWNER_USER_ID,
-  email: "james.miller@axisdemo.com",
+  email: "james.miller@millerrenovations.com",
   full_name: "James Miller",
   onboarding_completed: true,
   role: "admin",
@@ -218,8 +218,8 @@ const jobMaterials = [
 ];
 
 const jobNotes = [
-  { id: "jn_001", job_id: "job_003", user_id: OWNER_USER_ID, user_name: "James Miller", user_email: "james.miller@axisdemo.com", content: "Countertops delayed by 3 days. Client notified.", note_type: "general" },
-  { id: "jn_002", job_id: "job_001", user_id: OWNER_USER_ID, user_name: "James Miller", user_email: "james.miller@axisdemo.com", content: "Final punch list complete. Client signed off.", note_type: "completion" },
+  { id: "jn_001", job_id: "job_003", user_id: OWNER_USER_ID, user_name: "James Miller", user_email: "james.miller@millerrenovations.com", content: "Countertops delayed by 3 days. Client notified.", note_type: "general" },
+  { id: "jn_002", job_id: "job_001", user_id: OWNER_USER_ID, user_name: "James Miller", user_email: "james.miller@millerrenovations.com", content: "Final punch list complete. Client signed off.", note_type: "completion" },
 ];
 
 const recurringInvoices = [
