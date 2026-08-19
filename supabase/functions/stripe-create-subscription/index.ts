@@ -67,8 +67,10 @@ Deno.serve(async (req) => {
       'metadata[user_id]': user.id,
       'metadata[plan_name]': plan_name,
       'metadata[billing_cycle]': billing_cycle || 'monthly',
-      'expand[0]': 'latest_invoice.payment_intent',
+      'expand[0]': 'latest_invoice.confirmation_secret',
       'expand[1]': 'pending_setup_intent',
+      // Legacy field, for accounts still pinned to a pre-Basil API version.
+      'expand[2]': 'latest_invoice.payment_intent',
     };
 
     if (trialEligible) {
@@ -81,11 +83,20 @@ Deno.serve(async (req) => {
 
     const subscription = await stripeCall('POST', '/subscriptions', params);
 
-    // Paid start -> PaymentIntent on the first invoice. Trial start -> no
-    // invoice to pay, so Stripe attaches a SetupIntent instead.
-    const paymentIntent = subscription?.latest_invoice?.payment_intent;
+    // Paid start -> the first invoice carries the secret. Trial start -> nothing
+    // to pay today, so Stripe attaches a SetupIntent instead.
+    //
+    // Stripe removed invoice.payment_intent in API version 2025-03-31.basil.
+    // This account is on 2026-04-22.dahlia, where the secret arrives as
+    // latest_invoice.confirmation_secret; reading the old field returned
+    // undefined, so every paid checkout failed while the subscription had
+    // already been created. The old path stays as a fallback.
+    const invoice = subscription?.latest_invoice;
+    const invoiceSecret =
+      invoice?.confirmation_secret?.client_secret ||
+      invoice?.payment_intent?.client_secret;
     const setupIntent = subscription?.pending_setup_intent;
-    const clientSecret = paymentIntent?.client_secret || setupIntent?.client_secret;
+    const clientSecret = invoiceSecret || setupIntent?.client_secret;
 
     if (!clientSecret) {
       throw new Error('Stripe did not return a client secret for this subscription');
@@ -96,7 +107,7 @@ Deno.serve(async (req) => {
         subscription_id: subscription.id,
         customer_id: customerId,
         client_secret: clientSecret,
-        mode: paymentIntent ? 'payment' : 'setup',
+        mode: invoiceSecret ? 'payment' : 'setup',
         is_trial: trialEligible,
       }),
       { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
