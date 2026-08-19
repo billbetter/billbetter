@@ -76,10 +76,18 @@ grant execute on function public.has_app_access(uuid) to authenticated, service_
 --
 --    with check is set explicitly. The old policies omitted it, which means
 --    INSERT fell back to the using expression -- correct, but implicit.
+--
+--    Old policies are dropped by LOOKING THEM UP in pg_policies, not by
+--    reconstructing their names. The live names are pluralised ("Users can
+--    CRUD own Clients") while the table is singular ("Client"), so a
+--    drop-by-guessed-name silently matched nothing -- and because permissive
+--    policies are OR'd together, the surviving ungated policy would have kept
+--    granting access while this migration reported success. Never guess a
+--    policy name; ask the catalog.
 -- ---------------------------------------------------------------------------
 do $$
 declare
-  t record;
+  pol text;
   tables constant text[] := array[
     'Client', 'Invoice', 'Quote', 'Job', 'JobMaterial', 'JobNote', 'JobPhoto',
     'InvoiceTemplate', 'RecurringInvoice', 'Receipt',
@@ -100,8 +108,13 @@ begin
       continue;
     end if;
 
-    execute format('drop policy if exists %I on %s', 'Users can CRUD own ' || tbl, reg);
-    execute format('drop policy if exists %I on %s', tbl || ' access', reg);
+    for pol in select policyname from pg_policies
+                where schemaname = 'public'
+                  and tablename in (tbl, lower(tbl))
+    loop
+      execute format('drop policy if exists %I on %s', pol, reg);
+      raise notice 'dropped % on %', pol, reg;
+    end loop;
     execute format(
       'create policy %I on %s for all
          using (auth.uid() = user_id and public.has_app_access(auth.uid()))
@@ -115,12 +128,17 @@ end $$;
 -- These two carry a different ownership column / expression, so they are
 -- written out rather than looped, to avoid guessing at their semantics.
 do $$
-declare reg text;
+declare
+  reg text;
+  pol text;
 begin
   reg := to_regclass('public."CrewInvite"')::text;
   if reg is not null then
-    execute format('drop policy if exists %I on %s', 'Users can CRUD own CrewInvites', reg);
-    execute format('drop policy if exists %I on %s', 'CrewInvite access', reg);
+    for pol in select policyname from pg_policies
+                where schemaname = 'public' and tablename = 'CrewInvite'
+    loop
+      execute format('drop policy if exists %I on %s', pol, reg);
+    end loop;
     execute format(
       'create policy "CrewInvite access" on %s for all
          using (auth.uid() = owner_id and public.has_app_access(auth.uid()))
@@ -131,9 +149,11 @@ begin
 
   reg := to_regclass('public."EmployeeProfile"')::text;
   if reg is not null then
-    execute format('drop policy if exists %I on %s',
-                   'Users can view EmployeeProfiles they own or belong to', reg);
-    execute format('drop policy if exists %I on %s', 'EmployeeProfile access', reg);
+    for pol in select policyname from pg_policies
+                where schemaname = 'public' and tablename = 'EmployeeProfile'
+    loop
+      execute format('drop policy if exists %I on %s', pol, reg);
+    end loop;
     execute format(
       'create policy "EmployeeProfile access" on %s for all
          using ((auth.uid() = user_id or auth.uid() = owner_id) and public.has_app_access(auth.uid()))
