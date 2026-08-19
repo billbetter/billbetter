@@ -458,9 +458,9 @@ export default function CreateQuote() {
 
       const [clientData, settingsData, subscriptionData, specialtyData] =
         await Promise.all([
-          sdk.entities.Client.filter({ user_id: user.id }, "-created_date"),
-          sdk.entities.BusinessSettings.filter({ user_id: user.id }),
-          sdk.entities.Subscription.filter({ user_id: user.id }),
+          sdk.entities.Client.filter({ user_id: currentUser.id }, "-created_date"),
+          sdk.entities.BusinessSettings.filter({ user_id: currentUser.id }),
+          sdk.entities.Subscription.filter({ user_id: currentUser.id }),
           sdk.entities.UserSpecialty.filter({ user_id: currentUser.id }),
         ]);
       setClients(clientData);
@@ -673,9 +673,6 @@ Provide line items in this format.`,
 
     try {
       const quoteNumber = `QTE-${Date.now().toString().slice(-6)}`;
-
-      const creatorProfile =
-        creatorProfileData.length > 0 ? creatorProfileData[0] : null;
 
       let createdQuote;
       if (editMode && editId) {

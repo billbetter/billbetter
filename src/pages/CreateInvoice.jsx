@@ -517,13 +517,13 @@ export default function CreateInvoice() {
         subscriptionData,
         specialtyData,
       ] = await Promise.all([
-        sdk.entities.Client.filter({ user_id: user.id }, "-created_date"),
-        sdk.entities.BusinessSettings.filter({ user_id: user.id }),
+        sdk.entities.Client.filter({ user_id: currentUser.id }, "-created_date"),
+        sdk.entities.BusinessSettings.filter({ user_id: currentUser.id }),
         sdk.entities.InvoiceTemplate.filter(
-          { user_id: user.id },
+          { user_id: currentUser.id },
           "-created_date",
         ),
-        sdk.entities.Subscription.filter({ user_id: user.id }),
+        sdk.entities.Subscription.filter({ user_id: currentUser.id }),
         sdk.entities.UserSpecialty.filter({ user_id: currentUser.id }),
       ]);
 
