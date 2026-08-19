@@ -233,10 +233,22 @@ Deno.serve(async (req) => {
       await db.insert('Subscription', subData);
     }
 
-    // Notify only on a NEW trial. An `existing` row means they already had a
-    // plan, so this is an upgrade or renewal -- the webhook's
-    // subscription.updated handler covers that and would otherwise double-send.
+    // Plan display name: the ids are lowercase slugs ('enterprise').
+    const pretty = (id?: string | null) =>
+      id ? id.charAt(0).toUpperCase() + id.slice(1) : '';
+
+    // Upgrade vs downgrade is decided by the transaction allowance, which is
+    // the only ordering the plans actually carry.
+    const rank = (id?: string | null) =>
+      id && PLAN_LIMITS[id] ? PLAN_LIMITS[id].transactions : -1;
+
     // Awaited but never throws (see notify.ts), so it cannot fail activation.
+    //
+    // A plan change is notified HERE rather than from the webhook. An earlier
+    // version assumed customer.subscription.updated would cover it; it cannot.
+    // That event carries Stripe price ids, not our plan slugs, so the webhook
+    // has no way to say what someone moved from and to -- it saw active ->
+    // active and stayed silent, which is why plan changes sent nothing at all.
     if (isTrial && !existing) {
       await notify.trialStarted({
         userEmail: user.email || '',
@@ -244,6 +256,18 @@ Deno.serve(async (req) => {
         planName,
         trialEndDate: trialEnd,
         dashboardUrl: `${Deno.env.get('APP_BASE_URL') || 'https://www.invoicium.ca'}/Dashboard`,
+      });
+    } else if (existing?.plan_name && existing.plan_name !== planName) {
+      await notify.subscriptionChanged({
+        userEmail: user.email || '',
+        userName: null,
+        change: rank(planName) >= rank(existing.plan_name) ? 'upgraded' : 'downgraded',
+        planName: pretty(planName),
+        previousPlanName: pretty(existing.plan_name),
+        effectiveDate: subscription.current_period_end
+          ? new Date(subscription.current_period_end * 1000).toISOString()
+          : null,
+        billingUrl: `${Deno.env.get('APP_BASE_URL') || 'https://www.invoicium.ca'}/Settings`,
       });
     }
 
