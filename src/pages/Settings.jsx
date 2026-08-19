@@ -317,11 +317,15 @@ export default function Settings() {
       if (response.data?.url) {
         window.location.href = response.data.url;
       } else {
-        throw new Error("No onboarding URL received");
+        // Edge Function failures arrive as { success: false, error } rather
+        // than throwing, so read the server's message instead of discarding it.
+        throw new Error(response.data?.error || "No onboarding URL received");
       }
     } catch (error) {
       console.error("Stripe Connect error:", error);
-      setSaveMessage("Failed to connect Stripe account. Please try again.");
+      setSaveMessage(
+        error.message || "Failed to connect Stripe account. Please try again.",
+      );
       setTimeout(() => setSaveMessage(null), 3000);
     } finally {
       setConnectingStripe(false);

@@ -12,18 +12,31 @@
 
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
 
+// `stripeAccount` issues the call against a connected account (the Stripe-Account
+// header). Connect uses this for direct charges: the charge is created on the
+// contractor's account, so they are the merchant of record, Stripe's processing
+// fee comes out of their balance, and the platform keeps only the
+// application_fee_amount. Omitting the header charges the platform instead --
+// the same request, but the money lands in a different place.
+export interface StripeOptions {
+  stripeAccount?: string;
+  idempotencyKey?: string;
+}
+
 export async function stripeRequest(
   method: string,
   path: string,
   params?: Record<string, string>,
+  options?: StripeOptions,
 ): Promise<any> {
-  const init: RequestInit = {
-    method,
-    headers: {
-      Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}`,
-      'Content-Type': 'application/x-www-form-urlencoded',
-    },
+  const headers: Record<string, string> = {
+    Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}`,
+    'Content-Type': 'application/x-www-form-urlencoded',
   };
+  if (options?.stripeAccount) headers['Stripe-Account'] = options.stripeAccount;
+  if (options?.idempotencyKey) headers['Idempotency-Key'] = options.idempotencyKey;
+
+  const init: RequestInit = { method, headers };
   if (params) init.body = new URLSearchParams(params).toString();
 
   const res = await fetch(`https://api.stripe.com/v1${path}`, init);
@@ -32,11 +45,12 @@ export async function stripeRequest(
   return data;
 }
 
-export const stripeGet = (path: string) => stripeRequest('GET', path);
-export const stripePost = (path: string, params?: Record<string, string>) =>
-  stripeRequest('POST', path, params);
-export const stripeDelete = (path: string, params?: Record<string, string>) =>
-  stripeRequest('DELETE', path, params);
+export const stripeGet = (path: string, options?: StripeOptions) =>
+  stripeRequest('GET', path, undefined, options);
+export const stripePost = (path: string, params?: Record<string, string>, options?: StripeOptions) =>
+  stripeRequest('POST', path, params, options);
+export const stripeDelete = (path: string, params?: Record<string, string>, options?: StripeOptions) =>
+  stripeRequest('DELETE', path, params, options);
 
 export type PromoResult =
   | { ok: true; id: string; code: string; coupon: Record<string, any> }
@@ -108,4 +122,35 @@ export function applyCoupon(amount: number, coupon: Record<string, any>): number
     return Math.max(0, Math.round((amount - coupon.amount_off / 100) * 100) / 100);
   }
   return amount;
+}
+
+// The one place a Stripe account object becomes the status the app stores.
+//
+// Shared so stripe-connect-status (polled by Settings) and the webhook's
+// account.updated handler can never disagree -- a contractor shown as "active"
+// by one and "pending" by the other would be told they can take payments while
+// the payment link refuses to build.
+//
+// 'active' specifically requires charges_enabled: an account that has submitted
+// details but is still under review cannot take money yet.
+export function connectAccountStatus(
+  account: Record<string, any>,
+): 'active' | 'pending' | 'restricted' {
+  if (account?.charges_enabled && account?.details_submitted) return 'active';
+  if (account?.requirements?.disabled_reason) return 'restricted';
+  return 'pending';
+}
+
+// What the platform keeps on a contractor's payment, in cents.
+//
+// The rate is the plan's payment_processing_fee (1% on most tiers, 0.75% and
+// 0.6% higher up, 0 on free) -- the "1% platform fee" the pricing page
+// advertises. Defaults to 1 when no subscription row is readable so a missing
+// row undercharges rather than charging nothing at all.
+export function applicationFeeCents(totalCents: number, feePercent: unknown): number {
+  const rate = Number(feePercent);
+  const pct = Number.isFinite(rate) && rate >= 0 ? rate : 1;
+  if (pct === 0) return 0;
+  // Never let rounding produce a fee at or above the charge itself.
+  return Math.min(Math.round(totalCents * pct / 100), Math.max(totalCents - 1, 0));
 }

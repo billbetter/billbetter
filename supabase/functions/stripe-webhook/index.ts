@@ -1,7 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserContact } from '../_shared/supabase-admin.ts';
 import { notify } from '../_shared/notify.ts';
-import { stripeGet } from '../_shared/stripe.ts';
+import { connectAccountStatus, stripeGet } from '../_shared/stripe.ts';
 
 // Mirrors PLAN_LIMITS in confirm-and-activate. A cancelled subscription drops
 // the user back to the free tier rather than leaving paid limits in place.
@@ -53,9 +53,11 @@ function describeChange(
   // Recovering from past_due is worth telling them about; an active->active
   // no-op (Stripe resends these often) is not.
   //
-  // A plan change also arrives as active->active. It is handled separately in
-  // the subscription.updated branch, which resolves the plan from Stripe --
-  // this event only carries price ids, not our plan slugs.
+  // NOTE: a plan change also arrives as active->active, and is deliberately
+  // NOT reported here -- this event carries price ids, not our plan slugs, so
+  // it cannot say what the user moved from or to. confirm-and-activate owns
+  // that notification because it knows both names. Consequence: a plan change
+  // made from the Stripe billing portal (rather than in-app) sends no email.
   if (stripeStatus === 'active') return previousStatus === 'past_due' ? 'renewed' : null;
   return null;
 }
@@ -119,17 +121,33 @@ Deno.serve(async (req) => {
 
   try {
     const raw = await req.text();
-    const secret = Deno.env.get('STRIPE_WEBHOOK_SECRET');
     const sig = req.headers.get('stripe-signature') || '';
 
-    if (!secret) {
-      console.error('stripe-webhook: STRIPE_WEBHOOK_SECRET not configured');
+    // Connect direct charges fire their events on the CONTRACTOR's account, and
+    // Stripe delivers those through a separate Connect endpoint with its own
+    // signing secret. Accept either, so one URL can serve both endpoints --
+    // otherwise every invoice payment fails signature checks and no invoice is
+    // ever marked paid.
+    const secrets = [
+      Deno.env.get('STRIPE_WEBHOOK_SECRET'),
+      Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET'),
+    ].filter(Boolean) as string[];
+
+    if (!secrets.length) {
+      console.error('stripe-webhook: no webhook signing secret configured');
       return new Response('server misconfigured', { status: 500 });
     }
     if (!sig) {
       return new Response('missing stripe-signature header', { status: 400 });
     }
-    const ok = await verifySignature(raw, sig, secret);
+
+    let ok = false;
+    for (const secret of secrets) {
+      if (await verifySignature(raw, sig, secret)) {
+        ok = true;
+        break;
+      }
+    }
     if (!ok) {
       console.warn('stripe-webhook: signature verification failed');
       return new Response('invalid signature', { status: 400 });
@@ -180,6 +198,29 @@ Deno.serve(async (req) => {
             invoiceUrl: `${APP_URL}/Invoices`,
           });
         }
+      }
+    }
+
+    // A contractor finishing (or failing) Express onboarding. Without this the
+    // stored status only refreshes while someone sits on the Settings page, so
+    // an account that goes live -- or gets restricted later for missing
+    // documents -- would keep the status it had at that moment.
+    if (event.type === 'account.updated') {
+      const account = event.data.object;
+      const row = await db.findOne('BusinessSettings', { stripe_account_id: account.id });
+      if (row) {
+        const status = connectAccountStatus(account);
+        if (
+          row.stripe_account_status !== status ||
+          Boolean(row.stripe_onboarding_completed) !== (status === 'active')
+        ) {
+          await db.update('BusinessSettings', row.id, {
+            stripe_account_status: status,
+            stripe_onboarding_completed: status === 'active',
+          });
+        }
+      } else {
+        console.warn('account.updated: no settings row for', account.id);
       }
     }
 

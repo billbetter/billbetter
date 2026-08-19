@@ -38,6 +38,8 @@ FUNCTIONS = [
     ('stripe-create-session', True),
     ('stripe-create-subscription', True),
     ('stripe-validate-promo', True),
+    ('stripe-connect-onboard', True),
+    ('stripe-connect-status', True),
     ('confirm-and-activate', True),
 
     # Called by an external service, so no user JWT is available.

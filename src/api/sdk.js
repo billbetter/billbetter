@@ -173,23 +173,25 @@ async function normalizeSendPayload(name, payload) {
 
 async function handleFunctionInvoke(name, payload = {}) {
   const realEdgeFunctions = {
-    generateInvoicePDF: 'generate-invoice-pdf',
-    generateQuotePDF: 'generate-quote-pdf',
-    sendInvoiceEmail: 'send-invoice-email',
-    sendQuoteEmail: 'send-quote-email',
-    sendInvoiceSMS: 'send-invoice-sms',
-    sendQuoteSMS: 'send-quote-sms',
-    createInvoicePaymentLink: 'create-invoice-payment-link',
-    connectGoogleCalendar: 'google-calendar-auth-url',
-    syncJobToGoogleCalendar: 'google-calendar-sync-job',
-    fetchGoogleCalendarEvents: 'google-calendar-events',
-    checkOverdueInvoices: 'check-overdue-invoices',
-    sendTestAnalyticsEmail: 'send-test-analytics-email',
-    stripeCreateSession: 'stripe-create-session',
-    getStripeCustomerPortal: 'stripe-customer-portal',
-    stripeCreateSubscription: 'stripe-create-subscription',
-    stripeValidatePromo: 'stripe-validate-promo',
-    confirmAndActivate: 'confirm-and-activate',
+    generateInvoicePDF: "generate-invoice-pdf",
+    generateQuotePDF: "generate-quote-pdf",
+    sendInvoiceEmail: "send-invoice-email",
+    sendQuoteEmail: "send-quote-email",
+    sendInvoiceSMS: "send-invoice-sms",
+    sendQuoteSMS: "send-quote-sms",
+    createInvoicePaymentLink: "create-invoice-payment-link",
+    connectGoogleCalendar: "google-calendar-auth-url",
+    syncJobToGoogleCalendar: "google-calendar-sync-job",
+    fetchGoogleCalendarEvents: "google-calendar-events",
+    checkOverdueInvoices: "check-overdue-invoices",
+    sendTestAnalyticsEmail: "send-test-analytics-email",
+    stripeCreateSession: "stripe-create-session",
+    getStripeCustomerPortal: "stripe-customer-portal",
+    stripeCreateSubscription: "stripe-create-subscription",
+    stripeValidatePromo: "stripe-validate-promo",
+    createStripeConnectAccount: "stripe-connect-onboard",
+    checkStripeStatus: "stripe-connect-status",
+    confirmAndActivate: "confirm-and-activate",
   };
 
   // Only invoice/quote send functions need the client-contact normalizer. Crew
@@ -220,7 +222,11 @@ async function handleFunctionInvoke(name, payload = {}) {
         // message is in the untouched Response on error.context. Read it, or
         // the user sees boilerplate instead of "That promo code is not valid."
         let payload = data;
-        if (!payload && error.context && typeof error.context.json === 'function') {
+        if (
+          !payload &&
+          error.context &&
+          typeof error.context.json === "function"
+        ) {
           try {
             payload = await error.context.json();
           } catch {
@@ -229,7 +235,9 @@ async function handleFunctionInvoke(name, payload = {}) {
         }
         const serverMsg = payload?.error || error.message || String(error);
         console.error(`Edge function ${name} failed:`, serverMsg, payload);
-        return { data: { success: false, ...(payload || {}), error: serverMsg } };
+        return {
+          data: { success: false, ...(payload || {}), error: serverMsg },
+        };
       }
       if (data && data.error) {
         return { data: { success: false, error: data.error } };
@@ -394,15 +402,10 @@ async function handleFunctionInvoke(name, payload = {}) {
   if (
     name === "stripeCreateSession" ||
     name === "stripeWebhook" ||
-    name === "createStripeConnectAccount" ||
     name === "debugStripe" ||
     name === "debugStripeSession"
   ) {
     return { data: { success: true } };
-  }
-
-  if (name === "checkStripeStatus") {
-    return { data: { status: "active" } };
   }
 
   if (name === "invoicePaymentWebhook" || name === "invoicePackWebhook") {
