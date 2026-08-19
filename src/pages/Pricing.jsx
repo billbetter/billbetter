@@ -34,12 +34,6 @@ import { sdk } from "@/api/sdk";
 import { format } from "date-fns";
 import SEO from "@/components/seo/SEO";
 
-/**
- * The SDK reports Edge Function failures as { success: false, error } instead of
- * throwing, so a missing `url` surfaced as a bare "No checkout URL received"
- * that hid the real cause — most often the browser blocking the call on CORS,
- * or Stripe rejecting the price. Pull the server's own message through.
- */
 export default function Pricing() {
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState("monthly");
