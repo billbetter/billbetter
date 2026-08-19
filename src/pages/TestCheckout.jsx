@@ -17,7 +17,7 @@ export default function TestCheckout() {
       console.log("Testing createCheckoutSession...");
 
       const response = await sdk.functions.invoke("createCheckoutSession", {
-        priceId: "price_1SPvB0BeVqmwJBExAU3yZVP5", // Starter monthly
+        priceId: "price_1U60o4LvDc7eLOdr2Ef6lHeV", // Core monthly
         planName: "starter",
         billingCycle: "monthly",
       });
