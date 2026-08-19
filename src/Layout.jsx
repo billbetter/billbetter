@@ -21,6 +21,7 @@ import {
   CreditCard,
   ArrowLeft,
   Search,
+  Lock,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -84,6 +85,10 @@ export default function Layout({ children, currentPageName }) {
   // Requires a signed-in user but deliberately not a subscription -- this is
   // where someone goes to buy one, so the paywall must not bounce them off it.
   const subscriptionExemptPages = ["Checkout"];
+
+  // Rendered without the sidebar or the marketing header -- see the standalone
+  // layout branch below.
+  const standalonePages = ["Checkout"];
 
   useEffect(() => {
     checkAuthAndSubscription();
@@ -320,6 +325,36 @@ export default function Layout({ children, currentPageName }) {
       />
     );
   };
+
+  // ---------- STANDALONE LAYOUT ----------
+  // Checkout gets a page to itself. The sidebar is app furniture that invites
+  // wandering off mid-payment, and the marketing header re-pitches plans to
+  // someone already buying one.
+  if (standalonePages.includes(currentPageName)) {
+    return (
+      <div className="min-h-screen bg-surface-sunken dark:bg-ink-950">
+        <header className="w-full border-b border-line bg-surface dark:border-ink-800 dark:bg-ink-900">
+          <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
+            <button
+              onClick={() => navigate(createPageUrl("Dashboard"))}
+              className="flex items-center gap-2"
+              aria-label="Invoicium home"
+            >
+              <Logo className="w-8 h-8" />
+              <span className="text-lg font-bold text-ink-900 dark:text-white">
+                Invoicium
+              </span>
+            </button>
+            <span className="flex items-center gap-1.5 text-sm font-medium text-ink-500 dark:text-ink-400">
+              <Lock className="w-4 h-4" />
+              Secure checkout
+            </span>
+          </div>
+        </header>
+        <main>{children}</main>
+      </div>
+    );
+  }
 
   // ---------- PUBLIC LAYOUT ----------
   if (isPublicPage) {
