@@ -45,15 +45,60 @@ function sortItems(items, sort) {
   });
 }
 
+// The UI speaks base44's vocabulary (`created_date` / `updated_date`) but every
+// Postgres table uses `created_at` / `updated_at`. Nothing reconciled the two,
+// so `.order('created_date')` returned 42703 and every list view fell through
+// to an empty localStorage store -- rows were being written and then never
+// shown. Translating here keeps the fix in the one place the two vocabularies
+// actually meet, instead of in ~60 call sites.
+const REMOTE_BY_LEGACY = {
+  created_date: "created_at",
+  updated_date: "updated_at",
+};
+
+/** Map a legacy sort field to its real column. Unknown fields pass through. */
+function toRemoteField(field) {
+  return REMOTE_BY_LEGACY[field] || field;
+}
+
+/** Add legacy aliases to a row from Postgres so existing readers still work. */
+function withLegacyDates(row) {
+  if (!row || typeof row !== "object") return row;
+  const out = { ...row };
+  for (const [legacy, remote] of Object.entries(REMOTE_BY_LEGACY)) {
+    if (out[legacy] === undefined && out[remote] !== undefined) {
+      out[legacy] = out[remote];
+    }
+  }
+  return out;
+}
+
+/**
+ * Strip legacy date keys before a write. Both real columns default on insert,
+ * and sending a column that does not exist is a 400 -- so dropping them is the
+ * safe direction. Nothing currently writes these; this stops it regressing.
+ */
+function stripLegacyDates(payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  const out = { ...payload };
+  for (const legacy of Object.keys(REMOTE_BY_LEGACY)) delete out[legacy];
+  return out;
+}
+
+/**
+ * Only a genuinely missing TABLE may fall back to localStorage.
+ *
+ * This used to match the bare substring "does not exist", which also catches
+ * 42703 (undefined column), 42883 (undefined function) and every other
+ * relation error. The effect was that any schema mismatch silently degraded to
+ * an empty local store and looked to the user like their data had vanished --
+ * a real error must surface, not turn into an empty list.
+ *
+ *   PGRST205 - table not found in PostgREST's schema cache
+ *   42P01    - undefined_table
+ */
 function isMissingTableError(error) {
-  return (
-    error?.code === "PGRST204" ||
-    error?.code === "PGRST205" ||
-    error?.code === "42P01" ||
-    error?.message?.includes("does not exist") ||
-    error?.message?.includes("Could not find the table") ||
-    error?.details?.includes("does not exist")
-  );
+  return error?.code === "PGRST205" || error?.code === "42P01";
 }
 
 // Local fallback implementations
@@ -125,11 +170,11 @@ export const localDataEngine = {
     try {
       const { data, error } = await supabase
         .from(entityName)
-        .insert([payload])
+        .insert([stripLegacyDates(payload)])
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return withLegacyDates(data);
     } catch (e) {
       if (isMissingTableError(e)) {
         console.warn(`[Fallback] ${entityName} table missing, using localStorage`);
@@ -150,14 +195,14 @@ export const localDataEngine = {
       if (sort) {
         const desc = sort.startsWith("-");
         const field = desc ? sort.slice(1) : sort;
-        query = query.order(field, { ascending: !desc });
+        query = query.order(toRemoteField(field), { ascending: !desc });
       }
       if (typeof limit === "number" && limit > 0) {
         query = query.limit(limit);
       }
       const { data, error } = await query;
       if (error) throw error;
-      return data || [];
+      return (data || []).map(withLegacyDates);
     } catch (e) {
       if (isMissingTableError(e)) {
         console.warn(`[Fallback] ${entityName} table missing, using localStorage`);
@@ -175,7 +220,7 @@ export const localDataEngine = {
         .eq("id", id)
         .single();
       if (error && error.code !== "PGRST116") throw error;
-      return data || null;
+      return data ? withLegacyDates(data) : null;
     } catch (e) {
       if (isMissingTableError(e)) {
         console.warn(`[Fallback] ${entityName} table missing, using localStorage`);
@@ -189,12 +234,12 @@ export const localDataEngine = {
     try {
       const { data, error } = await supabase
         .from(entityName)
-        .update(payload)
+        .update(stripLegacyDates(payload))
         .eq("id", id)
         .select()
         .single();
       if (error) throw error;
-      return data;
+      return withLegacyDates(data);
     } catch (e) {
       if (isMissingTableError(e)) {
         console.warn(`[Fallback] ${entityName} table missing, using localStorage`);
