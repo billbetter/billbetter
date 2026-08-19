@@ -507,8 +507,15 @@ Return JSON only.`;
       }, 1500);
     } catch (e) {
       console.error("QuickBill create error:", e);
+      // Include the server's reason. A bare "please try again" sent us chasing
+      // the wrong code path for a round trip -- the real cause was a missing
+      // column, which the message had already been told and then discarded.
+      const detail = e?.message || e?.error_description || "";
       alert(
-        `Couldn't create ${isQuote ? "quote" : "invoice"}. Please try again.`,
+        `Couldn't create ${isQuote ? "quote" : "invoice"}.` +
+          (detail ? `
+
+Details: ${detail}` : " Please try again."),
       );
       setCreating(false);
       setSendStatus("idle");
