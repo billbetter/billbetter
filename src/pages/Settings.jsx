@@ -9,6 +9,8 @@ import { Label } from "@/components/ui/label";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import SettingsHub from "@/components/settings/SettingsHub";
+import { ArrowLeft } from "lucide-react";
 import {
   Select,
   SelectContent,
@@ -104,7 +106,9 @@ export default function Settings() {
   const [showCustomPreview, setShowCustomPreview] = useState(false);
   const [subscription, setSubscription] = useState(null); // New state for subscription
   const [user, setUser] = useState(null); // New state for user
-  const [activeTab, setActiveTab] = useState("business");
+  // null shows the settings hub; a tab id shows that panel. The tab values
+  // are unchanged, so every existing panel still works exactly as before.
+  const [activeTab, setActiveTab] = useState(null);
   const [showFeatureTour, setShowFeatureTour] = useState(false);
   const [billingHistory, setBillingHistory] = useState({
     invoices: [],
@@ -613,1497 +617,1545 @@ export default function Settings() {
       </div>
 
       <form onSubmit={handleSubmit} id="settings-form">
-        <Tabs
-          value={activeTab}
-          onValueChange={setActiveTab}
-          className="space-y-6"
-        >
-          {/* Desktop tabs */}
-          <TabsList className="hidden md:flex w-full overflow-x-auto scrollbar-hide bg-ink-100 dark:bg-ink-800 p-1 rounded-lg justify-start">
-            <TabsTrigger
-              value="business"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+        {activeTab === null ? (
+          <SettingsHub
+            onOpen={setActiveTab}
+            stripeConnected={settings?.stripe_account_status === "active"}
+          />
+        ) : (
+          <>
+            <button
+              type="button"
+              onClick={() => setActiveTab(null)}
+              className="mb-6 inline-flex items-center gap-1.5 text-sm font-semibold text-content-muted transition-colors hover:text-content dark:text-content-subtle dark:hover:text-content-inverted"
             >
-              Business
-            </TabsTrigger>
-            <TabsTrigger
-              value="security"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+              <ArrowLeft className="h-4 w-4" />
+              All settings
+            </button>
+            <Tabs
+              value={activeTab}
+              onValueChange={setActiveTab}
+              className="space-y-6"
             >
-              Security
-            </TabsTrigger>
-            <TabsTrigger
-              value="billing"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
-            >
-              Billing
-            </TabsTrigger>
-            <TabsTrigger
-              value="payments"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
-            >
-              Payments
-            </TabsTrigger>
-            <TabsTrigger
-              value="calendar"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
-            >
-              Calendar
-            </TabsTrigger>
-            <TabsTrigger
-              value="notifications"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
-            >
-              Notifications
-            </TabsTrigger>
-            <TabsTrigger
-              value="appearance"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
-            >
-              Appearance
-            </TabsTrigger>
-            <TabsTrigger
-              value="template"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
-            >
-              PDF Templates
-            </TabsTrigger>
-            <TabsTrigger
-              value="legal"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
-            >
-              Legal
-            </TabsTrigger>
-            <TabsTrigger
-              value="contact"
-              className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
-            >
-              Contact
-            </TabsTrigger>
-          </TabsList>
-
-          {/* Mobile scrollable tab pills */}
-          <div className="md:hidden -mx-4 px-4">
-            <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
-              {[
-                { value: "business", label: "Business" },
-                { value: "security", label: "Security" },
-                { value: "billing", label: "Billing" },
-                { value: "payments", label: "Payments" },
-                { value: "calendar", label: "Calendar" },
-                { value: "notifications", label: "Alerts" },
-                { value: "appearance", label: "Theme" },
-                { value: "template", label: "PDF" },
-                { value: "legal", label: "Legal" },
-                { value: "contact", label: "Support" },
-              ].map((tab) => (
-                <button
-                  key={tab.value}
-                  type="button"
-                  onClick={() => setActiveTab(tab.value)}
-                  className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
-                    activeTab === tab.value
-                      ? "bg-success-600 text-content-inverted shadow-md shadow-success-500/20"
-                      : "bg-surface dark:bg-ink-800 text-content-body dark:text-content-subtle border border-line dark:border-ink-700"
-                  }`}
+              {/* Desktop tabs */}
+              <TabsList className="hidden md:flex w-full overflow-x-auto scrollbar-hide bg-ink-100 dark:bg-ink-800 p-1 rounded-lg justify-start">
+                <TabsTrigger
+                  value="business"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
                 >
-                  {tab.label}
-                </button>
-              ))}
-            </div>
-          </div>
-
-          {/* Business Information Tab */}
-          <TabsContent value="business">
-            <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
-              <CardHeader>
-                <CardTitle className="text-content dark:text-content-inverted">
-                  Business Information
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label
-                      htmlFor="business_name"
-                      className="text-ink-700 dark:text-ink-300"
-                    >
-                      Business Name *
-                    </Label>
-                    <Input
-                      id="business_name"
-                      value={formData.business_name ?? ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          business_name: e.target.value,
-                        })
-                      }
-                      required
-                      className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                    />
-                  </div>
-                  <div>
-                    <Label
-                      htmlFor="email"
-                      className="text-ink-700 dark:text-ink-300"
-                    >
-                      Email
-                    </Label>
-                    <Input
-                      id="email"
-                      type="email"
-                      value={formData.email ?? ""}
-                      onChange={(e) =>
-                        setFormData({ ...formData, email: e.target.value })
-                      }
-                      className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label
-                      htmlFor="phone"
-                      className="text-ink-700 dark:text-ink-300"
-                    >
-                      Phone
-                    </Label>
-                    <Input
-                      id="phone"
-                      value={formData.phone ?? ""}
-                      onChange={(e) =>
-                        setFormData({ ...formData, phone: e.target.value })
-                      }
-                      className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                    />
-                  </div>
-                  <div>
-                    <Label
-                      htmlFor="website"
-                      className="text-ink-700 dark:text-ink-300"
-                    >
-                      Website
-                    </Label>
-                    <Input
-                      id="website"
-                      value={formData.website ?? ""}
-                      onChange={(e) =>
-                        setFormData({ ...formData, website: e.target.value })
-                      }
-                      placeholder="https://yourcompany.com"
-                      className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                    />
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label
-                      htmlFor="tax_rate"
-                      className="text-ink-700 dark:text-ink-300"
-                    >
-                      Default Tax Rate (%)
-                    </Label>
-                    <Input
-                      id="tax_rate"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      placeholder="0"
-                      value={formData.tax_rate || ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          tax_rate:
-                            e.target.value === ""
-                              ? 0
-                              : parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                    />
-                  </div>
-                  <div>
-                    <Label
-                      htmlFor="hourly_rate"
-                      className="text-ink-700 dark:text-ink-300"
-                    >
-                      Hourly Labor Rate ($)
-                    </Label>
-                    <Input
-                      id="hourly_rate"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.hourly_rate ?? ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          hourly_rate: parseFloat(e.target.value) || 0,
-                        })
-                      }
-                      placeholder="e.g., 75.00"
-                      className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                    />
-
-                    <p className="text-sm text-content-muted dark:text-content-subtle mt-1">
-                      Your default hourly rate for labor calculations
-                    </p>
-                  </div>
-                </div>
-
-                <div className="grid md:grid-cols-2 gap-4">
-                  <div>
-                    <Label
-                      htmlFor="invoice_prefix"
-                      className="text-ink-700 dark:text-ink-300"
-                    >
-                      Invoice Number Prefix
-                    </Label>
-                    <Input
-                      id="invoice_prefix"
-                      value={formData.invoice_prefix ?? ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          invoice_prefix: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., INV, INVOICE"
-                      className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                    />
-                  </div>
-                  <div>
-                    <Label
-                      htmlFor="payment_terms"
-                      className="text-ink-700 dark:text-ink-300"
-                    >
-                      Default Payment Terms
-                    </Label>
-                    <Input
-                      id="payment_terms"
-                      value={formData.payment_terms ?? ""}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          payment_terms: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., Net 30, Due on Receipt, Payment due within 15 days"
-                      className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                    />
-
-                    <p className="text-sm text-content-muted dark:text-content-subtle mt-1">
-                      This will be the default for new invoices (can be
-                      customized per invoice)
-                    </p>
-                  </div>
-                </div>
-
-                <div>
-                  <Label
-                    htmlFor="address"
-                    className="text-ink-700 dark:text-ink-300"
-                  >
-                    Business Address
-                  </Label>
-                  <Textarea
-                    id="address"
-                    value={formData.address ?? ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, address: e.target.value })
-                    }
-                    rows={3}
-                    placeholder="Street Address, City, Province, Postal Code"
-                    className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                  />
-                </div>
-
-                <div>
-                  <Label
-                    htmlFor="logo"
-                    className="text-ink-700 dark:text-ink-300"
-                  >
-                    Business Logo
-                  </Label>
-                  <div className="flex flex-col gap-4">
-                    {formData.logo_url && (
-                      <div className="flex items-center gap-4">
-                        <img
-                          src={formData.logo_url}
-                          alt="Logo"
-                          className="w-32 h-32 object-contain border dark:border-ink-700 rounded p-2 bg-surface dark:bg-ink-800"
-                        />
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => {
-                            setFormData({ ...formData, logo_url: "" }); // Clear the URL
-                            setLogoFile(null); // Clear the file object as well
-                          }}
-                          className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300 border-danger-300 dark:border-danger-800"
-                        >
-                          Remove Logo
-                        </Button>
-                      </div>
-                    )}
-                    <label className="cursor-pointer">
-                      <input
-                        type="file"
-                        accept="image/*"
-                        onChange={handleLogoUpload}
-                        className="hidden"
-                      />
-
-                      <div className="flex items-center gap-2 px-4 py-2 border dark:border-ink-700 rounded-lg hover:bg-surface-sunken dark:hover:bg-ink-800 transition-colors w-fit bg-surface dark:bg-ink-800">
-                        {uploadingLogo ? (
-                          <Loader2 className="w-4 h-4 animate-spin text-content-body dark:text-content-subtle" />
-                        ) : (
-                          <Upload className="w-4 h-4 text-content-body dark:text-content-subtle" />
-                        )}
-                        <span className="text-sm text-ink-700 dark:text-ink-300">
-                          {uploadingLogo
-                            ? "Uploading..."
-                            : formData.logo_url
-                              ? "Change Logo"
-                              : "Upload Logo"}
-                        </span>
-                      </div>
-                    </label>
-                  </div>
-                  <p className="text-xs text-content-muted dark:text-content-subtle mt-2 flex items-start gap-1">
-                    <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
-                    <span>
-                      Upload a square logo for best results. The logo will
-                      appear on your invoices and quotes.
-                    </span>
-                  </p>
-                </div>
-
-                <div>
-                  <Label
-                    htmlFor="review_link"
-                    className="text-ink-700 dark:text-ink-300"
-                  >
-                    Customer Review Link (Optional)
-                  </Label>
-                  <Input
-                    id="review_link"
-                    value={formData.review_link || ""}
-                    onChange={(e) =>
-                      setFormData({ ...formData, review_link: e.target.value })
-                    }
-                    placeholder="https://g.page/r/..."
-                    className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                  />
-
-                  <p className="text-sm text-content-muted dark:text-content-subtle mt-1">
-                    Add your Google, Yelp, or Facebook review link. This will be
-                    included in invoice SMS notifications.
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Security Tab */}
-          <TabsContent value="security">
-            <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
-                  <Lock className="w-5 h-5 text-success-600 dark:text-success-400" />
+                  Business
+                </TabsTrigger>
+                <TabsTrigger
+                  value="security"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+                >
                   Security
-                </CardTitle>
-                <p className="text-sm text-content-body dark:text-content-subtle">
-                  Change the password used to sign in to Invoicium
-                </p>
-              </CardHeader>
-              <CardContent>
-                <div className="max-w-sm space-y-4">
-                  <div>
-                    <Label
-                      htmlFor="new-password"
-                      className="text-ink-700 dark:text-ink-300"
+                </TabsTrigger>
+                <TabsTrigger
+                  value="billing"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+                >
+                  Billing
+                </TabsTrigger>
+                <TabsTrigger
+                  value="payments"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+                >
+                  Payments
+                </TabsTrigger>
+                <TabsTrigger
+                  value="calendar"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+                >
+                  Calendar
+                </TabsTrigger>
+                <TabsTrigger
+                  value="notifications"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+                >
+                  Notifications
+                </TabsTrigger>
+                <TabsTrigger
+                  value="appearance"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+                >
+                  Appearance
+                </TabsTrigger>
+                <TabsTrigger
+                  value="template"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+                >
+                  PDF Templates
+                </TabsTrigger>
+                <TabsTrigger
+                  value="legal"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+                >
+                  Legal
+                </TabsTrigger>
+                <TabsTrigger
+                  value="contact"
+                  className="text-sm px-3 py-2 whitespace-nowrap flex-1 text-ink-700 data-[state=active]:bg-surface data-[state=active]:text-content dark:data-[state=active]:bg-ink-700 dark:text-ink-300 dark:data-[state=active]:text-content-inverted"
+                >
+                  Contact
+                </TabsTrigger>
+              </TabsList>
+
+              {/* Mobile scrollable tab pills */}
+              <div className="md:hidden -mx-4 px-4">
+                <div className="flex gap-2 overflow-x-auto pb-2 scrollbar-hide">
+                  {[
+                    { value: "business", label: "Business" },
+                    { value: "security", label: "Security" },
+                    { value: "billing", label: "Billing" },
+                    { value: "payments", label: "Payments" },
+                    { value: "calendar", label: "Calendar" },
+                    { value: "notifications", label: "Alerts" },
+                    { value: "appearance", label: "Theme" },
+                    { value: "template", label: "PDF" },
+                    { value: "legal", label: "Legal" },
+                    { value: "contact", label: "Support" },
+                  ].map((tab) => (
+                    <button
+                      key={tab.value}
+                      type="button"
+                      onClick={() => setActiveTab(tab.value)}
+                      className={`flex-shrink-0 px-4 py-2 rounded-full text-sm font-semibold transition-all ${
+                        activeTab === tab.value
+                          ? "bg-success-600 text-content-inverted shadow-md shadow-success-500/20"
+                          : "bg-surface dark:bg-ink-800 text-content-body dark:text-content-subtle border border-line dark:border-ink-700"
+                      }`}
                     >
-                      New Password
-                    </Label>
-                    <Input
-                      id="new-password"
-                      type="password"
-                      autoComplete="new-password"
-                      value={newPassword}
-                      onChange={(e) => setNewPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      className="mt-1.5"
-                    />
-                    <PasswordStrength value={newPassword} className="mt-3" />
-                  </div>
-                  <div>
-                    <Label
-                      htmlFor="confirm-new-password"
-                      className="text-ink-700 dark:text-ink-300"
-                    >
-                      Confirm New Password
-                    </Label>
-                    <Input
-                      id="confirm-new-password"
-                      type="password"
-                      autoComplete="new-password"
-                      value={confirmNewPassword}
-                      onChange={(e) => setConfirmNewPassword(e.target.value)}
-                      placeholder="••••••••••••"
-                      className="mt-1.5"
-                    />
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={handleChangePassword}
-                    disabled={changingPassword || !newPassword}
-                    className="bg-brand hover:bg-brand-hover text-content-inverted"
-                  >
-                    {changingPassword && (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    )}
-                    Update Password
-                  </Button>
+                      {tab.label}
+                    </button>
+                  ))}
                 </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </div>
 
-          {/* NEW: Billing Tab */}
-          <TabsContent value="billing">
-            <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
-                  <CreditCard className="w-5 h-5" />
-                  Subscription & Billing
-                </CardTitle>
-                <p className="text-sm text-content-body dark:text-content-subtle">
-                  Manage your Invoicium subscription plan
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {subscription ? (
-                  <>
-                    {/* Current Plan Card */}
-                    <Card className="border-2 border-success-200 dark:border-success-800 bg-success-50/30 dark:bg-success-900/20">
-                      <CardContent className="mx-1 pt-0 p-6">
-                        <div className="flex items-start justify-between mb-4">
-                          <div>
-                            <h3 className="text-2xl font-black text-content dark:text-content-inverted capitalize mb-1">
-                              {subscription.plan_name} Plan
-                            </h3>
-                            <p className="text-sm text-content-body dark:text-content-subtle capitalize">
-                              {subscription.billing_cycle === "yearly"
-                                ? "Annual"
-                                : "Monthly"}{" "}
-                              Billing
-                            </p>
-                          </div>
-                          <Badge
-                            className={`${
-                              subscription.status === "active"
-                                ? "bg-success-100 text-success-700 dark:bg-success-900 dark:text-success-300 hover:bg-success-100 dark:hover:bg-success-900"
-                                : subscription.status === "trial" ||
-                                    subscription.status === "trialing"
-                                  ? "bg-info-100 text-info-700 dark:bg-info-900 dark:text-info-300 hover:bg-info-100 dark:hover:bg-info-900"
-                                  : "bg-ink-100 text-ink-700 dark:bg-ink-800 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-800"
-                            }`}
-                          >
-                            {subscription.status === "trialing"
-                              ? "Trial"
-                              : subscription.status}
-                          </Badge>
-                        </div>
-
-                        <div className="grid md:grid-cols-2 gap-4 mb-4">
-                          <div>
-                            <p className="text-sm text-content-body dark:text-content-subtle">
-                              Invoice Limit
-                            </p>
-                            <p className="text-lg font-semibold text-content dark:text-content-inverted">
-                              {subscription.monthly_transaction_limit !==
-                                undefined &&
-                              subscription.monthly_transaction_limit !==
-                                null ? (
-                                `${subscription.monthly_transaction_limit} / month`
-                              ) : (
-                                <span className="text-danger-600 dark:text-danger-400">
-                                  Not Set
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-content-body dark:text-content-subtle">
-                              Invoices Used This Month
-                            </p>
-                            <p className="text-lg font-semibold text-content dark:text-content-inverted">
-                              {subscription.transactions_used_this_month !==
-                                undefined &&
-                              subscription.transactions_used_this_month !==
-                                null ? (
-                                subscription.transactions_used_this_month
-                              ) : (
-                                <span className="text-danger-600 dark:text-danger-400">
-                                  Not Set
-                                </span>
-                              )}
-                            </p>
-                          </div>
-                          <div>
-                            <p className="text-sm text-content-body dark:text-content-subtle">
-                              Platform Processing Fee
-                            </p>
-                            <p className="text-lg font-semibold text-content dark:text-content-inverted">
-                              1%
-                            </p>
-                          </div>
-                        </div>
-
-                        {subscription.next_billing_date && (
-                          <div className="pt-4 border-t border-success-200 dark:border-success-800">
-                            <p className="text-sm text-content-body dark:text-content-subtle">
-                              Next Billing Date
-                            </p>
-                            <p className="font-medium text-content dark:text-content-inverted">
-                              {format(
-                                new Date(subscription.next_billing_date),
-                                "MMMM d, yyyy",
-                              )}
-                            </p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Warning if limits not set */}
-                    {(subscription.monthly_transaction_limit === undefined ||
-                      subscription.monthly_transaction_limit === null) && (
-                      <Card className="border-2 border-danger-300 dark:border-danger-800 bg-danger-50 dark:bg-danger-900/20">
-                        <CardContent className="p-4 flex items-center gap-3">
-                          <Info className="w-5 h-5 text-danger-600 dark:text-danger-400 flex-shrink-0" />
-                          <div className="flex-1">
-                            <p className="text-sm font-semibold text-danger-900 dark:text-danger-200">
-                              Subscription Limits Not Configured
-                            </p>
-                            <p className="text-xs text-danger-800 dark:text-danger-300">
-                              Your subscription is missing important
-                              configuration data. Click the button below to
-                              automatically fix this.
-                            </p>
-                          </div>
-                          <Button
-                            onClick={async () => {
-                              try {
-                                setLoading(true);
-                                const response = await sdk.functions.invoke(
-                                  "fixSubscriptionLimits",
-                                );
-                                console.log("Fix response:", response);
-
-                                if (response.data?.success) {
-                                  setSaveMessage(
-                                    `Fixed ${response.data.fixed} subscription(s) successfully!`,
-                                  );
-                                  setTimeout(() => setSaveMessage(null), 3000);
-                                  await loadSettings(); // Reload to show updated data
-                                } else {
-                                  throw new Error(
-                                    response.data?.error || "Fix failed",
-                                  );
-                                }
-                              } catch (error) {
-                                console.error("Fix error:", error);
-                                setSaveMessage(
-                                  "Failed to fix subscription. Please try switching plans instead.",
-                                );
-                                setTimeout(() => setSaveMessage(null), 5000);
-                              } finally {
-                                setLoading(false);
-                              }
-                            }}
-                            className="bg-danger-600 hover:bg-danger-700 dark:bg-danger-700 dark:hover:bg-danger-600 whitespace-nowrap"
-                            disabled={loading}
-                          >
-                            {loading ? (
-                              <>
-                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                Fixing...
-                              </>
-                            ) : (
-                              "Auto-Fix Now"
-                            )}
-                          </Button>
-                        </CardContent>
-                      </Card>
-                    )}
-
-                    {/* Change Plan Button */}
-                    <div className="flex justify-center">
-                      <Link to={createPageUrl("Pricing")}>
-                        <Button
-                          size="lg"
-                          className="bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover"
+              {/* Business Information Tab */}
+              <TabsContent value="business">
+                <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
+                  <CardHeader>
+                    <CardTitle className="text-content dark:text-content-inverted">
+                      Business Information
+                    </CardTitle>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label
+                          htmlFor="business_name"
+                          className="text-ink-700 dark:text-ink-300"
                         >
-                          <ArrowRight className="w-4 h-4 mr-2" />
-                          View All Plans & Change Plan
-                        </Button>
-                      </Link>
+                          Business Name *
+                        </Label>
+                        <Input
+                          id="business_name"
+                          value={formData.business_name ?? ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              business_name: e.target.value,
+                            })
+                          }
+                          required
+                          className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                        />
+                      </div>
+                      <div>
+                        <Label
+                          htmlFor="email"
+                          className="text-ink-700 dark:text-ink-300"
+                        >
+                          Email
+                        </Label>
+                        <Input
+                          id="email"
+                          type="email"
+                          value={formData.email ?? ""}
+                          onChange={(e) =>
+                            setFormData({ ...formData, email: e.target.value })
+                          }
+                          className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                        />
+                      </div>
                     </div>
 
-                    {/* Manage Billing */}
-                    <Card className="bg-brand-50 border-brand-200 dark:border-brand-800 dark:bg-brand-900/20">
-                      <CardHeader>
-                        <CardTitle className="text-lg flex items-center gap-2 text-content dark:text-content-inverted">
-                          <CreditCard className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-                          Billing Management
-                        </CardTitle>
-                        <p className="text-sm text-content-body dark:text-content-subtle">
-                          Manage your payment methods, view invoices, and update
-                          billing details
-                        </p>
-                      </CardHeader>
-                      <CardContent className="space-y-4">
-                        <Button
-                          onClick={async () => {
-                            try {
-                              setLoading(true);
-                              const response = await sdk.functions.invoke(
-                                "getStripeCustomerPortal",
-                              );
-                              if (response.data?.url) {
-                                window.location.href = response.data.url;
-                              } else {
-                                // The SDK reports Edge Function failures as
-                                // { success: false, error } rather than
-                                // throwing, so read the server's own message
-                                // instead of replacing it with a generic one.
-                                throw new Error(
-                                  response.data?.error ||
-                                    "No portal URL received",
-                                );
-                              }
-                            } catch (error) {
-                              console.error("Portal error:", error);
-                              setSaveMessage(
-                                error.message ||
-                                  "Failed to open billing portal",
-                              );
-                              setTimeout(() => setSaveMessage(null), 6000);
-                            } finally {
-                              setLoading(false);
-                            }
-                          }}
-                          disabled={loading}
-                          className="w-full bg-brand-600 hover:bg-brand dark:bg-brand dark:hover:bg-brand-hover"
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label
+                          htmlFor="phone"
+                          className="text-ink-700 dark:text-ink-300"
                         >
-                          {loading ? (
-                            <>
-                              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Opening...
-                            </>
-                          ) : (
-                            <>
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Open Stripe Billing Portal
-                            </>
-                          )}
-                        </Button>
+                          Phone
+                        </Label>
+                        <Input
+                          id="phone"
+                          value={formData.phone ?? ""}
+                          onChange={(e) =>
+                            setFormData({ ...formData, phone: e.target.value })
+                          }
+                          className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                        />
+                      </div>
+                      <div>
+                        <Label
+                          htmlFor="website"
+                          className="text-ink-700 dark:text-ink-300"
+                        >
+                          Website
+                        </Label>
+                        <Input
+                          id="website"
+                          value={formData.website ?? ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              website: e.target.value,
+                            })
+                          }
+                          placeholder="https://yourcompany.com"
+                          className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                        />
+                      </div>
+                    </div>
 
-                        <div className="p-3 bg-surface dark:bg-ink-800 rounded-lg border dark:border-ink-700">
-                          <p className="text-sm text-ink-700 dark:text-ink-300 font-medium mb-2">
-                            In the portal you can:
-                          </p>
-                          <ul className="text-xs text-content-body dark:text-content-subtle space-y-1">
-                            <li>• Update payment method</li>
-                            <li>• View and download all invoices</li>
-                            <li>• Update billing information</li>
-                            <li>• View payment history</li>
-                            <li>• Cancel subscription (if needed)</li>
-                          </ul>
-                        </div>
-                      </CardContent>
-                    </Card>
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label
+                          htmlFor="tax_rate"
+                          className="text-ink-700 dark:text-ink-300"
+                        >
+                          Default Tax Rate (%)
+                        </Label>
+                        <Input
+                          id="tax_rate"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          placeholder="0"
+                          value={formData.tax_rate || ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              tax_rate:
+                                e.target.value === ""
+                                  ? 0
+                                  : parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                        />
+                      </div>
+                      <div>
+                        <Label
+                          htmlFor="hourly_rate"
+                          className="text-ink-700 dark:text-ink-300"
+                        >
+                          Hourly Labor Rate ($)
+                        </Label>
+                        <Input
+                          id="hourly_rate"
+                          type="number"
+                          min="0"
+                          step="0.01"
+                          value={formData.hourly_rate ?? ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              hourly_rate: parseFloat(e.target.value) || 0,
+                            })
+                          }
+                          placeholder="e.g., 75.00"
+                          className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                        />
 
-                    {/* Billing History */}
-                    <Card className="border-line dark:border-ink-800 bg-surface dark:bg-surface-inverted">
-                      <CardHeader>
-                        <div className="flex items-center justify-between">
-                          <CardTitle className="text-lg flex items-center gap-2 text-content dark:text-content-inverted">
-                            <File className="w-5 h-5 text-content-body dark:text-content-subtle" />
-                            Recent Billing History
-                          </CardTitle>
-                          <Button
-                            onClick={loadBillingHistory}
-                            variant="outline"
-                            size="sm"
-                            disabled={loadingBilling}
-                            className="dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
-                          >
-                            {loadingBilling ? (
-                              <Loader2 className="w-4 h-4 animate-spin" />
-                            ) : (
-                              <>
-                                <RotateCcw className="w-4 h-4 mr-2" />
-                                Refresh
-                              </>
-                            )}
-                          </Button>
-                        </div>
-                      </CardHeader>
-                      <CardContent>
-                        {loadingBilling ? (
-                          <div className="py-8 text-center">
-                            <Loader2 className="w-8 h-8 animate-spin mx-auto text-content-subtle dark:text-content-body dark:dark:text-ink-300" />
+                        <p className="text-sm text-content-muted dark:text-content-subtle mt-1">
+                          Your default hourly rate for labor calculations
+                        </p>
+                      </div>
+                    </div>
+
+                    <div className="grid md:grid-cols-2 gap-4">
+                      <div>
+                        <Label
+                          htmlFor="invoice_prefix"
+                          className="text-ink-700 dark:text-ink-300"
+                        >
+                          Invoice Number Prefix
+                        </Label>
+                        <Input
+                          id="invoice_prefix"
+                          value={formData.invoice_prefix ?? ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              invoice_prefix: e.target.value,
+                            })
+                          }
+                          placeholder="e.g., INV, INVOICE"
+                          className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                        />
+                      </div>
+                      <div>
+                        <Label
+                          htmlFor="payment_terms"
+                          className="text-ink-700 dark:text-ink-300"
+                        >
+                          Default Payment Terms
+                        </Label>
+                        <Input
+                          id="payment_terms"
+                          value={formData.payment_terms ?? ""}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              payment_terms: e.target.value,
+                            })
+                          }
+                          placeholder="e.g., Net 30, Due on Receipt, Payment due within 15 days"
+                          className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                        />
+
+                        <p className="text-sm text-content-muted dark:text-content-subtle mt-1">
+                          This will be the default for new invoices (can be
+                          customized per invoice)
+                        </p>
+                      </div>
+                    </div>
+
+                    <div>
+                      <Label
+                        htmlFor="address"
+                        className="text-ink-700 dark:text-ink-300"
+                      >
+                        Business Address
+                      </Label>
+                      <Textarea
+                        id="address"
+                        value={formData.address ?? ""}
+                        onChange={(e) =>
+                          setFormData({ ...formData, address: e.target.value })
+                        }
+                        rows={3}
+                        placeholder="Street Address, City, Province, Postal Code"
+                        className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                      />
+                    </div>
+
+                    <div>
+                      <Label
+                        htmlFor="logo"
+                        className="text-ink-700 dark:text-ink-300"
+                      >
+                        Business Logo
+                      </Label>
+                      <div className="flex flex-col gap-4">
+                        {formData.logo_url && (
+                          <div className="flex items-center gap-4">
+                            <img
+                              src={formData.logo_url}
+                              alt="Logo"
+                              className="w-32 h-32 object-contain border dark:border-ink-700 rounded p-2 bg-surface dark:bg-ink-800"
+                            />
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={() => {
+                                setFormData({ ...formData, logo_url: "" }); // Clear the URL
+                                setLogoFile(null); // Clear the file object as well
+                              }}
+                              className="text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300 border-danger-300 dark:border-danger-800"
+                            >
+                              Remove Logo
+                            </Button>
                           </div>
-                        ) : billingHistory.invoices.length > 0 ? (
-                          <div className="space-y-3">
-                            {billingHistory.invoices
-                              .slice(0, 10)
-                              .map((invoice) => (
-                                <div
-                                  key={invoice.id}
-                                  className="flex items-center justify-between p-4 border dark:border-ink-700 rounded-lg hover:bg-surface-sunken dark:hover:bg-ink-800 transition-colors bg-surface dark:bg-ink-800/50"
-                                >
-                                  <div className="flex-1">
+                        )}
+                        <label className="cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*"
+                            onChange={handleLogoUpload}
+                            className="hidden"
+                          />
+
+                          <div className="flex items-center gap-2 px-4 py-2 border dark:border-ink-700 rounded-lg hover:bg-surface-sunken dark:hover:bg-ink-800 transition-colors w-fit bg-surface dark:bg-ink-800">
+                            {uploadingLogo ? (
+                              <Loader2 className="w-4 h-4 animate-spin text-content-body dark:text-content-subtle" />
+                            ) : (
+                              <Upload className="w-4 h-4 text-content-body dark:text-content-subtle" />
+                            )}
+                            <span className="text-sm text-ink-700 dark:text-ink-300">
+                              {uploadingLogo
+                                ? "Uploading..."
+                                : formData.logo_url
+                                  ? "Change Logo"
+                                  : "Upload Logo"}
+                            </span>
+                          </div>
+                        </label>
+                      </div>
+                      <p className="text-xs text-content-muted dark:text-content-subtle mt-2 flex items-start gap-1">
+                        <Info className="w-3 h-3 mt-0.5 flex-shrink-0" />
+                        <span>
+                          Upload a square logo for best results. The logo will
+                          appear on your invoices and quotes.
+                        </span>
+                      </p>
+                    </div>
+
+                    <div>
+                      <Label
+                        htmlFor="review_link"
+                        className="text-ink-700 dark:text-ink-300"
+                      >
+                        Customer Review Link (Optional)
+                      </Label>
+                      <Input
+                        id="review_link"
+                        value={formData.review_link || ""}
+                        onChange={(e) =>
+                          setFormData({
+                            ...formData,
+                            review_link: e.target.value,
+                          })
+                        }
+                        placeholder="https://g.page/r/..."
+                        className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                      />
+
+                      <p className="text-sm text-content-muted dark:text-content-subtle mt-1">
+                        Add your Google, Yelp, or Facebook review link. This
+                        will be included in invoice SMS notifications.
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Security Tab */}
+              <TabsContent value="security">
+                <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
+                      <Lock className="w-5 h-5 text-success-600 dark:text-success-400" />
+                      Security
+                    </CardTitle>
+                    <p className="text-sm text-content-body dark:text-content-subtle">
+                      Change the password used to sign in to Invoicium
+                    </p>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="max-w-sm space-y-4">
+                      <div>
+                        <Label
+                          htmlFor="new-password"
+                          className="text-ink-700 dark:text-ink-300"
+                        >
+                          New Password
+                        </Label>
+                        <Input
+                          id="new-password"
+                          type="password"
+                          autoComplete="new-password"
+                          value={newPassword}
+                          onChange={(e) => setNewPassword(e.target.value)}
+                          placeholder="••••••••••••"
+                          className="mt-1.5"
+                        />
+                        <PasswordStrength
+                          value={newPassword}
+                          className="mt-3"
+                        />
+                      </div>
+                      <div>
+                        <Label
+                          htmlFor="confirm-new-password"
+                          className="text-ink-700 dark:text-ink-300"
+                        >
+                          Confirm New Password
+                        </Label>
+                        <Input
+                          id="confirm-new-password"
+                          type="password"
+                          autoComplete="new-password"
+                          value={confirmNewPassword}
+                          onChange={(e) =>
+                            setConfirmNewPassword(e.target.value)
+                          }
+                          placeholder="••••••••••••"
+                          className="mt-1.5"
+                        />
+                      </div>
+                      <Button
+                        type="button"
+                        onClick={handleChangePassword}
+                        disabled={changingPassword || !newPassword}
+                        className="bg-brand hover:bg-brand-hover text-content-inverted"
+                      >
+                        {changingPassword && (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        )}
+                        Update Password
+                      </Button>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* NEW: Billing Tab */}
+              <TabsContent value="billing">
+                <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
+                      <CreditCard className="w-5 h-5" />
+                      Subscription & Billing
+                    </CardTitle>
+                    <p className="text-sm text-content-body dark:text-content-subtle">
+                      Manage your Invoicium subscription plan
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {subscription ? (
+                      <>
+                        {/* Current Plan Card */}
+                        <Card className="border-2 border-success-200 dark:border-success-800 bg-success-50/30 dark:bg-success-900/20">
+                          <CardContent className="mx-1 pt-0 p-6">
+                            <div className="flex items-start justify-between mb-4">
+                              <div>
+                                <h3 className="text-2xl font-black text-content dark:text-content-inverted capitalize mb-1">
+                                  {subscription.plan_name} Plan
+                                </h3>
+                                <p className="text-sm text-content-body dark:text-content-subtle capitalize">
+                                  {subscription.billing_cycle === "yearly"
+                                    ? "Annual"
+                                    : "Monthly"}{" "}
+                                  Billing
+                                </p>
+                              </div>
+                              <Badge
+                                className={`${
+                                  subscription.status === "active"
+                                    ? "bg-success-100 text-success-700 dark:bg-success-900 dark:text-success-300 hover:bg-success-100 dark:hover:bg-success-900"
+                                    : subscription.status === "trial" ||
+                                        subscription.status === "trialing"
+                                      ? "bg-info-100 text-info-700 dark:bg-info-900 dark:text-info-300 hover:bg-info-100 dark:hover:bg-info-900"
+                                      : "bg-ink-100 text-ink-700 dark:bg-ink-800 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-800"
+                                }`}
+                              >
+                                {subscription.status === "trialing"
+                                  ? "Trial"
+                                  : subscription.status}
+                              </Badge>
+                            </div>
+
+                            <div className="grid md:grid-cols-2 gap-4 mb-4">
+                              <div>
+                                <p className="text-sm text-content-body dark:text-content-subtle">
+                                  Invoice Limit
+                                </p>
+                                <p className="text-lg font-semibold text-content dark:text-content-inverted">
+                                  {subscription.monthly_transaction_limit !==
+                                    undefined &&
+                                  subscription.monthly_transaction_limit !==
+                                    null ? (
+                                    `${subscription.monthly_transaction_limit} / month`
+                                  ) : (
+                                    <span className="text-danger-600 dark:text-danger-400">
+                                      Not Set
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-content-body dark:text-content-subtle">
+                                  Invoices Used This Month
+                                </p>
+                                <p className="text-lg font-semibold text-content dark:text-content-inverted">
+                                  {subscription.transactions_used_this_month !==
+                                    undefined &&
+                                  subscription.transactions_used_this_month !==
+                                    null ? (
+                                    subscription.transactions_used_this_month
+                                  ) : (
+                                    <span className="text-danger-600 dark:text-danger-400">
+                                      Not Set
+                                    </span>
+                                  )}
+                                </p>
+                              </div>
+                              <div>
+                                <p className="text-sm text-content-body dark:text-content-subtle">
+                                  Platform Processing Fee
+                                </p>
+                                <p className="text-lg font-semibold text-content dark:text-content-inverted">
+                                  1%
+                                </p>
+                              </div>
+                            </div>
+
+                            {subscription.next_billing_date && (
+                              <div className="pt-4 border-t border-success-200 dark:border-success-800">
+                                <p className="text-sm text-content-body dark:text-content-subtle">
+                                  Next Billing Date
+                                </p>
+                                <p className="font-medium text-content dark:text-content-inverted">
+                                  {format(
+                                    new Date(subscription.next_billing_date),
+                                    "MMMM d, yyyy",
+                                  )}
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        {/* Warning if limits not set */}
+                        {(subscription.monthly_transaction_limit ===
+                          undefined ||
+                          subscription.monthly_transaction_limit === null) && (
+                          <Card className="border-2 border-danger-300 dark:border-danger-800 bg-danger-50 dark:bg-danger-900/20">
+                            <CardContent className="p-4 flex items-center gap-3">
+                              <Info className="w-5 h-5 text-danger-600 dark:text-danger-400 flex-shrink-0" />
+                              <div className="flex-1">
+                                <p className="text-sm font-semibold text-danger-900 dark:text-danger-200">
+                                  Subscription Limits Not Configured
+                                </p>
+                                <p className="text-xs text-danger-800 dark:text-danger-300">
+                                  Your subscription is missing important
+                                  configuration data. Click the button below to
+                                  automatically fix this.
+                                </p>
+                              </div>
+                              <Button
+                                onClick={async () => {
+                                  try {
+                                    setLoading(true);
+                                    const response = await sdk.functions.invoke(
+                                      "fixSubscriptionLimits",
+                                    );
+                                    console.log("Fix response:", response);
+
+                                    if (response.data?.success) {
+                                      setSaveMessage(
+                                        `Fixed ${response.data.fixed} subscription(s) successfully!`,
+                                      );
+                                      setTimeout(
+                                        () => setSaveMessage(null),
+                                        3000,
+                                      );
+                                      await loadSettings(); // Reload to show updated data
+                                    } else {
+                                      throw new Error(
+                                        response.data?.error || "Fix failed",
+                                      );
+                                    }
+                                  } catch (error) {
+                                    console.error("Fix error:", error);
+                                    setSaveMessage(
+                                      "Failed to fix subscription. Please try switching plans instead.",
+                                    );
+                                    setTimeout(
+                                      () => setSaveMessage(null),
+                                      5000,
+                                    );
+                                  } finally {
+                                    setLoading(false);
+                                  }
+                                }}
+                                className="bg-danger-600 hover:bg-danger-700 dark:bg-danger-700 dark:hover:bg-danger-600 whitespace-nowrap"
+                                disabled={loading}
+                              >
+                                {loading ? (
+                                  <>
+                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                    Fixing...
+                                  </>
+                                ) : (
+                                  "Auto-Fix Now"
+                                )}
+                              </Button>
+                            </CardContent>
+                          </Card>
+                        )}
+
+                        {/* Change Plan Button */}
+                        <div className="flex justify-center">
+                          <Link to={createPageUrl("Pricing")}>
+                            <Button
+                              size="lg"
+                              className="bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover"
+                            >
+                              <ArrowRight className="w-4 h-4 mr-2" />
+                              View All Plans & Change Plan
+                            </Button>
+                          </Link>
+                        </div>
+
+                        {/* Manage Billing */}
+                        <Card className="bg-brand-50 border-brand-200 dark:border-brand-800 dark:bg-brand-900/20">
+                          <CardHeader>
+                            <CardTitle className="text-lg flex items-center gap-2 text-content dark:text-content-inverted">
+                              <CreditCard className="w-5 h-5 text-brand-600 dark:text-brand-400" />
+                              Billing Management
+                            </CardTitle>
+                            <p className="text-sm text-content-body dark:text-content-subtle">
+                              Manage your payment methods, view invoices, and
+                              update billing details
+                            </p>
+                          </CardHeader>
+                          <CardContent className="space-y-4">
+                            <Button
+                              onClick={async () => {
+                                try {
+                                  setLoading(true);
+                                  const response = await sdk.functions.invoke(
+                                    "getStripeCustomerPortal",
+                                  );
+                                  if (response.data?.url) {
+                                    window.location.href = response.data.url;
+                                  } else {
+                                    // The SDK reports Edge Function failures as
+                                    // { success: false, error } rather than
+                                    // throwing, so read the server's own message
+                                    // instead of replacing it with a generic one.
+                                    throw new Error(
+                                      response.data?.error ||
+                                        "No portal URL received",
+                                    );
+                                  }
+                                } catch (error) {
+                                  console.error("Portal error:", error);
+                                  setSaveMessage(
+                                    error.message ||
+                                      "Failed to open billing portal",
+                                  );
+                                  setTimeout(() => setSaveMessage(null), 6000);
+                                } finally {
+                                  setLoading(false);
+                                }
+                              }}
+                              disabled={loading}
+                              className="w-full bg-brand-600 hover:bg-brand dark:bg-brand dark:hover:bg-brand-hover"
+                            >
+                              {loading ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Opening...
+                                </>
+                              ) : (
+                                <>
+                                  <ExternalLink className="w-4 h-4 mr-2" />
+                                  Open Stripe Billing Portal
+                                </>
+                              )}
+                            </Button>
+
+                            <div className="p-3 bg-surface dark:bg-ink-800 rounded-lg border dark:border-ink-700">
+                              <p className="text-sm text-ink-700 dark:text-ink-300 font-medium mb-2">
+                                In the portal you can:
+                              </p>
+                              <ul className="text-xs text-content-body dark:text-content-subtle space-y-1">
+                                <li>• Update payment method</li>
+                                <li>• View and download all invoices</li>
+                                <li>• Update billing information</li>
+                                <li>• View payment history</li>
+                                <li>• Cancel subscription (if needed)</li>
+                              </ul>
+                            </div>
+                          </CardContent>
+                        </Card>
+
+                        {/* Billing History */}
+                        <Card className="border-line dark:border-ink-800 bg-surface dark:bg-surface-inverted">
+                          <CardHeader>
+                            <div className="flex items-center justify-between">
+                              <CardTitle className="text-lg flex items-center gap-2 text-content dark:text-content-inverted">
+                                <File className="w-5 h-5 text-content-body dark:text-content-subtle" />
+                                Recent Billing History
+                              </CardTitle>
+                              <Button
+                                onClick={loadBillingHistory}
+                                variant="outline"
+                                size="sm"
+                                disabled={loadingBilling}
+                                className="dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
+                              >
+                                {loadingBilling ? (
+                                  <Loader2 className="w-4 h-4 animate-spin" />
+                                ) : (
+                                  <>
+                                    <RotateCcw className="w-4 h-4 mr-2" />
+                                    Refresh
+                                  </>
+                                )}
+                              </Button>
+                            </div>
+                          </CardHeader>
+                          <CardContent>
+                            {loadingBilling ? (
+                              <div className="py-8 text-center">
+                                <Loader2 className="w-8 h-8 animate-spin mx-auto text-content-subtle dark:text-content-body dark:dark:text-ink-300" />
+                              </div>
+                            ) : billingHistory.invoices.length > 0 ? (
+                              <div className="space-y-3">
+                                {billingHistory.invoices
+                                  .slice(0, 10)
+                                  .map((invoice) => (
+                                    <div
+                                      key={invoice.id}
+                                      className="flex items-center justify-between p-4 border dark:border-ink-700 rounded-lg hover:bg-surface-sunken dark:hover:bg-ink-800 transition-colors bg-surface dark:bg-ink-800/50"
+                                    >
+                                      <div className="flex-1">
+                                        <div className="flex items-center gap-3">
+                                          <div
+                                            className={`w-2 h-2 rounded-full ${
+                                              invoice.paid
+                                                ? "bg-success-500"
+                                                : invoice.status === "open"
+                                                  ? "bg-caution-500"
+                                                  : "bg-danger-500"
+                                            }`}
+                                          />
+                                          <div>
+                                            <p className="font-medium text-content dark:text-content-inverted">
+                                              {invoice.description}
+                                            </p>
+                                            <p className="text-sm text-content-muted dark:text-content-subtle">
+                                              {format(
+                                                new Date(
+                                                  invoice.created * 1000,
+                                                ),
+                                                "MMM d, yyyy",
+                                              )}
+                                            </p>
+                                          </div>
+                                        </div>
+                                      </div>
+                                      <div className="flex items-center gap-4">
+                                        <div className="text-right">
+                                          <p className="font-semibold text-content dark:text-content-inverted">
+                                            ${invoice.amount.toFixed(2)}{" "}
+                                            {invoice.currency}
+                                          </p>
+                                          <p
+                                            className={`text-xs font-medium ${
+                                              invoice.paid
+                                                ? "text-success-600 dark:text-success-400"
+                                                : invoice.status === "open"
+                                                  ? "text-caution-600 dark:text-caution-400"
+                                                  : "text-danger-600 dark:text-danger-400"
+                                            }`}
+                                          >
+                                            {invoice.paid
+                                              ? "Paid"
+                                              : invoice.status === "open"
+                                                ? "Open"
+                                                : "Failed"}
+                                          </p>
+                                        </div>
+                                        {invoice.invoice_pdf && (
+                                          <a
+                                            href={invoice.invoice_pdf}
+                                            target="_blank"
+                                            rel="noopener noreferrer"
+                                            className="p-2 hover:bg-ink-100 dark:hover:bg-ink-700 rounded-lg transition-colors"
+                                          >
+                                            <Download className="w-4 h-4 text-content-body dark:text-content-subtle" />
+                                          </a>
+                                        )}
+                                      </div>
+                                    </div>
+                                  ))}
+                              </div>
+                            ) : (
+                              <div className="text-center py-8">
+                                <File className="w-12 h-12 text-ink-300 dark:text-ink-700 mx-auto mb-3 dark:dark:text-ink-300" />
+                                <p className="text-content-body dark:text-content-subtle">
+                                  No billing history available
+                                </p>
+                                <p className="text-sm text-content-muted dark:text-content-muted mt-1">
+                                  Your invoices will appear here after your
+                                  first payment
+                                </p>
+                              </div>
+                            )}
+                          </CardContent>
+                        </Card>
+
+                        {/* Payment Methods */}
+                        {billingHistory.payment_methods.length > 0 && (
+                          <Card className="border-line dark:border-ink-800 bg-surface dark:bg-surface-inverted">
+                            <CardHeader>
+                              <CardTitle className="text-lg flex items-center gap-2 text-content dark:text-content-inverted">
+                                <CreditCard className="w-5 h-5 text-content-body dark:text-content-subtle" />
+                                Payment Methods
+                              </CardTitle>
+                            </CardHeader>
+                            <CardContent>
+                              <div className="space-y-3">
+                                {billingHistory.payment_methods.map((pm) => (
+                                  <div
+                                    key={pm.id}
+                                    className="flex items-center justify-between p-4 border dark:border-ink-700 rounded-lg bg-surface dark:bg-ink-800/50"
+                                  >
                                     <div className="flex items-center gap-3">
-                                      <div
-                                        className={`w-2 h-2 rounded-full ${
-                                          invoice.paid
-                                            ? "bg-success-500"
-                                            : invoice.status === "open"
-                                              ? "bg-caution-500"
-                                              : "bg-danger-500"
-                                        }`}
-                                      />
+                                      <div className="w-10 h-10 rounded-lg bg-ink-100 dark:bg-ink-700 flex items-center justify-center">
+                                        <CreditCard className="w-5 h-5 text-content-body dark:text-content-subtle" />
+                                      </div>
                                       <div>
-                                        <p className="font-medium text-content dark:text-content-inverted">
-                                          {invoice.description}
+                                        <p className="font-medium text-content dark:text-content-inverted capitalize">
+                                          {pm.brand} •••• {pm.last4}
                                         </p>
                                         <p className="text-sm text-content-muted dark:text-content-subtle">
-                                          {format(
-                                            new Date(invoice.created * 1000),
-                                            "MMM d, yyyy",
-                                          )}
+                                          Expires {pm.exp_month}/{pm.exp_year}
                                         </p>
                                       </div>
                                     </div>
-                                  </div>
-                                  <div className="flex items-center gap-4">
-                                    <div className="text-right">
-                                      <p className="font-semibold text-content dark:text-content-inverted">
-                                        ${invoice.amount.toFixed(2)}{" "}
-                                        {invoice.currency}
-                                      </p>
-                                      <p
-                                        className={`text-xs font-medium ${
-                                          invoice.paid
-                                            ? "text-success-600 dark:text-success-400"
-                                            : invoice.status === "open"
-                                              ? "text-caution-600 dark:text-caution-400"
-                                              : "text-danger-600 dark:text-danger-400"
-                                        }`}
-                                      >
-                                        {invoice.paid
-                                          ? "Paid"
-                                          : invoice.status === "open"
-                                            ? "Open"
-                                            : "Failed"}
-                                      </p>
-                                    </div>
-                                    {invoice.invoice_pdf && (
-                                      <a
-                                        href={invoice.invoice_pdf}
-                                        target="_blank"
-                                        rel="noopener noreferrer"
-                                        className="p-2 hover:bg-ink-100 dark:hover:bg-ink-700 rounded-lg transition-colors"
-                                      >
-                                        <Download className="w-4 h-4 text-content-body dark:text-content-subtle" />
-                                      </a>
+                                    {pm.is_default && (
+                                      <Badge className="bg-success-100 text-success-700 dark:bg-success-900 dark:text-success-300 hover:bg-success-100 dark:hover:bg-success-900">
+                                        Default
+                                      </Badge>
                                     )}
                                   </div>
-                                </div>
-                              ))}
-                          </div>
-                        ) : (
-                          <div className="text-center py-8">
-                            <File className="w-12 h-12 text-ink-300 dark:text-ink-700 mx-auto mb-3 dark:dark:text-ink-300" />
-                            <p className="text-content-body dark:text-content-subtle">
-                              No billing history available
-                            </p>
-                            <p className="text-sm text-content-muted dark:text-content-muted mt-1">
-                              Your invoices will appear here after your first
-                              payment
-                            </p>
-                          </div>
-                        )}
-                      </CardContent>
-                    </Card>
-
-                    {/* Payment Methods */}
-                    {billingHistory.payment_methods.length > 0 && (
-                      <Card className="border-line dark:border-ink-800 bg-surface dark:bg-surface-inverted">
-                        <CardHeader>
-                          <CardTitle className="text-lg flex items-center gap-2 text-content dark:text-content-inverted">
-                            <CreditCard className="w-5 h-5 text-content-body dark:text-content-subtle" />
-                            Payment Methods
-                          </CardTitle>
-                        </CardHeader>
-                        <CardContent>
-                          <div className="space-y-3">
-                            {billingHistory.payment_methods.map((pm) => (
-                              <div
-                                key={pm.id}
-                                className="flex items-center justify-between p-4 border dark:border-ink-700 rounded-lg bg-surface dark:bg-ink-800/50"
-                              >
-                                <div className="flex items-center gap-3">
-                                  <div className="w-10 h-10 rounded-lg bg-ink-100 dark:bg-ink-700 flex items-center justify-center">
-                                    <CreditCard className="w-5 h-5 text-content-body dark:text-content-subtle" />
-                                  </div>
-                                  <div>
-                                    <p className="font-medium text-content dark:text-content-inverted capitalize">
-                                      {pm.brand} •••• {pm.last4}
-                                    </p>
-                                    <p className="text-sm text-content-muted dark:text-content-subtle">
-                                      Expires {pm.exp_month}/{pm.exp_year}
-                                    </p>
-                                  </div>
-                                </div>
-                                {pm.is_default && (
-                                  <Badge className="bg-success-100 text-success-700 dark:bg-success-900 dark:text-success-300 hover:bg-success-100 dark:hover:bg-success-900">
-                                    Default
-                                  </Badge>
-                                )}
+                                ))}
                               </div>
-                            ))}
+                            </CardContent>
+                          </Card>
+                        )}
+                      </>
+                    ) : (
+                      <div className="text-center py-12 bg-surface dark:bg-surface-inverted rounded-lg border dark:border-ink-800">
+                        <CreditCard className="w-12 h-12 text-ink-300 dark:text-ink-700 mx-auto mb-4 dark:dark:text-ink-300" />
+                        <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
+                          No Active Subscription
+                        </h3>
+                        <p className="text-content-body dark:text-content-subtle mb-6">
+                          Choose a plan to start using Invoicium
+                        </p>
+                        <Link to={createPageUrl("Pricing")}>
+                          <Button className="bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover">
+                            View Pricing Plans
+                          </Button>
+                        </Link>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Notifications Tab */}
+              <TabsContent value="notifications">
+                <div className="bg-surface dark:bg-surface-inverted rounded-lg border dark:border-ink-800">
+                  <NotificationSettings />
+                </div>
+              </TabsContent>
+
+              {/* Appearance Tab */}
+              <TabsContent value="appearance">
+                <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
+                      <Palette className="w-5 h-5 text-success-600 dark:text-success-400" />
+                      Appearance
+                    </CardTitle>
+                    <p className="text-sm text-content-body dark:text-content-subtle">
+                      Customize how Invoicium looks on your device
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div>
+                      <Label className="text-ink-700 dark:text-ink-300 mb-4 block">
+                        Theme Preference
+                      </Label>
+                      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+                        {[
+                          {
+                            id: "light",
+                            icon: Sun,
+                            label: "Light Mode",
+                            desc: "Clean and bright interface",
+                            color: "bg-warning-400",
+                          },
+                          {
+                            id: "dark",
+                            icon: Moon,
+                            label: "Dark Mode",
+                            desc: "Easy on the eyes",
+                            color: "bg-brand-600",
+                          },
+                          {
+                            id: "system",
+                            icon: Monitor,
+                            label: "System Default",
+                            desc: "Follow device settings",
+                            color: "bg-ink-600",
+                          },
+                        ].map((theme) => {
+                          const Icon = theme.icon;
+                          const stored = localStorage.getItem(
+                            "invoicium-dark-mode",
+                          );
+                          const isSystem = stored === null;
+                          const isActive =
+                            (theme.id === "system" && isSystem) ||
+                            (theme.id === "light" &&
+                              !isSystem &&
+                              stored === "false") ||
+                            (theme.id === "dark" &&
+                              !isSystem &&
+                              stored === "true");
+
+                          return (
+                            <button
+                              key={theme.id}
+                              type="button"
+                              onClick={() => toggleDarkMode(theme.id)}
+                              className={`relative border-2 rounded-xl p-6 transition-all text-left ${
+                                isActive
+                                  ? "border-success-500 bg-success-50 dark:bg-success-900/30"
+                                  : "border-line dark:border-ink-700 hover:border-line-strong dark:hover:border-ink-600 bg-surface dark:bg-ink-800"
+                              }`}
+                            >
+                              {isActive && (
+                                <div className="absolute top-3 right-3">
+                                  <CheckCircle className="w-5 h-5 text-success-600 dark:text-success-400" />
+                                </div>
+                              )}
+
+                              <div
+                                className={`w-12 h-12 rounded-xl ${theme.color} flex items-center justify-center mb-4 shadow-lg`}
+                              >
+                                <Icon className="w-6 h-6 text-content-inverted" />
+                              </div>
+
+                              <h3 className="font-black text-content dark:text-content-inverted mb-1">
+                                {theme.label}
+                              </h3>
+                              <p className="text-sm text-content-body dark:text-content-subtle">
+                                {theme.desc}
+                              </p>
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-brand-50 dark:bg-brand-900/20 rounded-lg border border-info-200 dark:border-info-800">
+                      <div className="flex items-start gap-2">
+                        <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-brand-700 dark:text-brand-400" />
+                        <div className="text-sm text-info-800 dark:text-info-200">
+                          <p className="font-medium mb-1">
+                            Theme applies across all devices
+                          </p>
+                          <p className="text-xs text-brand-800 dark:text-brand-300">
+                            Your theme preference is saved to your browser. Use
+                            "System Default" to automatically match your
+                            device's dark mode setting.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Google Calendar & Booking Tab */}
+              <TabsContent value="calendar">
+                <CalendarSettings
+                  formData={formData}
+                  setFormData={setFormData}
+                  settings={settings}
+                  setSaveMessage={setSaveMessage}
+                  loadSettings={loadSettings}
+                />
+              </TabsContent>
+
+              {/* NEW: Payments Tab */}
+              <TabsContent value="payments">
+                <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
+                      <CreditCard className="w-5 h-5" />
+                      Payment Settings
+                    </CardTitle>
+                    <p className="text-sm text-content-body dark:text-content-subtle">
+                      Connect your Stripe account to receive payments from
+                      clients
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    {/* Stripe Connection Status */}
+                    <div className="p-6 border-2 rounded-lg dark:border-ink-700 bg-surface dark:bg-ink-800/50">
+                      <div className="flex items-start justify-between mb-4">
+                        <div className="flex items-center gap-3">
+                          <div className="w-12 h-12 rounded-lg bg-brand-100 dark:bg-brand-900/50 flex items-center justify-center">
+                            <CreditCard className="w-6 h-6 text-brand-600 dark:text-brand-400" />
+                          </div>
+                          <div>
+                            <h3 className="font-black text-content dark:text-content-inverted">
+                              Stripe Account
+                            </h3>
+                            <p className="text-sm text-content-body dark:text-content-subtle">
+                              Accept credit card payments online
+                            </p>
+                          </div>
+                        </div>
+                        {settings?.stripe_account_status === "active" && (
+                          <CheckCircle className="w-6 h-6 text-success-600 dark:text-success-400" />
+                        )}
+                      </div>
+
+                      {settings?.stripe_account_status === "active" ? (
+                        <div className="space-y-4">
+                          <div className="p-4 bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-lg">
+                            <p className="text-sm text-success-800 dark:text-success-200 font-medium flex items-center gap-2">
+                              <CheckCircle className="w-4 h-4" />
+                              Your Stripe account is connected and active!
+                            </p>
+                            <p className="text-xs text-success-700 dark:text-success-300 mt-1">
+                              You can now send payment links to clients and
+                              receive payments directly.
+                            </p>
+                          </div>
+
+                          <div className="flex flex-col sm:flex-row gap-2">
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={handleConnectStripe}
+                              disabled={connectingStripe}
+                              className="flex-1 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
+                            >
+                              {connectingStripe ? (
+                                <>
+                                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                  Opening...
+                                </>
+                              ) : (
+                                <>
+                                  <ExternalLink className="w-4 h-4 mr-2" />
+                                  Manage
+                                </>
+                              )}
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={checkStripeAccountStatus}
+                              className="flex-1 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
+                            >
+                              Refresh
+                            </Button>
+                            <Button
+                              type="button"
+                              variant="outline"
+                              onClick={handleDisconnectStripe}
+                              disabled={disconnectingStripe}
+                              className="flex-1 text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300 border-danger-300 dark:border-danger-800"
+                            >
+                              {disconnectingStripe ? (
+                                <Loader2 className="w-4 h-4 animate-spin" />
+                              ) : (
+                                "Disconnect"
+                              )}
+                            </Button>
+                          </div>
+                        </div>
+                      ) : settings?.stripe_account_status === "pending" ? (
+                        <div className="space-y-4">
+                          <div className="p-4 bg-caution-50 dark:bg-caution-900/20 border border-caution-200 dark:border-caution-800 rounded-lg">
+                            <p className="text-sm text-caution-800 dark:text-caution-200 font-medium">
+                              Stripe account setup in progress
+                            </p>
+                            <p className="text-xs text-caution-700 dark:text-caution-300 mt-1">
+                              Complete your Stripe onboarding to start accepting
+                              payments.
+                            </p>
+                          </div>
+
+                          <Button
+                            type="button"
+                            onClick={handleConnectStripe}
+                            disabled={connectingStripe}
+                            className="w-full bg-brand-600 hover:bg-brand dark:bg-brand dark:hover:bg-brand-hover"
+                          >
+                            {connectingStripe ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Opening Stripe...
+                              </>
+                            ) : (
+                              "Complete Stripe Setup"
+                            )}
+                          </Button>
+                        </div>
+                      ) : (
+                        <div className="space-y-4">
+                          <div className="p-4 bg-brand-50 dark:bg-brand-900/20 border border-info-200 dark:border-info-800 rounded-lg">
+                            <p className="text-sm text-info-800 dark:text-info-200 mb-2">
+                              <strong>Why connect Stripe?</strong>
+                            </p>
+                            <ul className="text-xs text-brand-800 dark:text-brand-300 space-y-1">
+                              <li>
+                                • Generate payment links for your invoices
+                              </li>
+                              <li>
+                                • Accept credit and debit card payments online
+                              </li>
+                              <li>
+                                • Automatic payment tracking and invoice updates
+                              </li>
+                              <li>
+                                • Receive payouts directly to your bank account
+                              </li>
+                              <li>
+                                • Only 1% platform fee + Stripe's standard rates
+                              </li>
+                            </ul>
+                          </div>
+
+                          <Button
+                            type="button"
+                            onClick={handleConnectStripe}
+                            disabled={connectingStripe}
+                            className="w-full bg-brand-600 hover:bg-brand"
+                          >
+                            {connectingStripe ? (
+                              <>
+                                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                                Connecting...
+                              </>
+                            ) : (
+                              <>
+                                <CreditCard className="w-4 h-4 mr-2" />
+                                Connect Stripe Account
+                              </>
+                            )}
+                          </Button>
+
+                          <p className="text-xs text-content-muted dark:text-content-subtle text-center">
+                            You'll be redirected to Stripe to complete the
+                            secure onboarding process
+                          </p>
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Payment Information */}
+                    <div className="p-4 bg-surface-sunken dark:bg-ink-800 rounded-lg border dark:border-ink-700">
+                      <h4 className="font-semibold text-content dark:text-content-inverted mb-3">
+                        Payment Processing Fees
+                      </h4>
+                      <div className="space-y-2 text-sm text-ink-700 dark:text-ink-300">
+                        <div className="flex justify-between">
+                          <span>Invoicium Platform Fee:</span>
+                          <span className="font-medium">1%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span>Stripe Processing Fee:</span>
+                          <span className="font-medium">2.9% + $0.30</span>
+                        </div>
+                        <div className="pt-2 border-t dark:border-ink-700 flex justify-between font-semibold text-content dark:text-content-inverted">
+                          <span>Total Fees:</span>
+                          <span>~3.9% + $0.30 per transaction</span>
+                        </div>
+                      </div>
+                      <p className="text-xs text-content-body dark:text-content-subtle mt-3">
+                        Example: For a $100 invoice, you receive ~$96.10 after
+                        fees
+                      </p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* PDF Templates Tab */}
+              <TabsContent value="template">
+                <PdfTemplateSettings
+                  formData={formData}
+                  setFormData={setFormData}
+                  settings={settings}
+                  setPreviewTemplate={setPreviewTemplate}
+                  showCustomPreview={showCustomPreview}
+                  setShowCustomPreview={setShowCustomPreview}
+                />
+              </TabsContent>
+
+              {/* Legal Tab */}
+              <TabsContent value="legal">
+                <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
+                  <CardHeader>
+                    <CardTitle className="text-content dark:text-content-inverted">
+                      Legal Documents
+                    </CardTitle>
+                    <p className="text-sm text-content-body dark:text-content-subtle">
+                      View our legal policies and terms
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-4">
+                    <div className="grid gap-4">
+                      <Card className="border border-line dark:border-ink-700 hover:border-success-300 dark:hover:border-success-700 hover:shadow-md transition-all bg-surface dark:bg-ink-800">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
+                                Terms of Service
+                              </h3>
+                              <p className="text-sm text-content-body dark:text-content-subtle mb-4">
+                                Read our complete Terms of Service, including
+                                refund policy, liability disclaimers, and user
+                                responsibilities.
+                              </p>
+                              <Link to={createPageUrl("TermsOfService")}>
+                                <Button
+                                  variant="outline"
+                                  className="gap-2 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                  View Terms of Service
+                                </Button>
+                              </Link>
+                            </div>
                           </div>
                         </CardContent>
                       </Card>
-                    )}
-                  </>
-                ) : (
-                  <div className="text-center py-12 bg-surface dark:bg-surface-inverted rounded-lg border dark:border-ink-800">
-                    <CreditCard className="w-12 h-12 text-ink-300 dark:text-ink-700 mx-auto mb-4 dark:dark:text-ink-300" />
-                    <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
-                      No Active Subscription
-                    </h3>
-                    <p className="text-content-body dark:text-content-subtle mb-6">
-                      Choose a plan to start using Invoicium
-                    </p>
-                    <Link to={createPageUrl("Pricing")}>
-                      <Button className="bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover">
-                        View Pricing Plans
-                      </Button>
-                    </Link>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          {/* Notifications Tab */}
-          <TabsContent value="notifications">
-            <div className="bg-surface dark:bg-surface-inverted rounded-lg border dark:border-ink-800">
-              <NotificationSettings />
-            </div>
-          </TabsContent>
-
-          {/* Appearance Tab */}
-          <TabsContent value="appearance">
-            <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
-                  <Palette className="w-5 h-5 text-success-600 dark:text-success-400" />
-                  Appearance
-                </CardTitle>
-                <p className="text-sm text-content-body dark:text-content-subtle">
-                  Customize how Invoicium looks on your device
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div>
-                  <Label className="text-ink-700 dark:text-ink-300 mb-4 block">
-                    Theme Preference
-                  </Label>
-                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-                    {[
-                      {
-                        id: "light",
-                        icon: Sun,
-                        label: "Light Mode",
-                        desc: "Clean and bright interface",
-                        color: "bg-warning-400",
-                      },
-                      {
-                        id: "dark",
-                        icon: Moon,
-                        label: "Dark Mode",
-                        desc: "Easy on the eyes",
-                        color: "bg-brand-600",
-                      },
-                      {
-                        id: "system",
-                        icon: Monitor,
-                        label: "System Default",
-                        desc: "Follow device settings",
-                        color: "bg-ink-600",
-                      },
-                    ].map((theme) => {
-                      const Icon = theme.icon;
-                      const stored = localStorage.getItem(
-                        "invoicium-dark-mode",
-                      );
-                      const isSystem = stored === null;
-                      const isActive =
-                        (theme.id === "system" && isSystem) ||
-                        (theme.id === "light" &&
-                          !isSystem &&
-                          stored === "false") ||
-                        (theme.id === "dark" && !isSystem && stored === "true");
-
-                      return (
-                        <button
-                          key={theme.id}
-                          type="button"
-                          onClick={() => toggleDarkMode(theme.id)}
-                          className={`relative border-2 rounded-xl p-6 transition-all text-left ${
-                            isActive
-                              ? "border-success-500 bg-success-50 dark:bg-success-900/30"
-                              : "border-line dark:border-ink-700 hover:border-line-strong dark:hover:border-ink-600 bg-surface dark:bg-ink-800"
-                          }`}
-                        >
-                          {isActive && (
-                            <div className="absolute top-3 right-3">
-                              <CheckCircle className="w-5 h-5 text-success-600 dark:text-success-400" />
+                      <Card className="border border-line dark:border-ink-700 hover:border-success-300 dark:hover:border-success-700 hover:shadow-md transition-all bg-surface dark:bg-ink-800">
+                        <CardContent className="p-6">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
+                                Privacy Policy
+                              </h3>
+                              <p className="text-sm text-content-body dark:text-content-subtle mb-4">
+                                Learn how we collect, use, and protect your
+                                data. Required for Google Play and App Store
+                                compliance.
+                              </p>
+                              <Link to={createPageUrl("PrivacyPolicy")}>
+                                <Button
+                                  variant="outline"
+                                  className="gap-2 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
+                                >
+                                  <FileText className="w-4 h-4" />
+                                  View Privacy Policy
+                                </Button>
+                              </Link>
                             </div>
-                          )}
-
-                          <div
-                            className={`w-12 h-12 rounded-xl ${theme.color} flex items-center justify-center mb-4 shadow-lg`}
-                          >
-                            <Icon className="w-6 h-6 text-content-inverted" />
                           </div>
+                        </CardContent>
+                      </Card>
+                    </div>
 
-                          <h3 className="font-black text-content dark:text-content-inverted mb-1">
-                            {theme.label}
-                          </h3>
-                          <p className="text-sm text-content-body dark:text-content-subtle">
-                            {theme.desc}
-                          </p>
-                        </button>
-                      );
-                    })}
-                  </div>
-                </div>
-
-                <div className="p-4 bg-brand-50 dark:bg-brand-900/20 rounded-lg border border-info-200 dark:border-info-800">
-                  <div className="flex items-start gap-2">
-                    <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-brand-700 dark:text-brand-400" />
-                    <div className="text-sm text-info-800 dark:text-info-200">
-                      <p className="font-medium mb-1">
-                        Theme applies across all devices
-                      </p>
-                      <p className="text-xs text-brand-800 dark:text-brand-300">
-                        Your theme preference is saved to your browser. Use
-                        "System Default" to automatically match your device's
-                        dark mode setting.
+                    <div className="mt-6 p-4 bg-brand-50 dark:bg-brand-900/20 rounded-lg border border-info-200 dark:border-info-800">
+                      <p className="text-sm text-info-800 dark:text-info-200">
+                        <strong>Note:</strong> By using Invoicium, you agree to
+                        our Terms of Service. Please review them carefully.
                       </p>
                     </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
 
-          {/* Google Calendar & Booking Tab */}
-          <TabsContent value="calendar">
-            <CalendarSettings
-              formData={formData}
-              setFormData={setFormData}
-              settings={settings}
-              setSaveMessage={setSaveMessage}
-              loadSettings={loadSettings}
-            />
-          </TabsContent>
-
-          {/* NEW: Payments Tab */}
-          <TabsContent value="payments">
-            <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
-                  <CreditCard className="w-5 h-5" />
-                  Payment Settings
-                </CardTitle>
-                <p className="text-sm text-content-body dark:text-content-subtle">
-                  Connect your Stripe account to receive payments from clients
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                {/* Stripe Connection Status */}
-                <div className="p-6 border-2 rounded-lg dark:border-ink-700 bg-surface dark:bg-ink-800/50">
-                  <div className="flex items-start justify-between mb-4">
-                    <div className="flex items-center gap-3">
-                      <div className="w-12 h-12 rounded-lg bg-brand-100 dark:bg-brand-900/50 flex items-center justify-center">
-                        <CreditCard className="w-6 h-6 text-brand-600 dark:text-brand-400" />
-                      </div>
-                      <div>
-                        <h3 className="font-black text-content dark:text-content-inverted">
-                          Stripe Account
+                    {/* Delete Account Section */}
+                    <Card className="border-2 border-danger-300 dark:border-danger-800 bg-danger-50 dark:bg-danger-900/20 mt-6">
+                      <CardContent className="p-6">
+                        <h3 className="text-lg font-black text-danger-900 dark:text-danger-200 mb-2">
+                          Delete Account
                         </h3>
-                        <p className="text-sm text-content-body dark:text-content-subtle">
-                          Accept credit card payments online
+                        <p className="text-sm text-danger-800 dark:text-danger-300 mb-4">
+                          Permanently delete your Invoicium account and all
+                          associated data. This action cannot be undone.
                         </p>
-                      </div>
-                    </div>
-                    {settings?.stripe_account_status === "active" && (
-                      <CheckCircle className="w-6 h-6 text-success-600 dark:text-success-400" />
-                    )}
-                  </div>
-
-                  {settings?.stripe_account_status === "active" ? (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-success-50 dark:bg-success-900/20 border border-success-200 dark:border-success-800 rounded-lg">
-                        <p className="text-sm text-success-800 dark:text-success-200 font-medium flex items-center gap-2">
-                          <CheckCircle className="w-4 h-4" />
-                          Your Stripe account is connected and active!
+                        <p className="text-xs text-danger-700 dark:text-danger-400 mb-4">
+                          This will delete: all invoices, quotes, clients, jobs,
+                          photos, and business settings.
                         </p>
-                        <p className="text-xs text-success-700 dark:text-success-300 mt-1">
-                          You can now send payment links to clients and receive
-                          payments directly.
-                        </p>
-                      </div>
-
-                      <div className="flex flex-col sm:flex-row gap-2">
                         <Button
                           type="button"
-                          variant="outline"
-                          onClick={handleConnectStripe}
-                          disabled={connectingStripe}
-                          className="flex-1 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
+                          onClick={async () => {
+                            if (
+                              !confirm(
+                                "Are you absolutely sure you want to delete your account? This will permanently delete all your data and cannot be undone. Type DELETE to confirm.",
+                              )
+                            ) {
+                              return;
+                            }
+
+                            const confirmation = prompt(
+                              "Type DELETE to confirm account deletion:",
+                            );
+                            if (confirmation !== "DELETE") {
+                              alert(
+                                "Account deletion cancelled. You must type DELETE exactly to confirm.",
+                              );
+                              return;
+                            }
+
+                            try {
+                              setSaving(true);
+                              // Delete all user data
+                              const userId = user.id;
+
+                              // Delete all related entities
+                              await Promise.all([
+                                sdk.entities.Invoice.filter({
+                                  user_id: userId,
+                                }).then((items) =>
+                                  Promise.all(
+                                    items.map((item) =>
+                                      sdk.entities.Invoice.delete(item.id),
+                                    ),
+                                  ),
+                                ),
+                                sdk.entities.Quote.filter({
+                                  user_id: userId,
+                                }).then((items) =>
+                                  Promise.all(
+                                    items.map((item) =>
+                                      sdk.entities.Quote.delete(item.id),
+                                    ),
+                                  ),
+                                ),
+                                sdk.entities.Client.filter({
+                                  user_id: userId,
+                                }).then((items) =>
+                                  Promise.all(
+                                    items.map((item) =>
+                                      sdk.entities.Client.delete(item.id),
+                                    ),
+                                  ),
+                                ),
+                                sdk.entities.Job.filter({
+                                  user_id: userId,
+                                }).then((items) =>
+                                  Promise.all(
+                                    items.map((item) =>
+                                      sdk.entities.Job.delete(item.id),
+                                    ),
+                                  ),
+                                ),
+                                sdk.entities.BusinessSettings.filter({
+                                  user_id: userId,
+                                }).then((items) =>
+                                  Promise.all(
+                                    items.map((item) =>
+                                      sdk.entities.BusinessSettings.delete(
+                                        item.id,
+                                      ),
+                                    ),
+                                  ),
+                                ),
+                                sdk.entities.Subscription.filter({
+                                  user_id: userId,
+                                }).then((items) =>
+                                  Promise.all(
+                                    items.map((item) =>
+                                      sdk.entities.Subscription.delete(item.id),
+                                    ),
+                                  ),
+                                ),
+                              ]);
+
+                              // Logout and redirect
+                              await sdk.auth.logout();
+                              window.location.href = createPageUrl("Home");
+                            } catch (error) {
+                              console.error("Error deleting account:", error);
+                              setSaveMessage(
+                                "Failed to delete account. Please contact support.",
+                              );
+                              setTimeout(() => setSaveMessage(null), 5000);
+                            } finally {
+                              setSaving(false);
+                            }
+                          }}
+                          className="bg-danger-600 hover:bg-danger-700 dark:bg-danger-700 dark:hover:bg-danger-600 text-content-inverted"
+                          disabled={saving}
                         >
-                          {connectingStripe ? (
+                          {saving ? (
                             <>
                               <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                              Opening...
+                              Deleting...
                             </>
                           ) : (
-                            <>
-                              <ExternalLink className="w-4 h-4 mr-2" />
-                              Manage
-                            </>
+                            "Delete My Account"
                           )}
                         </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={checkStripeAccountStatus}
-                          className="flex-1 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
-                        >
-                          Refresh
-                        </Button>
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={handleDisconnectStripe}
-                          disabled={disconnectingStripe}
-                          className="flex-1 text-danger-600 dark:text-danger-400 hover:text-danger-700 dark:hover:text-danger-300 border-danger-300 dark:border-danger-800"
-                        >
-                          {disconnectingStripe ? (
-                            <Loader2 className="w-4 h-4 animate-spin" />
-                          ) : (
-                            "Disconnect"
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-                  ) : settings?.stripe_account_status === "pending" ? (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-caution-50 dark:bg-caution-900/20 border border-caution-200 dark:border-caution-800 rounded-lg">
-                        <p className="text-sm text-caution-800 dark:text-caution-200 font-medium">
-                          Stripe account setup in progress
-                        </p>
-                        <p className="text-xs text-caution-700 dark:text-caution-300 mt-1">
-                          Complete your Stripe onboarding to start accepting
-                          payments.
-                        </p>
-                      </div>
-
-                      <Button
-                        type="button"
-                        onClick={handleConnectStripe}
-                        disabled={connectingStripe}
-                        className="w-full bg-brand-600 hover:bg-brand dark:bg-brand dark:hover:bg-brand-hover"
-                      >
-                        {connectingStripe ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Opening Stripe...
-                          </>
-                        ) : (
-                          "Complete Stripe Setup"
-                        )}
-                      </Button>
-                    </div>
-                  ) : (
-                    <div className="space-y-4">
-                      <div className="p-4 bg-brand-50 dark:bg-brand-900/20 border border-info-200 dark:border-info-800 rounded-lg">
-                        <p className="text-sm text-info-800 dark:text-info-200 mb-2">
-                          <strong>Why connect Stripe?</strong>
-                        </p>
-                        <ul className="text-xs text-brand-800 dark:text-brand-300 space-y-1">
-                          <li>• Generate payment links for your invoices</li>
-                          <li>
-                            • Accept credit and debit card payments online
-                          </li>
-                          <li>
-                            • Automatic payment tracking and invoice updates
-                          </li>
-                          <li>
-                            • Receive payouts directly to your bank account
-                          </li>
-                          <li>
-                            • Only 1% platform fee + Stripe's standard rates
-                          </li>
-                        </ul>
-                      </div>
-
-                      <Button
-                        type="button"
-                        onClick={handleConnectStripe}
-                        disabled={connectingStripe}
-                        className="w-full bg-brand-600 hover:bg-brand"
-                      >
-                        {connectingStripe ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Connecting...
-                          </>
-                        ) : (
-                          <>
-                            <CreditCard className="w-4 h-4 mr-2" />
-                            Connect Stripe Account
-                          </>
-                        )}
-                      </Button>
-
-                      <p className="text-xs text-content-muted dark:text-content-subtle text-center">
-                        You'll be redirected to Stripe to complete the secure
-                        onboarding process
-                      </p>
-                    </div>
-                  )}
-                </div>
-
-                {/* Payment Information */}
-                <div className="p-4 bg-surface-sunken dark:bg-ink-800 rounded-lg border dark:border-ink-700">
-                  <h4 className="font-semibold text-content dark:text-content-inverted mb-3">
-                    Payment Processing Fees
-                  </h4>
-                  <div className="space-y-2 text-sm text-ink-700 dark:text-ink-300">
-                    <div className="flex justify-between">
-                      <span>Invoicium Platform Fee:</span>
-                      <span className="font-medium">1%</span>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Stripe Processing Fee:</span>
-                      <span className="font-medium">2.9% + $0.30</span>
-                    </div>
-                    <div className="pt-2 border-t dark:border-ink-700 flex justify-between font-semibold text-content dark:text-content-inverted">
-                      <span>Total Fees:</span>
-                      <span>~3.9% + $0.30 per transaction</span>
-                    </div>
-                  </div>
-                  <p className="text-xs text-content-body dark:text-content-subtle mt-3">
-                    Example: For a $100 invoice, you receive ~$96.10 after fees
-                  </p>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* PDF Templates Tab */}
-          <TabsContent value="template">
-            <PdfTemplateSettings
-              formData={formData}
-              setFormData={setFormData}
-              settings={settings}
-              setPreviewTemplate={setPreviewTemplate}
-              showCustomPreview={showCustomPreview}
-              setShowCustomPreview={setShowCustomPreview}
-            />
-          </TabsContent>
-
-          {/* Legal Tab */}
-          <TabsContent value="legal">
-            <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
-              <CardHeader>
-                <CardTitle className="text-content dark:text-content-inverted">
-                  Legal Documents
-                </CardTitle>
-                <p className="text-sm text-content-body dark:text-content-subtle">
-                  View our legal policies and terms
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-4">
-                <div className="grid gap-4">
-                  <Card className="border border-line dark:border-ink-700 hover:border-success-300 dark:hover:border-success-700 hover:shadow-md transition-all bg-surface dark:bg-ink-800">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
-                            Terms of Service
-                          </h3>
-                          <p className="text-sm text-content-body dark:text-content-subtle mb-4">
-                            Read our complete Terms of Service, including refund
-                            policy, liability disclaimers, and user
-                            responsibilities.
-                          </p>
-                          <Link to={createPageUrl("TermsOfService")}>
-                            <Button
-                              variant="outline"
-                              className="gap-2 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
-                            >
-                              <FileText className="w-4 h-4" />
-                              View Terms of Service
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-
-                  <Card className="border border-line dark:border-ink-700 hover:border-success-300 dark:hover:border-success-700 hover:shadow-md transition-all bg-surface dark:bg-ink-800">
-                    <CardContent className="p-6">
-                      <div className="flex items-start justify-between">
-                        <div className="flex-1">
-                          <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
-                            Privacy Policy
-                          </h3>
-                          <p className="text-sm text-content-body dark:text-content-subtle mb-4">
-                            Learn how we collect, use, and protect your data.
-                            Required for Google Play and App Store compliance.
-                          </p>
-                          <Link to={createPageUrl("PrivacyPolicy")}>
-                            <Button
-                              variant="outline"
-                              className="gap-2 dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
-                            >
-                              <FileText className="w-4 h-4" />
-                              View Privacy Policy
-                            </Button>
-                          </Link>
-                        </div>
-                      </div>
-                    </CardContent>
-                  </Card>
-                </div>
-
-                <div className="mt-6 p-4 bg-brand-50 dark:bg-brand-900/20 rounded-lg border border-info-200 dark:border-info-800">
-                  <p className="text-sm text-info-800 dark:text-info-200">
-                    <strong>Note:</strong> By using Invoicium, you agree to our
-                    Terms of Service. Please review them carefully.
-                  </p>
-                </div>
-
-                {/* Delete Account Section */}
-                <Card className="border-2 border-danger-300 dark:border-danger-800 bg-danger-50 dark:bg-danger-900/20 mt-6">
-                  <CardContent className="p-6">
-                    <h3 className="text-lg font-black text-danger-900 dark:text-danger-200 mb-2">
-                      Delete Account
-                    </h3>
-                    <p className="text-sm text-danger-800 dark:text-danger-300 mb-4">
-                      Permanently delete your Invoicium account and all
-                      associated data. This action cannot be undone.
-                    </p>
-                    <p className="text-xs text-danger-700 dark:text-danger-400 mb-4">
-                      This will delete: all invoices, quotes, clients, jobs,
-                      photos, and business settings.
-                    </p>
-                    <Button
-                      type="button"
-                      onClick={async () => {
-                        if (
-                          !confirm(
-                            "Are you absolutely sure you want to delete your account? This will permanently delete all your data and cannot be undone. Type DELETE to confirm.",
-                          )
-                        ) {
-                          return;
-                        }
-
-                        const confirmation = prompt(
-                          "Type DELETE to confirm account deletion:",
-                        );
-                        if (confirmation !== "DELETE") {
-                          alert(
-                            "Account deletion cancelled. You must type DELETE exactly to confirm.",
-                          );
-                          return;
-                        }
-
-                        try {
-                          setSaving(true);
-                          // Delete all user data
-                          const userId = user.id;
-
-                          // Delete all related entities
-                          await Promise.all([
-                            sdk.entities.Invoice.filter({
-                              user_id: userId,
-                            }).then((items) =>
-                              Promise.all(
-                                items.map((item) =>
-                                  sdk.entities.Invoice.delete(item.id),
-                                ),
-                              ),
-                            ),
-                            sdk.entities.Quote.filter({ user_id: userId }).then(
-                              (items) =>
-                                Promise.all(
-                                  items.map((item) =>
-                                    sdk.entities.Quote.delete(item.id),
-                                  ),
-                                ),
-                            ),
-                            sdk.entities.Client.filter({
-                              user_id: userId,
-                            }).then((items) =>
-                              Promise.all(
-                                items.map((item) =>
-                                  sdk.entities.Client.delete(item.id),
-                                ),
-                              ),
-                            ),
-                            sdk.entities.Job.filter({ user_id: userId }).then(
-                              (items) =>
-                                Promise.all(
-                                  items.map((item) =>
-                                    sdk.entities.Job.delete(item.id),
-                                  ),
-                                ),
-                            ),
-                            sdk.entities.BusinessSettings.filter({
-                              user_id: userId,
-                            }).then((items) =>
-                              Promise.all(
-                                items.map((item) =>
-                                  sdk.entities.BusinessSettings.delete(item.id),
-                                ),
-                              ),
-                            ),
-                            sdk.entities.Subscription.filter({
-                              user_id: userId,
-                            }).then((items) =>
-                              Promise.all(
-                                items.map((item) =>
-                                  sdk.entities.Subscription.delete(item.id),
-                                ),
-                              ),
-                            ),
-                          ]);
-
-                          // Logout and redirect
-                          await sdk.auth.logout();
-                          window.location.href = createPageUrl("Home");
-                        } catch (error) {
-                          console.error("Error deleting account:", error);
-                          setSaveMessage(
-                            "Failed to delete account. Please contact support.",
-                          );
-                          setTimeout(() => setSaveMessage(null), 5000);
-                        } finally {
-                          setSaving(false);
-                        }
-                      }}
-                      className="bg-danger-600 hover:bg-danger-700 dark:bg-danger-700 dark:hover:bg-danger-600 text-content-inverted"
-                      disabled={saving}
-                    >
-                      {saving ? (
-                        <>
-                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                          Deleting...
-                        </>
-                      ) : (
-                        "Delete My Account"
-                      )}
-                    </Button>
+                      </CardContent>
+                    </Card>
                   </CardContent>
                 </Card>
-              </CardContent>
-            </Card>
-          </TabsContent>
+              </TabsContent>
 
-          {/* Contact Tab */}
-          <TabsContent value="contact">
-            <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
-                  <MessageSquare className="w-5 h-5 text-success-600 dark:text-success-400" />
-                  Contact Support
-                </CardTitle>
-                <p className="text-sm text-content-body dark:text-content-subtle">
-                  Get help from the Invoicium team
-                </p>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="p-6 bg-success-50 rounded-lg border border-success-200 dark:border-success-800 dark:bg-success-900/20">
-                  <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
-                    Need Help?
-                  </h3>
-                  <p className="text-ink-700 dark:text-ink-300 mb-4">
-                    Our support team is here to help you with any questions or
-                    issues you may have.
-                  </p>
-                  <div className="space-y-3">
-                    <div className="flex items-center gap-3 text-ink-700 dark:text-ink-300">
-                      <Mail className="w-5 h-5 text-success-600 dark:text-success-400" />
-                      <div>
-                        <p className="font-medium text-content dark:text-content-inverted">
-                          Email Support
-                        </p>
-                        <a
-                          href="mailto:support@invoicium.ca"
-                          className="text-success-600 dark:text-success-400 hover:text-success-700 dark:hover:text-success-300"
+              {/* Contact Tab */}
+              <TabsContent value="contact">
+                <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
+                  <CardHeader>
+                    <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
+                      <MessageSquare className="w-5 h-5 text-success-600 dark:text-success-400" />
+                      Contact Support
+                    </CardTitle>
+                    <p className="text-sm text-content-body dark:text-content-subtle">
+                      Get help from the Invoicium team
+                    </p>
+                  </CardHeader>
+                  <CardContent className="space-y-6">
+                    <div className="p-6 bg-success-50 rounded-lg border border-success-200 dark:border-success-800 dark:bg-success-900/20">
+                      <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
+                        Need Help?
+                      </h3>
+                      <p className="text-ink-700 dark:text-ink-300 mb-4">
+                        Our support team is here to help you with any questions
+                        or issues you may have.
+                      </p>
+                      <div className="space-y-3">
+                        <div className="flex items-center gap-3 text-ink-700 dark:text-ink-300">
+                          <Mail className="w-5 h-5 text-success-600 dark:text-success-400" />
+                          <div>
+                            <p className="font-medium text-content dark:text-content-inverted">
+                              Email Support
+                            </p>
+                            <a
+                              href="mailto:support@invoicium.ca"
+                              className="text-success-600 dark:text-success-400 hover:text-success-700 dark:hover:text-success-300"
+                            >
+                              support@invoicium.ca
+                            </a>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-3 text-ink-700 dark:text-ink-300">
+                          <Clock className="w-5 h-5 text-success-600 dark:text-success-400" />
+                          <div>
+                            <p className="font-medium text-content dark:text-content-inverted">
+                              Response Time
+                            </p>
+                            <p className="text-sm text-content-body dark:text-content-subtle">
+                              Usually within 24 hours
+                            </p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center">
+                      <Link
+                        to={createPageUrl("Contact")}
+                        className="w-full max-w-md"
+                      >
+                        <Button
+                          type="button"
+                          className="w-full bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover"
                         >
-                          support@invoicium.ca
-                        </a>
-                      </div>
+                          <Mail className="w-4 h-4 mr-2" />
+                          Email Directly
+                        </Button>
+                      </Link>
                     </div>
-                    <div className="flex items-center gap-3 text-ink-700 dark:text-ink-300">
-                      <Clock className="w-5 h-5 text-success-600 dark:text-success-400" />
-                      <div>
-                        <p className="font-medium text-content dark:text-content-inverted">
-                          Response Time
-                        </p>
-                        <p className="text-sm text-content-body dark:text-content-subtle">
-                          Usually within 24 hours
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="flex justify-center">
-                  <Link
-                    to={createPageUrl("Contact")}
-                    className="w-full max-w-md"
-                  >
-                    <Button
-                      type="button"
-                      className="w-full bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover"
-                    >
-                      <Mail className="w-4 h-4 mr-2" />
-                      Email Directly
-                    </Button>
-                  </Link>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+            </Tabs>
+          </>
+        )}
       </form>
 
       {/* Reset Dialog */}
