@@ -1,10 +1,43 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserContact } from '../_shared/supabase-admin.ts';
 import { notify } from '../_shared/notify.ts';
+import { stripeGet } from '../_shared/stripe.ts';
 
 // Mirrors PLAN_LIMITS in confirm-and-activate. A cancelled subscription drops
 // the user back to the free tier rather than leaving paid limits in place.
 const FREE_TIER = { plan_name: 'free', monthly_transaction_limit: 10, payment_processing_fee: 0 };
+
+// Mirrors PLAN_LIMITS in confirm-and-activate; ordered by transaction
+// allowance, which is the only ranking the plans carry.
+const PLAN_LIMITS: Record<string, { transactions: number; fee: number }> = {
+  free:         { transactions: 10,  fee: 0 },
+  core:         { transactions: 30,  fee: 1 },
+  essential:    { transactions: 75,  fee: 1 },
+  professional: { transactions: 250, fee: 1 },
+  enterprise:   { transactions: 500, fee: 1 },
+};
+
+/**
+ * Which plan a Stripe subscription is now on.
+ *
+ * Resolved from Stripe's own product name ("BillBetter Core") rather than from
+ * a second copy of the price-id list -- src/config/plans.js warns that an id
+ * drifting between places charges for the wrong plan, and a duplicate here
+ * would be exactly that. Returns null if it cannot tell, and callers then
+ * leave the plan alone rather than guessing.
+ */
+async function planFromSubscription(sub: Record<string, any>): Promise<string | null> {
+  const priceId = sub?.items?.data?.[0]?.price?.id;
+  if (!priceId) return null;
+  try {
+    const price = await stripeGet(`/prices/${priceId}?expand[]=product`);
+    const name = String(price?.product?.name || '').toLowerCase();
+    return Object.keys(PLAN_LIMITS).find((slug) => name.includes(slug)) || null;
+  } catch (err) {
+    console.warn('planFromSubscription failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
 
 const APP_URL = Deno.env.get('APP_BASE_URL') || 'https://www.invoicium.ca';
 
@@ -19,6 +52,10 @@ function describeChange(
   if (stripeStatus === 'past_due' || stripeStatus === 'unpaid') return 'past_due';
   // Recovering from past_due is worth telling them about; an active->active
   // no-op (Stripe resends these often) is not.
+  //
+  // A plan change also arrives as active->active. It is handled separately in
+  // the subscription.updated branch, which resolves the plan from Stripe --
+  // this event only carries price ids, not our plan slugs.
   if (stripeStatus === 'active') return previousStatus === 'past_due' ? 'renewed' : null;
   return null;
 }
@@ -212,10 +249,49 @@ Deno.serve(async (req) => {
           await db.update('Subscription', row.id, patch);
         }
 
+        // A plan change arrives as active -> active, which describeChange
+        // cannot classify. Resolve the plan from Stripe and compare with what
+        // the row already says.
+        //
+        // This also dedupes against confirm-and-activate without any shared
+        // state: whichever path runs first writes plan_name, and the other
+        // then sees no difference and stays silent. Exactly one email either
+        // way, in both orderings.
+        const newPlan = await planFromSubscription(sub);
+        const planChanged =
+          !!newPlan && !!row.plan_name && newPlan !== row.plan_name && stripeStatus === 'active';
+
+        if (planChanged) {
+          const limits = PLAN_LIMITS[newPlan] || PLAN_LIMITS.free;
+          await db.update('Subscription', row.id, {
+            plan_name: newPlan,
+            monthly_transaction_limit: limits.transactions,
+            payment_processing_fee: limits.fee,
+          });
+
+          const pretty = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
+          const rank = (id?: string | null) =>
+            id && PLAN_LIMITS[id] ? PLAN_LIMITS[id].transactions : -1;
+          const contact = row.user_id ? await getUserContact(row.user_id) : null;
+
+          await notify.subscriptionChanged({
+            userEmail: contact?.email || '',
+            userName: contact?.name || null,
+            change: rank(newPlan) >= rank(row.plan_name) ? 'upgraded' : 'downgraded',
+            planName: pretty(newPlan),
+            previousPlanName: pretty(row.plan_name),
+            effectiveDate: sub.current_period_end
+              ? new Date(sub.current_period_end * 1000).toISOString()
+              : null,
+            billingUrl: `${APP_URL}/Settings`,
+          });
+        }
+
         // Only mail on a change the user would notice. Stripe re-sends
         // subscription.updated for many internal edits, and describeChange
-        // returns null for those so we stay quiet.
-        const change = describeChange(stripeStatus, row.status);
+        // returns null for those so we stay quiet. Skipped when the plan
+        // change above already sent one.
+        const change = planChanged ? null : describeChange(stripeStatus, row.status);
         if (change) {
           const contact = row.user_id ? await getUserContact(row.user_id) : null;
           await notify.subscriptionChanged({
