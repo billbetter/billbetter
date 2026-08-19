@@ -91,10 +91,10 @@ export default function PrivacyPolicy() {
             If you do not agree with this policy, please discontinue use of the
             Service and contact us at{" "}
             <a
-              href="mailto:Axisbillhelp@gmail.com"
+              href="mailto:support@invoicium.ca"
               className="text-brand-700 dark:text-brand-400 hover:underline"
             >
-              Axisbillhelp@gmail.com
+              support@invoicium.ca
             </a>{" "}
             to request deletion of your data.
           </p>
@@ -415,10 +415,10 @@ export default function PrivacyPolicy() {
           <p className="mt-4 text-sm">
             To exercise any of these rights, please contact us at{" "}
             <a
-              href="mailto:Axisbillhelp@gmail.com"
+              href="mailto:support@invoicium.ca"
               className="text-brand-700 dark:text-brand-400 hover:underline"
             >
-              Axisbillhelp@gmail.com
+              support@invoicium.ca
             </a>
             . We will respond to your request within 30 days.
           </p>
@@ -466,10 +466,10 @@ export default function PrivacyPolicy() {
             information as quickly as possible. If you believe that a minor has
             provided us with personal information, please contact us at{" "}
             <a
-              href="mailto:Axisbillhelp@gmail.com"
+              href="mailto:support@invoicium.ca"
               className="text-brand-700 dark:text-brand-400 hover:underline"
             >
-              Axisbillhelp@gmail.com
+              support@invoicium.ca
             </a>
             .
           </p>
@@ -535,10 +535,10 @@ export default function PrivacyPolicy() {
                   Email:
                 </span>
                 <a
-                  href="mailto:Axisbillhelp@gmail.com"
+                  href="mailto:support@invoicium.ca"
                   className="text-brand-700 dark:text-brand-400 hover:underline font-medium"
                 >
-                  Axisbillhelp@gmail.com
+                  support@invoicium.ca
                 </a>
               </div>
               <div className="flex items-center gap-2">
@@ -581,7 +581,7 @@ export default function PrivacyPolicy() {
             </Link>
             <span className="text-ink-300 dark:text-content-body">|</span>
             <a
-              href="mailto:Axisbillhelp@gmail.com"
+              href="mailto:support@invoicium.ca"
               className="text-xs text-brand-700 dark:text-brand-400 hover:underline"
             >
               Contact Support

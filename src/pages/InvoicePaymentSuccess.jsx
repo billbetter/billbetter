@@ -164,10 +164,10 @@ export default function InvoicePaymentSuccess() {
                   <p className="text-xs text-info-700">
                     Questions? Contact us at{" "}
                     <a
-                      href="mailto:Axisbillhelp@gmail.com"
+                      href="mailto:support@invoicium.ca"
                       className="font-semibold underline hover:text-info-900"
                     >
-                      Axisbillhelp@gmail.com
+                      support@invoicium.ca
                     </a>
                   </p>
                 </div>

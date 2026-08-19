@@ -26,15 +26,12 @@ const SKIP_DIR = /\/marketing\//; // matched against the normalised path
 // They stay white paper in both themes (their roots carry dark:!bg-surface),
 // so their light ink text is correct, not a dark-mode gap.
 const PAPER = /(InvoicePreview|QuotePreview|CustomTemplatePreview)\.jsx$/;
-
-// The signed-out marketing header inside Layout, and the Google button that
-// only ever renders on the light-only auth pages.
-const ALLOW = new Set([
-  "src/Layout.jsx:317",
-  "src/Layout.jsx:319",
-  "src/Layout.jsx:337",
-  "src/Layout.jsx:368",
-]);
+// A file can opt a region out inline, for blocks that are light in both
+// themes (e.g. the signed-out marketing shell inside Layout). Line numbers
+// shift every time the file is edited, so the exclusion lives in the code it
+// describes:  /* audit:light-only:start */ ... /* audit:light-only:end */
+const MARK_START = "audit:light-only:start";
+const MARK_END = "audit:light-only:end";
 const ALLOW_FILE = /GoogleAuthButton\.jsx$/;
 
 const LIGHT_BG =
@@ -75,9 +72,13 @@ for (const f of files) {
         ALLOW_FILE.test(rel)
   )
     continue;
+  let muted = false;
   fs.readFileSync(f, "utf8")
     .split("\n")
     .forEach((line, i) => {
+      if (line.includes(MARK_START)) muted = true;
+      if (line.includes(MARK_END)) muted = false;
+      if (muted) return;
       for (const m of line.matchAll(/class(?:Name)?=["`{]?["`]?([^"`]*)/g)) {
         const cls = m[1].trim().split(/\s+/).filter(Boolean);
         // An element whose fill is a fixed brand/status colour (bg-warning-500
@@ -96,7 +97,6 @@ for (const f of files) {
             if (!hit) continue;
             const need = new RegExp("^" + tmpl.replace("%s", hit[1]));
             if (cls.some((o) => need.test(o))) continue;
-            if (ALLOW.has(`${rel}:${i + 1}`)) continue;
             if (!byFile.has(rel)) byFile.set(rel, []);
             byFile.get(rel).push({ line: i + 1, kind, cls: c });
           }

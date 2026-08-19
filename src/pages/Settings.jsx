@@ -2051,10 +2051,10 @@ export default function Settings() {
                           Email Support
                         </p>
                         <a
-                          href="mailto:Axisbillhelp@gmail.com"
+                          href="mailto:support@invoicium.ca"
                           className="text-success-600 dark:text-success-400 hover:text-success-700 dark:hover:text-success-300"
                         >
-                          Axisbillhelp@gmail.com
+                          support@invoicium.ca
                         </a>
                       </div>
                     </div>

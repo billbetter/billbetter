@@ -55,7 +55,7 @@ export default function Contact() {
     } catch (error) {
       console.error("Error sending message:", error);
       alert(
-        "Failed to send message. Please try again or email us directly at Axisbillhelp@gmail.com",
+        "Failed to send message. Please try again or email us directly at support@invoicium.ca",
       );
     } finally {
       setLoading(false);
@@ -120,10 +120,10 @@ export default function Contact() {
                       Email Us Directly
                     </p>
                     <a
-                      href="mailto:Axisbillhelp@gmail.com"
+                      href="mailto:support@invoicium.ca"
                       className="text-brand-700 hover:text-brand-800 text-sm font-medium transition-colors"
                     >
-                      Axisbillhelp@gmail.com
+                      support@invoicium.ca
                     </a>
                   </div>
                 </div>
