@@ -56,6 +56,12 @@ Deno.serve(async (req) => {
       'metadata[user_id]': user.id,
       'metadata[plan_name]': plan_name,
       'metadata[billing_cycle]': billing_cycle || 'monthly',
+      // Also stamp the subscription itself. Session metadata does not propagate,
+      // and customer.subscription.* events carry only the subscription -- without
+      // this the webhook cannot tell which user a cancellation belongs to.
+      'subscription_data[metadata][user_id]': user.id,
+      'subscription_data[metadata][plan_name]': plan_name,
+      'subscription_data[metadata][billing_cycle]': billing_cycle || 'monthly',
     };
 
     if (user.email) {

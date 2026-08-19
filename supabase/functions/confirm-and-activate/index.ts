@@ -62,6 +62,9 @@ Deno.serve(async (req) => {
       lifetime_documents_created: existing?.lifetime_documents_created || 0,
       subscription_start_date: now,
       ...(trialEnd ? { trial_end_date: trialEnd } : {}),
+      // Needed by stripe-webhook to map lifecycle events back to this user.
+      ...(session.customer ? { stripe_customer_id: session.customer } : {}),
+      ...(session.subscription ? { stripe_subscription_id: session.subscription } : {}),
     };
 
     if (existing) {
