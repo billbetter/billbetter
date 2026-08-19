@@ -26,26 +26,65 @@ Deno.serve(async (req) => {
     const user = await getUserFromAuthHeader(req);
     if (!user) throw new Error('Not authenticated');
 
-    const { session_id } = await req.json();
-    if (!session_id) throw new Error('session_id is required');
+    const { session_id, subscription_id } = await req.json();
+    if (!session_id && !subscription_id) {
+      throw new Error('session_id or subscription_id is required');
+    }
 
-    const session = await stripeGet(`/checkout/sessions/${session_id}`);
-    if (session.error) throw new Error(session.error.message);
+    // Two ways in: the hosted Checkout redirect returns a session, while the
+    // on-site Elements flow confirms a subscription directly and has none.
+    let session: Record<string, any> = {};
+    let subscription: Record<string, any> = {};
 
-    if (session.payment_status !== 'paid' && session.status !== 'complete') {
-      return new Response(
-        JSON.stringify({ ok: false, status: 'pending' }),
-        { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
-      );
+    if (session_id) {
+      session = await stripeGet(`/checkout/sessions/${session_id}`);
+      if (session.error) throw new Error(session.error.message);
+
+      if (session.payment_status !== 'paid' && session.status !== 'complete') {
+        return new Response(
+          JSON.stringify({ ok: false, status: 'pending' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+    } else {
+      subscription = await stripeGet(`/subscriptions/${subscription_id}`);
+      if (subscription.error) throw new Error(subscription.error.message);
+
+      // Only Stripe's own view of the subscription decides this -- never the
+      // client, which could otherwise claim activation without paying.
+      const good = subscription.status === 'active' || subscription.status === 'trialing';
+      if (!good) {
+        return new Response(
+          JSON.stringify({ ok: false, status: subscription.status || 'pending' }),
+          { headers: { ...corsHeaders, 'Content-Type': 'application/json' }, status: 200 }
+        );
+      }
+
+      // Verify it belongs to the caller before writing anything.
+      if (subscription.metadata?.user_id && subscription.metadata.user_id !== user.id) {
+        throw new Error('Subscription does not belong to this user');
+      }
+
+      session = {
+        metadata: subscription.metadata || {},
+        customer: subscription.customer,
+        subscription: subscription.id,
+      };
     }
 
     const planName = session.metadata?.plan_name || 'core';
     const billingCycle = session.metadata?.billing_cycle || 'monthly';
-    const isTrial = session.metadata?.is_trial === 'true';
+    const isTrial = subscription.status === 'trialing' || session.metadata?.is_trial === 'true';
     const limits = PLAN_LIMITS[planName] || PLAN_LIMITS.core;
 
     const now = new Date().toISOString();
-    const trialEnd = isTrial ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString() : null;
+    // Prefer Stripe's own trial_end; the +7d fallback only covers the hosted
+    // Checkout path, where we have no subscription object to read.
+    const trialEnd = subscription.trial_end
+      ? new Date(subscription.trial_end * 1000).toISOString()
+      : isTrial
+        ? new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString()
+        : null;
 
     const existing = await db.findOne('Subscription', { user_id: user.id });
 

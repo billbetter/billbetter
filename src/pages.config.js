@@ -52,6 +52,7 @@ import ApproveQuote from './pages/ApproveQuote';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
 import Calendar from './pages/Calendar';
+import Checkout from './pages/Checkout';
 import ChaseInvoice from './pages/ChaseInvoice';
 import Clients from './pages/Clients';
 import Contact from './pages/Contact';
@@ -103,6 +104,7 @@ export const PAGES = {
     "JobPhotos": JobPhotos,
     "PaymentSuccess": PaymentSuccess,
     "PhoneVerification": PhoneVerification,
+    "Checkout": Checkout,
     "Pricing": Pricing,
     "PublicBooking": PublicBooking,
     "PublicQuote": PublicQuote,

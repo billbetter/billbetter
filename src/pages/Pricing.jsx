@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { PLAN_BILLING } from "@/config/plans";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -33,6 +34,12 @@ import { sdk } from "@/api/sdk";
 import { format } from "date-fns";
 import SEO from "@/components/seo/SEO";
 
+/**
+ * The SDK reports Edge Function failures as { success: false, error } instead of
+ * throwing, so a missing `url` surfaced as a bare "No checkout URL received"
+ * that hid the real cause — most often the browser blocking the call on CORS,
+ * or Stripe rejecting the price. Pull the server's own message through.
+ */
 export default function Pricing() {
   const navigate = useNavigate();
   const [billingCycle, setBillingCycle] = useState("monthly");
@@ -109,21 +116,11 @@ export default function Pricing() {
         await sdk.auth.redirectToLogin(window.location.pathname);
         return;
       }
-      const priceId =
-        cycle === "monthly" ? plan.monthlyPriceId : plan.yearlyPriceId;
-      const appOrigin = import.meta.env.VITE_APP_URL || window.location.origin;
-      const response = await sdk.functions.invoke("stripeCreateSession", {
-        price_id: priceId,
-        plan_name: plan.id,
-        billing_cycle: cycle,
-        is_trial: false,
-        frontend_origin: appOrigin,
-      });
-      if (response?.data?.url) {
-        window.location.href = response.data.url;
-      } else {
-        throw new Error("No checkout URL received");
-      }
+      // On-site checkout: card details are collected on our own branded page
+      // rather than redirecting out to Stripe's hosted flow.
+      navigate(
+        `${createPageUrl("Checkout")}?plan=${encodeURIComponent(plan.id)}&cycle=${encodeURIComponent(cycle)}`,
+      );
     } catch (error) {
       alert(error.message || "Failed to start subscription. Please try again.");
     } finally {
@@ -149,32 +146,14 @@ export default function Pricing() {
         await sdk.auth.redirectToLogin(window.location.pathname);
         return;
       }
-      const priceId =
-        selectedPlanForTrial.cycle === "yearly"
-          ? selectedPlanForTrial.plan.yearlyPriceId
-          : selectedPlanForTrial.plan.monthlyPriceId;
-      const appOrigin = import.meta.env.VITE_APP_URL || window.location.origin;
-      const response = await sdk.functions.invoke("stripeCreateSession", {
-        price_id: priceId,
-        plan_name: selectedPlanForTrial.plan.id,
-        billing_cycle: selectedPlanForTrial.cycle,
-        is_trial: true,
-        frontend_origin: appOrigin,
-      });
-      if (response?.data?.trial_eligible === false) {
-        alert(
-          "You have already used your free trial. You can still purchase a subscription!",
-        );
-        setShowTrialModal(false);
-        await handleCheckout(
-          selectedPlanForTrial.plan,
-          selectedPlanForTrial.cycle,
-        );
-        return;
-      }
-      if (response?.data?.url) {
-        window.location.href = response.data.url;
-      }
+      // Trial eligibility is decided server-side in stripe-create-subscription;
+      // this page only carries the intent through to checkout.
+      setShowTrialModal(false);
+      navigate(
+        `${createPageUrl("Checkout")}?plan=${encodeURIComponent(
+          selectedPlanForTrial.plan.id,
+        )}&cycle=${encodeURIComponent(selectedPlanForTrial.cycle)}&trial=1`,
+      );
     } catch (error) {
       alert(error.message || "Failed to start trial. Please try again.");
     } finally {
@@ -191,8 +170,8 @@ export default function Pricing() {
       icon: Sparkles,
       monthlyPrice: 24,
       yearlyPrice: 240,
-      monthlyPriceId: "price_1U60o4LvDc7eLOdr2Ef6lHeV",
-      yearlyPriceId: "price_1U60o5LvDc7eLOdrxxJCo8zS",
+      monthlyPriceId: PLAN_BILLING.core.monthlyPriceId,
+      yearlyPriceId: PLAN_BILLING.core.yearlyPriceId,
       transactions: 30,
       description: "For solo contractors",
       valueLine: "Accept payments and automate your workflow",
@@ -214,8 +193,8 @@ export default function Pricing() {
       icon: TrendingUp,
       monthlyPrice: 39,
       yearlyPrice: 390,
-      monthlyPriceId: "price_1U60o5LvDc7eLOdrLhZMY6BP",
-      yearlyPriceId: "price_1U60o5LvDc7eLOdr2ZLowIZ7",
+      monthlyPriceId: PLAN_BILLING.essential.monthlyPriceId,
+      yearlyPriceId: PLAN_BILLING.essential.yearlyPriceId,
       transactions: 75,
       description: "Best value for small businesses",
       valueLine: "Save time with automation and expense tracking",
@@ -238,8 +217,8 @@ export default function Pricing() {
       icon: Zap,
       monthlyPrice: 79,
       yearlyPrice: 790,
-      monthlyPriceId: "price_1U60o6LvDc7eLOdrfLz6yk99",
-      yearlyPriceId: "price_1U60o6LvDc7eLOdri6HlnG3Z",
+      monthlyPriceId: PLAN_BILLING.professional.monthlyPriceId,
+      yearlyPriceId: PLAN_BILLING.professional.yearlyPriceId,
       transactions: 250,
       description: "For growing businesses",
       valueLine: "Run your entire business in one place",
@@ -262,8 +241,8 @@ export default function Pricing() {
       icon: Crown,
       monthlyPrice: 99,
       yearlyPrice: 990,
-      monthlyPriceId: "price_1U60o6LvDc7eLOdrgUBd793l",
-      yearlyPriceId: "price_1U60o7LvDc7eLOdrlrzvmXhb",
+      monthlyPriceId: PLAN_BILLING.enterprise.monthlyPriceId,
+      yearlyPriceId: PLAN_BILLING.enterprise.yearlyPriceId,
       transactions: 500,
       description: "For larger operations",
       valueLine: "Scale your operations with full control",

@@ -152,6 +152,7 @@ async function handleFunctionInvoke(name, payload = {}) {
     checkOverdueInvoices: 'check-overdue-invoices',
     sendTestAnalyticsEmail: 'send-test-analytics-email',
     stripeCreateSession: 'stripe-create-session',
+    stripeCreateSubscription: 'stripe-create-subscription',
     confirmAndActivate: 'confirm-and-activate',
   };
 

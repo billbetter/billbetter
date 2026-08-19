@@ -81,6 +81,10 @@ export default function Layout({ children, currentPageName }) {
     publicPages.includes(currentPageName) ||
     publicPaths.includes(location.pathname);
 
+  // Requires a signed-in user but deliberately not a subscription -- this is
+  // where someone goes to buy one, so the paywall must not bounce them off it.
+  const subscriptionExemptPages = ["Checkout"];
+
   useEffect(() => {
     checkAuthAndSubscription();
   }, []); // Only check auth once on mount, not on every route change
@@ -111,7 +115,10 @@ export default function Layout({ children, currentPageName }) {
           (subscription.status === "active" ||
             subscription.status === "trial" ||
             subscription.status === "trialing");
-        if (!hasLiveSubscription) {
+        if (
+          !hasLiveSubscription &&
+          !subscriptionExemptPages.includes(currentPageName)
+        ) {
           console.log("🔒 No active subscription, redirecting to Pricing");
           navigate(createPageUrl("Pricing"), { replace: true });
         }
@@ -324,6 +331,8 @@ export default function Layout({ children, currentPageName }) {
         subscription.status === "trialing");
 
     return (
+      /* audit:light-only:start — the signed-out marketing shell renders for
+         visitors who have no theme preference, so it stays light in both. */
       <div className="min-h-screen bg-surface-sunken">
         <header
           className={`sticky top-0 z-50 w-full border-b border-line bg-surface transition-shadow duration-300 ${isScrolled ? "shadow-sm" : ""}`}
@@ -394,6 +403,7 @@ export default function Layout({ children, currentPageName }) {
 
         <div>{children}</div>
       </div>
+      /* audit:light-only:end */
     );
   }
 
