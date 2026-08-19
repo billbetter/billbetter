@@ -184,34 +184,7 @@ export default function Pricing() {
   };
 
   const plans = [
-    {
-      id: "free",
-      name: "Free",
-      icon: Gift,
-      monthlyPrice: 0,
-      yearlyPrice: 0,
-      monthlyPriceId: null,
-      yearlyPriceId: null,
-      transactions: 10,
-      description: "Try Invoicium risk-free",
-      valueLine: "Start creating invoices in minutes",
-      features: [
-        "10 documents lifetime",
-        "Manual invoices & quotes",
-        "Client management",
-        "PDF export (single template)",
-        "Email sending only",
-      ],
-      notIncluded: [
-        "AI features",
-        "Online payments",
-        "SMS",
-        "Jobs",
-        "Recurring invoices",
-      ],
-      cta: "Get Started Free",
-      popular: false,
-    },
+    // Free tier removed: access now requires a live subscription (see Layout.jsx).
     {
       id: "core",
       name: "Core",

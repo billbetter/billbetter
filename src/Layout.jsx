@@ -103,8 +103,18 @@ export default function Layout({ children, currentPageName }) {
         sdk.auth.redirectToLogin(location.pathname);
         return; // Stop execution to prevent state updates
       } else {
-        // LOGGED IN - user can access the dashboard
-        // Feature gates within pages handle subscription-level restrictions
+        // LOGGED IN - but an account alone does not grant access. Without a
+        // live subscription send them to Pricing to choose a plan; feature
+        // gates within pages then handle plan-level restrictions.
+        const hasLiveSubscription =
+          subscription &&
+          (subscription.status === "active" ||
+            subscription.status === "trial" ||
+            subscription.status === "trialing");
+        if (!hasLiveSubscription) {
+          console.log("🔒 No active subscription, redirecting to Pricing");
+          navigate(createPageUrl("Pricing"), { replace: true });
+        }
         return;
       }
     }
