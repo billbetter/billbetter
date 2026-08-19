@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { hasAppAccess } from "@/lib/access";
 import { sdk } from "@/api/sdk";
 import {
   LayoutDashboard,
@@ -34,13 +35,6 @@ import {
 import GlobalVoiceAssistant from "./components/voice/GlobalVoiceAssistant";
 import NotificationPermissionPrompt from "./components/notifications/NotificationPermissionPrompt";
 import NotificationBell from "./components/notifications/NotificationBell";
-
-// Statuses that grant access to the app. Defined once: this test previously
-// existed as three separate inline copies, and any one of them drifting would
-// silently lock paying users out of a page.
-const LIVE_SUBSCRIPTION_STATUSES = new Set(["active", "trial", "trialing"]);
-const isLiveSubscription = (sub) =>
-  !!sub && LIVE_SUBSCRIPTION_STATUSES.has(sub.status);
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
@@ -91,7 +85,10 @@ export default function Layout({ children, currentPageName }) {
 
   // Requires a signed-in user but deliberately not a subscription -- this is
   // where someone goes to buy one, so the paywall must not bounce them off it.
-  const subscriptionExemptPages = ["Checkout"];
+  // Reachable while blocked: Checkout is how they pay, UpgradeRequired is
+  // the billing screen itself. Anything else redirects, so a blocked user
+  // can never render a data screen.
+  const subscriptionExemptPages = ["Checkout", "UpgradeRequired"];
 
   // Rendered without the sidebar or the marketing header -- see the standalone
   // layout branch below.
@@ -108,7 +105,7 @@ export default function Layout({ children, currentPageName }) {
   // straight back to Pricing. Re-read it on route change, but only while access
   // is not yet granted, so ordinary in-app navigation costs no extra queries.
   useEffect(() => {
-    if (!user || isLiveSubscription(subscription)) return;
+    if (!user || hasAppAccess(subscription)) return;
     let cancelled = false;
     (async () => {
       try {
@@ -147,13 +144,12 @@ export default function Layout({ children, currentPageName }) {
         // LOGGED IN - but an account alone does not grant access. Without a
         // live subscription send them to Pricing to choose a plan; feature
         // gates within pages then handle plan-level restrictions.
-        const hasLiveSubscription = isLiveSubscription(subscription);
+        const hasLiveSubscription = hasAppAccess(subscription);
         if (
           !hasLiveSubscription &&
           !subscriptionExemptPages.includes(currentPageName)
         ) {
-          console.log("🔒 No active subscription, redirecting to Pricing");
-          navigate(createPageUrl("Pricing"), { replace: true });
+          navigate(createPageUrl("UpgradeRequired"), { replace: true });
         }
         return;
       }
@@ -386,11 +382,17 @@ export default function Layout({ children, currentPageName }) {
       </div>
     );
   }
+  // The paywall screen renders standalone. Wrapping it in the app shell would
+  // show a sidebar of pages a blocked user cannot reach -- and the brief is
+  // that a blocked account gets no peek into the app at all.
+  if (currentPageName === "UpgradeRequired") {
+    return <>{children}</>;
+  }
 
   // ---------- PUBLIC LAYOUT ----------
   if (isPublicPage) {
     const isLoggedIn = !!user;
-    const hasActiveSub = isLiveSubscription(subscription);
+    const hasActiveSub = hasAppAccess(subscription);
 
     return (
       /* audit:light-only:start — the signed-out marketing shell renders for

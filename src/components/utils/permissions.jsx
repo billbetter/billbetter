@@ -1,45 +1,13 @@
 /**
  * Plan-based feature access control system
- * 5-tier model: free → core → essential → professional → enterprise
+ * 4-tier model: core → essential → professional → enterprise
+ *
+ * There is no free tier. Reaching any of this already requires a live
+ * subscription (RLS + the Layout gate), so these functions differentiate
+ * between PAID plans only -- they are not an access check.
  */
 
 export const PLAN_FEATURES = {
-  free: {
-    name: "Free",
-    entities: ["Client", "Invoice", "Quote", "BusinessSettings"],
-    payment_processing_fee: 0,
-    transaction_limit: 10,
-    features: {
-      basic_invoicing: true,
-      quotes: true,
-      client_management: true,
-      pdf_export: true, // Single template only
-      email_sending: true,
-      sms_sending: false,
-      ai_assistance: false, // NO AI
-      online_payments: false, // Stripe disabled
-      jobs: false,
-      expenses: false,
-      recurring_invoices: false,
-      receipt_checker: false,
-      analytics_dashboard: false,
-      smart_insights: false,
-      crew_management: false,
-      employee_profiles: false,
-      task_management: false,
-      custom_templates: false,
-      branding: false,
-      google_calendar: false,
-      multi_user: false,
-      priority_support: false,
-      excel_export: false,
-      client_approvals: false,
-      client_reviews: false,
-      material_assistant: false,
-      price_comparison: false,
-      automations: false,
-    },
-  },
   core: {
     name: "Core",
     entities: [
@@ -378,7 +346,6 @@ export const PLAN_FEATURES = {
  * Plan upgrade path
  */
 export const PLAN_UPGRADE_PATH = {
-  free: "core",
   core: "essential",
   starter: "essential",
   essential: "professional",
@@ -391,7 +358,6 @@ export const PLAN_UPGRADE_PATH = {
  * Human-readable next plan name for upgrade CTAs
  */
 export const NEXT_PLAN_LABELS = {
-  free: "Core",
   core: "Essential",
   starter: "Essential",
   essential: "Professional",
@@ -405,8 +371,8 @@ export const NEXT_PLAN_LABELS = {
  */
 export function canAccessEntity(subscription, entityName) {
   if (!subscription) return false;
-  const planName = subscription.plan_name?.toLowerCase() || "free";
-  const plan = PLAN_FEATURES[planName] || PLAN_FEATURES.free;
+  const planName = subscription.plan_name?.toLowerCase() || "core";
+  const plan = PLAN_FEATURES[planName] || PLAN_FEATURES.core;
   return plan.entities.includes(entityName);
 }
 
@@ -415,8 +381,8 @@ export function canAccessEntity(subscription, entityName) {
  */
 export function canAccessFeature(subscription, featureName) {
   if (!subscription) return false;
-  const planName = subscription.plan_name?.toLowerCase() || "free";
-  const plan = PLAN_FEATURES[planName] || PLAN_FEATURES.free;
+  const planName = subscription.plan_name?.toLowerCase() || "core";
+  const plan = PLAN_FEATURES[planName] || PLAN_FEATURES.core;
   // Support legacy feature keys
   if (featureName === "excel_export")
     return plan.features.excel_export === true;
@@ -427,9 +393,9 @@ export function canAccessFeature(subscription, featureName) {
  * Get the user's current plan details
  */
 export function getUserPlan(subscription) {
-  if (!subscription) return PLAN_FEATURES.free;
-  const planName = subscription.plan_name?.toLowerCase() || "free";
-  return PLAN_FEATURES[planName] || PLAN_FEATURES.free;
+  if (!subscription) return PLAN_FEATURES.core;
+  const planName = subscription.plan_name?.toLowerCase() || "core";
+  return PLAN_FEATURES[planName] || PLAN_FEATURES.core;
 }
 
 /**
@@ -465,13 +431,7 @@ export function getUpgradeMessage(featureName) {
  * Get the minimum plan required for a feature
  */
 export function getMinimumPlanForFeature(featureName) {
-  const planHierarchy = [
-    "free",
-    "core",
-    "essential",
-    "professional",
-    "enterprise",
-  ];
+  const planHierarchy = ["core", "essential", "professional", "enterprise"];
   for (const planName of planHierarchy) {
     const plan = PLAN_FEATURES[planName];
     if (plan?.features[featureName]) {
@@ -485,21 +445,6 @@ export function getMinimumPlanForFeature(featureName) {
  * Get the next plan name for upgrade CTA
  */
 export function getNextPlanName(subscription) {
-  const planName = subscription?.plan_name?.toLowerCase() || "free";
+  const planName = subscription?.plan_name?.toLowerCase() || "core";
   return NEXT_PLAN_LABELS[planName] || "Core";
-}
-
-/**
- * Check if user has reached free plan document limit
- */
-export function hasReachedFreeLimit(subscription) {
-  if (!subscription || subscription.plan_name !== "free") return false;
-  return (subscription.lifetime_documents_created || 0) >= 10;
-}
-
-/**
- * Check if user is on free plan
- */
-export function isFreePlan(subscription) {
-  return subscription && subscription.plan_name === "free";
 }

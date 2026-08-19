@@ -1,9 +1,16 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
+import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
 import { buildInvoicePDF } from '../_shared/pdf-utils.ts';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
   if (cors) return cors;
+
+  // Paywall. These functions run with SERVICE_ROLE and so bypass RLS --
+  // without this a lapsed user could still have work done on their behalf.
+  const access = await requireAppAccess(req);
+  const denied = accessDenied(access, getCorsHeaders(req));
+  if (denied) return denied;
 
   try {
     const raw = await req.json();

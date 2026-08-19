@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { hasAppAccess } from "@/lib/access";
 import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import IPhoneMockup from "@/components/ui/iphone-mockup";
@@ -81,11 +82,7 @@ export default function Home() {
       if (subscriptionData.length > 0) {
         const sub = subscriptionData[0];
         setSubscription(sub);
-        if (
-          sub.status === "active" ||
-          sub.status === "trial" ||
-          sub.status === "trialing"
-        ) {
+        if (hasAppAccess(sub)) {
           navigate(createPageUrl("Dashboard"), { replace: true });
           return;
         }
@@ -111,11 +108,7 @@ export default function Home() {
 
   const handleGetStarted = () => {
     if (user) {
-      if (
-        subscription &&
-        (subscription.status === "active" || subscription.status === "trialing")
-      )
-        navigate(createPageUrl("Dashboard"));
+      if (hasAppAccess(subscription)) navigate(createPageUrl("Dashboard"));
       else navigate(createPageUrl("Pricing"));
     } else {
       sdk.auth.redirectToLogin(createPageUrl("Pricing"));

@@ -70,71 +70,15 @@ export default function Pricing() {
   // refunds and cancels the old one; dropping to free is not.
   const holdsPaidPlan = Boolean(
     currentSubscription &&
-      ["active", "trial", "trialing", "past_due"].includes(
-        currentSubscription.status,
-      ) &&
-      currentSubscription.stripe_subscription_id,
+    ["active", "trial", "trialing", "past_due"].includes(
+      currentSubscription.status,
+    ) &&
+    currentSubscription.stripe_subscription_id,
   );
-
-  const handleActivateFreePlan = async () => {
-    setLoading("free");
-    try {
-      if (!user) {
-        localStorage.setItem("pending_plan_selection", "free");
-        await sdk.auth.redirectToLogin(window.location.pathname);
-        return;
-      }
-
-      // Dropping to free while Stripe is still billing a plan would show the
-      // user a free account and charge them for a paid one. Cancelling a live
-      // subscription is a server job, so send them there instead of writing a
-      // free row over the top of it.
-      if (holdsPaidPlan) {
-        alert(
-          "You're on a paid plan. Cancel it from Settings before switching to the free plan.",
-        );
-        return;
-      }
-
-      const freePlan = {
-        user_id: user.id,
-        plan_name: "free",
-        billing_cycle: "monthly",
-        status: "free",
-        monthly_transaction_limit: 10,
-        transactions_used_this_month: 0,
-        invoices_used_this_month: 0,
-        quotes_used_this_month: 0,
-        payment_processing_fee: 0,
-        overage_fee_per_invoice: 0,
-      };
-
-      // One subscription row per user -- creating a second one leaves the app
-      // reading whichever it finds first.
-      if (currentSubscription) {
-        await sdk.entities.Subscription.update(currentSubscription.id, freePlan);
-      } else {
-        await sdk.entities.Subscription.create({
-          ...freePlan,
-          lifetime_documents_created: 0,
-        });
-      }
-      localStorage.removeItem("pending_plan_selection");
-      navigate(createPageUrl("Dashboard"));
-    } catch (error) {
-      alert("Failed to activate free plan. Please try again.");
-    } finally {
-      setLoading(null);
-    }
-  };
 
   const handleCheckout = async (plan, cycle) => {
     if (plan.id === "custom") {
       navigate(createPageUrl("Contact"));
-      return;
-    }
-    if (plan.id === "free") {
-      await handleActivateFreePlan();
       return;
     }
     setLoading(plan.id);
@@ -609,36 +553,8 @@ export default function Pricing() {
 
                   {/* CTA */}
                   <div className="p-6 pt-4 border-t border-line-subtle">
-                    {plan.id === "free" ? (
-                      <button
-                        onClick={() => handleCheckout(plan, billingCycle)}
-                        disabled={
-                          isLoading || currentSubscription?.plan_name === "free"
-                        }
-                        className="w-full h-12 rounded-lg font-bold text-content-inverted bg-surface-inverted hover:bg-ink-800 transition-colors disabled:opacity-50"
-                      >
-                        {isLoading ? (
-                          <Loader2 className="w-5 h-5 animate-spin mx-auto" />
-                        ) : currentSubscription?.plan_name === "free" ? (
-                          "Current Plan"
-                        ) : (
-                          plan.cta
-                        )}
-                      </button>
-                    ) : plan.id === "custom" ? (
-                      <button
-                        onClick={() => handleCheckout(plan, billingCycle)}
-                        disabled={isLoading}
-                        className="w-full h-12 rounded-lg font-semibold border border-line bg-surface text-content-body hover:bg-surface-sunken hover:text-content transition-colors"
-                      >
-                        {isLoading ? (
-                          <Loader2 className="w-5 h-5 animate-spin mx-auto" />
-                        ) : (
-                          plan.cta
-                        )}
-                      </button>
-                    ) : !currentSubscription ||
-                      currentSubscription.status === "trial" ? (
+                    {!currentSubscription ||
+                    currentSubscription.status === "trial" ? (
                       <div className="space-y-3">
                         <button
                           onClick={() => handleStartTrial(plan, billingCycle)}
