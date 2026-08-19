@@ -153,6 +153,7 @@ async function handleFunctionInvoke(name, payload = {}) {
     sendTestAnalyticsEmail: 'send-test-analytics-email',
     stripeCreateSession: 'stripe-create-session',
     stripeCreateSubscription: 'stripe-create-subscription',
+    stripeValidatePromo: 'stripe-validate-promo',
     confirmAndActivate: 'confirm-and-activate',
   };
 
@@ -176,9 +177,21 @@ async function handleFunctionInvoke(name, payload = {}) {
     try {
       const { data, error } = await supabase.functions.invoke(realEdgeFunctions[name], { body });
       if (error) {
-        const serverMsg = data?.error || error.message || String(error);
-        console.error(`Edge function ${name} failed:`, serverMsg, data);
-        return { data: { success: false, error: serverMsg } };
+        // On a non-2xx supabase-js hands back only "Edge Function returned a
+        // non-2xx status code" and leaves data null -- the function's own
+        // message is in the untouched Response on error.context. Read it, or
+        // the user sees boilerplate instead of "That promo code is not valid."
+        let payload = data;
+        if (!payload && error.context && typeof error.context.json === 'function') {
+          try {
+            payload = await error.context.json();
+          } catch {
+            payload = null;
+          }
+        }
+        const serverMsg = payload?.error || error.message || String(error);
+        console.error(`Edge function ${name} failed:`, serverMsg, payload);
+        return { data: { success: false, ...(payload || {}), error: serverMsg } };
       }
       if (data && data.error) {
         return { data: { success: false, error: data.error } };

@@ -65,6 +65,17 @@ export default function Pricing() {
     }
   };
 
+  // A plan Stripe is actively billing. Mirrors REPLACEABLE in
+  // stripe-create-subscription -- switching between these is a paid swap that
+  // refunds and cancels the old one; dropping to free is not.
+  const holdsPaidPlan = Boolean(
+    currentSubscription &&
+      ["active", "trial", "trialing", "past_due"].includes(
+        currentSubscription.status,
+      ) &&
+      currentSubscription.stripe_subscription_id,
+  );
+
   const handleActivateFreePlan = async () => {
     setLoading("free");
     try {
@@ -73,19 +84,41 @@ export default function Pricing() {
         await sdk.auth.redirectToLogin(window.location.pathname);
         return;
       }
-      await sdk.entities.Subscription.create({
+
+      // Dropping to free while Stripe is still billing a plan would show the
+      // user a free account and charge them for a paid one. Cancelling a live
+      // subscription is a server job, so send them there instead of writing a
+      // free row over the top of it.
+      if (holdsPaidPlan) {
+        alert(
+          "You're on a paid plan. Cancel it from Settings before switching to the free plan.",
+        );
+        return;
+      }
+
+      const freePlan = {
         user_id: user.id,
         plan_name: "free",
         billing_cycle: "monthly",
         status: "free",
         monthly_transaction_limit: 10,
-        lifetime_documents_created: 0,
         transactions_used_this_month: 0,
         invoices_used_this_month: 0,
         quotes_used_this_month: 0,
         payment_processing_fee: 0,
         overage_fee_per_invoice: 0,
-      });
+      };
+
+      // One subscription row per user -- creating a second one leaves the app
+      // reading whichever it finds first.
+      if (currentSubscription) {
+        await sdk.entities.Subscription.update(currentSubscription.id, freePlan);
+      } else {
+        await sdk.entities.Subscription.create({
+          ...freePlan,
+          lifetime_documents_created: 0,
+        });
+      }
       localStorage.removeItem("pending_plan_selection");
       navigate(createPageUrl("Dashboard"));
     } catch (error) {

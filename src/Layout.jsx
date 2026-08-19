@@ -266,10 +266,13 @@ export default function Layout({ children, currentPageName }) {
         user_id: currentUser.id,
       });
 
-      // ✅ If coming from payment, retry once
+      // ✅ If coming from payment, retry once. Checkout now returns straight to
+      // the dashboard with ?from=payment instead of stopping at PaymentSuccess,
+      // so the retry has to follow both landings.
       if (
         subscriptionData.length === 0 &&
-        location.pathname.includes("PaymentSuccess")
+        (location.pathname.includes("PaymentSuccess") ||
+          location.search.includes("from=payment"))
       ) {
         await new Promise((resolve) => setTimeout(resolve, 500));
         subscriptionData = await sdk.entities.Subscription.filter({
