@@ -37,6 +37,7 @@ FUNCTIONS = [
     ('send-test-analytics-email', True),
     ('stripe-create-session', True),
     ('stripe-create-subscription', True),
+    ('stripe-validate-promo', True),
     ('confirm-and-activate', True),
 
     # Called by an external service, so no user JWT is available.
@@ -53,7 +54,12 @@ SHARED_DIR = os.path.join(ROOT, 'supabase', 'functions', '_shared')
 FUNCTIONS_DIR = os.path.join(ROOT, 'supabase', 'functions')
 
 # Matches: import { ... } from '../_shared/file.ts'; OR from './file.ts';
-IMPORT_RE = re.compile(r"^import\s+\{[^}]+\}\s+from\s+'(?:\.\./_shared|\.)/([^']+)'\s*;?\s*$")
+# Accepts single or double quotes, and `import type { ... }`. Prettier rewrites
+# quotes, and a specifier this misses is left unresolved in the uploaded
+# bundle -- which only shows up as a runtime failure after deploy.
+IMPORT_RE = re.compile(
+    r"""^import\s+(?:type\s+)?\{[^}]+\}\s+from\s+['"](?:\.\./_shared|\.)/([^'"]+)['"]\s*;?\s*$"""
+)
 
 
 def read_shared(name):
@@ -61,11 +67,31 @@ def read_shared(name):
         return f.read()
 
 
+def _collapse_multiline_imports(source):
+    """Join a multi-line import onto a single line.
+
+    inline_shared matches line by line, and Prettier wraps any import whose
+    braces exceed the print width -- so simply running the formatter could
+    silently stop an import being inlined, leaving an unresolvable specifier
+    in the uploaded bundle. Normalising first makes that impossible.
+    """
+    pattern = (
+        r"^(import\s+(?:type\s+)?\{)([^}]*?)"
+        r"(\}\s+from\s+['\"][^'\"]+['\"]\s*;?)\s*$"
+    )
+    return re.sub(
+        pattern,
+        lambda m: m.group(1) + " " + " ".join(m.group(2).split()) + " " + m.group(3),
+        source,
+        flags=re.M | re.S,
+    )
+
+
 def inline_shared(source, visited=None):
     """Inline any ../_shared/... or ./... imports recursively, skipping already-included files."""
     if visited is None:
         visited = set()
-    lines = source.split('\n')
+    lines = _collapse_multiline_imports(source).split('\n')
     result = []
     for line in lines:
         m = IMPORT_RE.match(line.strip())

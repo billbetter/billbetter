@@ -3,13 +3,13 @@
 // across Gmail, Outlook, Apple Mail, and major mobile clients.
 
 export function escapeHtml(value: unknown): string {
-  if (value == null) return '';
+  if (value == null) return "";
   return String(value)
-    .replace(/&/g, '&amp;')
-    .replace(/</g, '&lt;')
-    .replace(/>/g, '&gt;')
-    .replace(/"/g, '&quot;')
-    .replace(/'/g, '&#39;');
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
 }
 
 export function formatCurrency(value: unknown): string {
@@ -18,10 +18,14 @@ export function formatCurrency(value: unknown): string {
 }
 
 export function formatDate(value?: string | null): string {
-  if (!value) return '—';
+  if (!value) return "—";
   const d = new Date(value);
-  if (isNaN(d.getTime())) return '—';
-  return d.toLocaleDateString('en-US', { year: 'numeric', month: 'short', day: 'numeric' });
+  if (isNaN(d.getTime())) return "—";
+  return d.toLocaleDateString("en-US", {
+    year: "numeric",
+    month: "short",
+    day: "numeric",
+  });
 }
 
 export interface LineItem {
@@ -59,16 +63,16 @@ interface LayoutOptions {
   branding: EmailBranding;
 }
 
-const PRIMARY = '#10b981';
-const PRIMARY_DARK = '#059669';
-const TEXT = '#0f172a';
-const MUTED = '#64748b';
-const BORDER = '#e2e8f0';
-const SOFT_BG = '#f8fafc';
+const PRIMARY = "#10b981";
+const PRIMARY_DARK = "#059669";
+const TEXT = "#0f172a";
+const MUTED = "#64748b";
+const BORDER = "#e2e8f0";
+const SOFT_BG = "#f8fafc";
 
 export function renderEmailLayout(opts: LayoutOptions): string {
   const {
-    preheader = '',
+    preheader = "",
     heading,
     heroLabel,
     heroValue,
@@ -86,11 +90,13 @@ export function renderEmailLayout(opts: LayoutOptions): string {
     branding,
   } = opts;
 
-  const businessName = escapeHtml(branding.business_name || 'Invoicium');
-  const senderName = escapeHtml(branding.sender_name || branding.business_name || '');
-  const senderEmail = escapeHtml(branding.sender_email || '');
-  const senderPhone = escapeHtml(branding.sender_phone || '');
-  const senderAddress = escapeHtml(branding.sender_address || '');
+  const businessName = escapeHtml(branding.business_name || "Invoicium");
+  const senderName = escapeHtml(
+    branding.sender_name || branding.business_name || "",
+  );
+  const senderEmail = escapeHtml(branding.sender_email || "");
+  const senderPhone = escapeHtml(branding.sender_phone || "");
+  const senderAddress = escapeHtml(branding.sender_address || "");
 
   const detailsHtml = detailsRows
     .map(
@@ -98,12 +104,13 @@ export function renderEmailLayout(opts: LayoutOptions): string {
         <tr>
           <td style="padding:10px 0;color:${MUTED};font-size:13px;font-weight:500;letter-spacing:0.02em;text-transform:uppercase;width:40%;">${escapeHtml(r.label)}</td>
           <td style="padding:10px 0;color:${TEXT};font-size:14px;font-weight:600;text-align:right;">${escapeHtml(r.value)}</td>
-        </tr>`
+        </tr>`,
     )
-    .join('');
+    .join("");
 
-  const itemsHtml = items && items.length > 0
-    ? `
+  const itemsHtml =
+    items && items.length > 0
+      ? `
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin:8px 0 0;border-collapse:collapse;">
         <thead>
           <tr>
@@ -121,34 +128,36 @@ export function renderEmailLayout(opts: LayoutOptions): string {
               const amount = Number(it.total ?? qty * rate ?? 0);
               return `
                 <tr>
-                  <td style="padding:12px;border-bottom:1px solid ${BORDER};color:${TEXT};font-size:14px;">${escapeHtml(it.description || '')}</td>
+                  <td style="padding:12px;border-bottom:1px solid ${BORDER};color:${TEXT};font-size:14px;">${escapeHtml(it.description || "")}</td>
                   <td align="right" style="padding:12px;border-bottom:1px solid ${BORDER};color:${TEXT};font-size:14px;">${escapeHtml(String(qty))}</td>
                   <td align="right" style="padding:12px;border-bottom:1px solid ${BORDER};color:${TEXT};font-size:14px;">${formatCurrency(rate)}</td>
                   <td align="right" style="padding:12px;border-bottom:1px solid ${BORDER};color:${TEXT};font-size:14px;font-weight:600;">${formatCurrency(amount)}</td>
                 </tr>`;
             })
-            .join('')}
+            .join("")}
         </tbody>
       </table>`
-    : '';
+      : "";
 
-  const summaryHtml = summary && summary.length > 0
-    ? `
+  const summaryHtml =
+    summary && summary.length > 0
+      ? `
       <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="margin-top:12px;border-collapse:collapse;">
         ${summary
           .map(
             (s) => `
           <tr>
-            <td style="padding:8px 0;color:${s.emphasized ? TEXT : MUTED};font-size:${s.emphasized ? '16px' : '14px'};font-weight:${s.emphasized ? '700' : '500'};text-align:right;">${escapeHtml(s.label)}</td>
-            <td style="padding:8px 0 8px 24px;color:${s.emphasized ? heroAccent : TEXT};font-size:${s.emphasized ? '18px' : '14px'};font-weight:${s.emphasized ? '700' : '600'};text-align:right;width:120px;">${escapeHtml(s.value)}</td>
-          </tr>`
+            <td style="padding:8px 0;color:${s.emphasized ? TEXT : MUTED};font-size:${s.emphasized ? "16px" : "14px"};font-weight:${s.emphasized ? "700" : "500"};text-align:right;">${escapeHtml(s.label)}</td>
+            <td style="padding:8px 0 8px 24px;color:${s.emphasized ? heroAccent : TEXT};font-size:${s.emphasized ? "18px" : "14px"};font-weight:${s.emphasized ? "700" : "600"};text-align:right;width:120px;">${escapeHtml(s.value)}</td>
+          </tr>`,
           )
-          .join('')}
+          .join("")}
       </table>`
-    : '';
+      : "";
 
-  const ctaHtml = ctaLabel && ctaUrl
-    ? `
+  const ctaHtml =
+    ctaLabel && ctaUrl
+      ? `
       <table role="presentation" cellpadding="0" cellspacing="0" style="margin:0 auto;">
         <tr>
           <td align="center" style="border-radius:8px;background:${heroAccent};">
@@ -156,11 +165,12 @@ export function renderEmailLayout(opts: LayoutOptions): string {
           </td>
         </tr>
       </table>`
-    : '';
+      : "";
 
-  const secondaryHtml = secondaryCtaLabel && secondaryCtaUrl
-    ? `<div style="text-align:center;margin-top:14px;"><a href="${escapeHtml(secondaryCtaUrl)}" style="color:${MUTED};font-size:13px;text-decoration:underline;">${escapeHtml(secondaryCtaLabel)}</a></div>`
-    : '';
+  const secondaryHtml =
+    secondaryCtaLabel && secondaryCtaUrl
+      ? `<div style="text-align:center;margin-top:14px;"><a href="${escapeHtml(secondaryCtaUrl)}" style="color:${MUTED};font-size:13px;text-decoration:underline;">${escapeHtml(secondaryCtaLabel)}</a></div>`
+      : "";
 
   const notesHtml = notes
     ? `
@@ -168,9 +178,11 @@ export function renderEmailLayout(opts: LayoutOptions): string {
         <div style="color:${MUTED};font-size:11px;font-weight:700;letter-spacing:0.1em;text-transform:uppercase;margin-bottom:6px;">Note from ${senderName || businessName}</div>
         <div style="color:${TEXT};font-size:14px;line-height:1.6;white-space:pre-wrap;">${escapeHtml(notes)}</div>
       </div>`
-    : '';
+    : "";
 
-  const contactBits = [senderEmail, senderPhone, senderAddress].filter(Boolean).join(' &nbsp;·&nbsp; ');
+  const contactBits = [senderEmail, senderPhone, senderAddress]
+    .filter(Boolean)
+    .join(" &nbsp;·&nbsp; ");
 
   return `<!doctype html>
 <html lang="en">
@@ -211,15 +223,15 @@ export function renderEmailLayout(opts: LayoutOptions): string {
             </table>
           </td>
         </tr>
-        ${itemsHtml ? `<tr><td style="padding:20px 32px 0;">${itemsHtml}</td></tr>` : ''}
-        ${summaryHtml ? `<tr><td style="padding:0 32px 8px;">${summaryHtml}</td></tr>` : ''}
-        ${ctaHtml ? `<tr><td align="center" style="padding:28px 32px 8px;">${ctaHtml}${secondaryHtml}</td></tr>` : ''}
-        ${notesHtml ? `<tr><td style="padding:8px 32px 4px;">${notesHtml}</td></tr>` : ''}
-        ${footerMessage ? `<tr><td style="padding:20px 32px 0;color:${MUTED};font-size:13px;line-height:1.6;">${footerMessage}</td></tr>` : ''}
+        ${itemsHtml ? `<tr><td style="padding:20px 32px 0;">${itemsHtml}</td></tr>` : ""}
+        ${summaryHtml ? `<tr><td style="padding:0 32px 8px;">${summaryHtml}</td></tr>` : ""}
+        ${ctaHtml ? `<tr><td align="center" style="padding:28px 32px 8px;">${ctaHtml}${secondaryHtml}</td></tr>` : ""}
+        ${notesHtml ? `<tr><td style="padding:8px 32px 4px;">${notesHtml}</td></tr>` : ""}
+        ${footerMessage ? `<tr><td style="padding:20px 32px 0;color:${MUTED};font-size:13px;line-height:1.6;">${footerMessage}</td></tr>` : ""}
         <tr>
           <td style="padding:32px;border-top:1px solid ${BORDER};background:${SOFT_BG};">
             <div style="color:${TEXT};font-size:13px;font-weight:600;margin-bottom:4px;">${senderName || businessName}</div>
-            ${contactBits ? `<div style="color:${MUTED};font-size:12px;line-height:1.6;">${contactBits}</div>` : ''}
+            ${contactBits ? `<div style="color:${MUTED};font-size:12px;line-height:1.6;">${contactBits}</div>` : ""}
             <div style="color:${MUTED};font-size:11px;margin-top:14px;">Sent via <span style="color:${PRIMARY_DARK};font-weight:600;">Invoicium</span></div>
           </td>
         </tr>

@@ -59,6 +59,39 @@ export const db = {
   },
 };
 
+/**
+ * Look up a user's email and display name by id, using the service role.
+ *
+ * Webhook handlers only have a Stripe customer/subscription, which maps to a
+ * user_id in our Subscription table -- but the address to notify lives in
+ * auth.users, which is not reachable through PostgREST. Returns null rather
+ * than throwing: a notification must never be the reason a webhook 500s.
+ */
+export async function getUserContact(
+  userId: string,
+): Promise<{ email?: string; name?: string } | null> {
+  try {
+    const res = await fetch(
+      `${SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(userId)}`,
+      { headers: { apikey: SERVICE_ROLE, Authorization: `Bearer ${SERVICE_ROLE}` } },
+    );
+    if (!res.ok) {
+      console.warn(`getUserContact: ${res.status} for ${userId}`);
+      return null;
+    }
+    const user = await res.json();
+    if (!user?.email) return null;
+    const meta = user.user_metadata || {};
+    return {
+      email: user.email,
+      name: meta.full_name || meta.name || undefined,
+    };
+  } catch (err) {
+    console.warn('getUserContact failed:', err instanceof Error ? err.message : err);
+    return null;
+  }
+}
+
 export async function getUserFromAuthHeader(req: Request): Promise<{ id: string; email?: string } | null> {
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
   if (!authHeader) return null;

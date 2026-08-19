@@ -1,5 +1,7 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { sendEmail } from '../_shared/resend.ts';
+import { notify } from '../_shared/notify.ts';
+import { getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 import { renderEmailLayout, formatCurrency, formatDate, escapeHtml, LineItem } from '../_shared/email-templates.ts';
 
 Deno.serve(async (req) => {
@@ -88,6 +90,22 @@ Deno.serve(async (req) => {
     });
 
     const data = await sendEmail({ to, subject, html, attachments });
+
+    // Confirm to the CONTRACTOR that it went out. The client already has the
+    // invoice itself (above); this is the account notification. Deliberately
+    // after the real send, and non-throwing, so a notification problem can
+    // never make a successfully-sent invoice look like a failure.
+    const sender = await getUserFromAuthHeader(req);
+    await notify.invoiceSent({
+      userEmail: sender?.email || sender_email || '',
+      userName: null,
+      invoiceNumber: invoice_number,
+      clientName: client_name,
+      sentTo: Array.isArray(to) ? to.join(', ') : to,
+      amount: Number(total || 0),
+      dueDate: due_date,
+      invoiceUrl: `${Deno.env.get('APP_BASE_URL') || 'https://www.invoicium.ca'}/Invoices`,
+    });
 
     return new Response(
       JSON.stringify({ success: true, id: data?.id }),
