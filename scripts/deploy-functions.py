@@ -41,6 +41,7 @@ FUNCTIONS = [
     ('confirm-and-activate', True),
 
     # Called by an external service, so no user JWT is available.
+    ('stripe-customer-portal', True),
     ('stripe-webhook', False),        # Stripe signs the request instead
     ('google-calendar-callback', False),  # Google OAuth redirect
 ]

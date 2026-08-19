@@ -37,12 +37,18 @@ function buildPDFBlobUrl(title) {
 }
 
 function safeParseJSON(s) {
-  try { return JSON.parse(s); } catch { return []; }
+  try {
+    return JSON.parse(s);
+  } catch {
+    return [];
+  }
 }
 
 async function enrichBusinessContext(base = {}) {
   try {
-    const { data: { user } } = await supabase.auth.getUser();
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
     if (!user) return base;
     const { data: settingsRows } = await supabase
       .from("BusinessSettings")
@@ -52,7 +58,12 @@ async function enrichBusinessContext(base = {}) {
     const s = (settingsRows && settingsRows[0]) || {};
     return {
       business_name: base.business_name || s.business_name || "Invoicium",
-      sender_name: base.sender_name || user.user_metadata?.full_name || user.email || s.business_name || "Invoicium",
+      sender_name:
+        base.sender_name ||
+        user.user_metadata?.full_name ||
+        user.email ||
+        s.business_name ||
+        "Invoicium",
       sender_email: base.sender_email || s.email || user.email || null,
       sender_phone: base.sender_phone || s.phone || null,
       sender_address: base.sender_address || s.address || null,
@@ -66,7 +77,11 @@ async function enrichBusinessContext(base = {}) {
 async function loadInvoiceById(invoice_id) {
   if (!invoice_id) return null;
   try {
-    const { data } = await supabase.from("Invoice").select("*").eq("id", invoice_id).maybeSingle();
+    const { data } = await supabase
+      .from("Invoice")
+      .select("*")
+      .eq("id", invoice_id)
+      .maybeSingle();
     return data || null;
   } catch {
     return null;
@@ -76,7 +91,11 @@ async function loadInvoiceById(invoice_id) {
 async function loadQuoteById(quote_id) {
   if (!quote_id) return null;
   try {
-    const { data } = await supabase.from("Quote").select("*").eq("id", quote_id).maybeSingle();
+    const { data } = await supabase
+      .from("Quote")
+      .select("*")
+      .eq("id", quote_id)
+      .maybeSingle();
     return data || null;
   } catch {
     return null;
@@ -99,14 +118,22 @@ async function normalizeSendPayload(name, payload) {
   if (name === "sendInvoiceEmail" || name === "sendInvoiceSMS") {
     const inv = p.invoice_id ? await loadInvoiceById(p.invoice_id) : null;
     if (inv) {
-      p.to = p.to || (name === "sendInvoiceEmail" ? inv.client_email : inv.client_phone);
+      p.to =
+        p.to ||
+        (name === "sendInvoiceEmail" ? inv.client_email : inv.client_phone);
       p.invoice_number = p.invoice_number || inv.invoice_number;
       p.client_name = p.client_name || inv.client_name;
       p.total = p.total != null ? p.total : inv.total;
       p.subtotal = p.subtotal != null ? p.subtotal : inv.subtotal;
       p.tax_rate = p.tax_rate != null ? p.tax_rate : inv.tax_rate;
       p.tax_amount = p.tax_amount != null ? p.tax_amount : inv.tax_amount;
-      p.items = p.items || (Array.isArray(inv.items) ? inv.items : (typeof inv.items === "string" ? safeParseJSON(inv.items) : []));
+      p.items =
+        p.items ||
+        (Array.isArray(inv.items)
+          ? inv.items
+          : typeof inv.items === "string"
+            ? safeParseJSON(inv.items)
+            : []);
       p.pdf_url = p.pdf_url || inv.pdf_url;
       p.notes = p.notes || inv.notes;
       p.due_date = p.due_date || inv.due_date;
@@ -118,14 +145,21 @@ async function normalizeSendPayload(name, payload) {
   if (name === "sendQuoteEmail" || name === "sendQuoteSMS") {
     const q = p.quote_id ? await loadQuoteById(p.quote_id) : null;
     if (q) {
-      p.to = p.to || (name === "sendQuoteEmail" ? q.client_email : q.client_phone);
+      p.to =
+        p.to || (name === "sendQuoteEmail" ? q.client_email : q.client_phone);
       p.quote_number = p.quote_number || q.quote_number;
       p.client_name = p.client_name || q.client_name;
       p.total = p.total != null ? p.total : q.total;
       p.subtotal = p.subtotal != null ? p.subtotal : q.subtotal;
       p.tax_rate = p.tax_rate != null ? p.tax_rate : q.tax_rate;
       p.tax_amount = p.tax_amount != null ? p.tax_amount : q.tax_amount;
-      p.items = p.items || (Array.isArray(q.items) ? q.items : (typeof q.items === "string" ? safeParseJSON(q.items) : []));
+      p.items =
+        p.items ||
+        (Array.isArray(q.items)
+          ? q.items
+          : typeof q.items === "string"
+            ? safeParseJSON(q.items)
+            : []);
       p.pdf_url = p.pdf_url || q.pdf_url;
       p.notes = p.notes || q.notes;
       p.expiry_date = p.expiry_date || q.expiry_date;
@@ -152,6 +186,7 @@ async function handleFunctionInvoke(name, payload = {}) {
     checkOverdueInvoices: 'check-overdue-invoices',
     sendTestAnalyticsEmail: 'send-test-analytics-email',
     stripeCreateSession: 'stripe-create-session',
+    getStripeCustomerPortal: 'stripe-customer-portal',
     stripeCreateSubscription: 'stripe-create-subscription',
     stripeValidatePromo: 'stripe-validate-promo',
     confirmAndActivate: 'confirm-and-activate',
@@ -175,7 +210,10 @@ async function handleFunctionInvoke(name, payload = {}) {
       }
     }
     try {
-      const { data, error } = await supabase.functions.invoke(realEdgeFunctions[name], { body });
+      const { data, error } = await supabase.functions.invoke(
+        realEdgeFunctions[name],
+        { body },
+      );
       if (error) {
         // On a non-2xx supabase-js hands back only "Edge Function returned a
         // non-2xx status code" and leaves data null -- the function's own
@@ -207,8 +245,11 @@ async function handleFunctionInvoke(name, payload = {}) {
 
   if (name === "saveNotificationSettings") {
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) return { data: { success: false, error: "Not authenticated" } };
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
+      if (!user)
+        return { data: { success: false, error: "Not authenticated" } };
       const allowed = [
         "analytics_email_frequency",
         "analytics_email_day",
@@ -217,7 +258,8 @@ async function handleFunctionInvoke(name, payload = {}) {
         "notification_preferences",
       ];
       const patch = {};
-      for (const k of allowed) if (payload[k] !== undefined) patch[k] = payload[k];
+      for (const k of allowed)
+        if (payload[k] !== undefined) patch[k] = payload[k];
 
       const { data: existing } = await supabase
         .from("BusinessSettings")
@@ -226,9 +268,14 @@ async function handleFunctionInvoke(name, payload = {}) {
         .limit(1);
 
       if (existing && existing.length) {
-        await supabase.from("BusinessSettings").update(patch).eq("id", existing[0].id);
+        await supabase
+          .from("BusinessSettings")
+          .update(patch)
+          .eq("id", existing[0].id);
       } else {
-        await supabase.from("BusinessSettings").insert([{ user_id: user.id, ...patch }]);
+        await supabase
+          .from("BusinessSettings")
+          .insert([{ user_id: user.id, ...patch }]);
       }
       return { data: { success: true } };
     } catch (e) {
@@ -241,7 +288,11 @@ async function handleFunctionInvoke(name, payload = {}) {
     let updated = 0;
     const now = new Date();
     for (const inv of invoices) {
-      if (inv.status === "sent" && inv.due_date && new Date(inv.due_date) < now) {
+      if (
+        inv.status === "sent" &&
+        inv.due_date &&
+        new Date(inv.due_date) < now
+      ) {
         await localDataEngine.update("Invoice", inv.id, { status: "overdue" });
         updated++;
       }
@@ -250,7 +301,8 @@ async function handleFunctionInvoke(name, payload = {}) {
   }
 
   if (name === "generateInvoicePDF" || name === "generateQuotePDF") {
-    const title = name === "generateInvoicePDF" ? "Invoice Preview" : "Quote Preview";
+    const title =
+      name === "generateInvoicePDF" ? "Invoice Preview" : "Quote Preview";
     return { data: { pdf_url: buildPDFBlobUrl(title), success: true } };
   }
 
@@ -258,11 +310,21 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { success: true } };
   }
 
-  if (name === "notifyInvoiceCreated" || name === "notifyQuoteCreated" || name === "notifyQuoteApproval" || name === "notifyQuoteResponse") {
+  if (
+    name === "notifyInvoiceCreated" ||
+    name === "notifyQuoteCreated" ||
+    name === "notifyQuoteApproval" ||
+    name === "notifyQuoteResponse"
+  ) {
     return { data: { success: true } };
   }
 
-  if (name === "sendQuoteEmail" || name === "sendQuoteSMS" || name === "sendInvoiceEmail" || name === "sendInvoiceSMS") {
+  if (
+    name === "sendQuoteEmail" ||
+    name === "sendQuoteSMS" ||
+    name === "sendInvoiceEmail" ||
+    name === "sendInvoiceSMS"
+  ) {
     return { data: { success: true } };
   }
 
@@ -270,11 +332,18 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { success: true } };
   }
 
-  if (name === "getStripeCustomerPortal" || name === "createCheckoutSession" || name === "confirmCheckoutSession") {
+  // getStripeCustomerPortal is a real Edge Function now (see realEdgeFunctions
+  // above) -- it used to return url:'#', which is why the billing portal button
+  // silently did nothing.
+  if (name === "createCheckoutSession" || name === "confirmCheckoutSession") {
     return { data: { success: true, url: "#" } };
   }
 
-  if (name === "connectGoogleCalendar" || name === "syncJobToGoogleCalendar" || name === "fetchGoogleCalendarEvents") {
+  if (
+    name === "connectGoogleCalendar" ||
+    name === "syncJobToGoogleCalendar" ||
+    name === "fetchGoogleCalendarEvents"
+  ) {
     return { data: { success: true } };
   }
 
@@ -306,7 +375,11 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { success: true } };
   }
 
-  if (name === "sendWelcomeEmail" || name === "sendWeeklyAnalytics" || name === "sendTestAnalyticsEmail") {
+  if (
+    name === "sendWelcomeEmail" ||
+    name === "sendWeeklyAnalytics" ||
+    name === "sendTestAnalyticsEmail"
+  ) {
     return { data: { success: true } };
   }
 
@@ -318,7 +391,13 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { country: "US" } };
   }
 
-  if (name === "stripeCreateSession" || name === "stripeWebhook" || name === "createStripeConnectAccount" || name === "debugStripe" || name === "debugStripeSession") {
+  if (
+    name === "stripeCreateSession" ||
+    name === "stripeWebhook" ||
+    name === "createStripeConnectAccount" ||
+    name === "debugStripe" ||
+    name === "debugStripeSession"
+  ) {
     return { data: { success: true } };
   }
 
@@ -347,7 +426,14 @@ async function handleFunctionInvoke(name, payload = {}) {
   }
 
   if (name === "getInvoiceBySession") {
-    return { data: { success: true, invoice_number: "INV-000", total: 0, pdf_url: null } };
+    return {
+      data: {
+        success: true,
+        invoice_number: "INV-000",
+        total: 0,
+        pdf_url: null,
+      },
+    };
   }
 
   return { data: { success: true } };
@@ -365,7 +451,10 @@ async function invokeLLM({ prompt, response_json_schema }) {
 export const sdk = {
   auth: {
     me: async () => {
-      const { data: { user }, error } = await supabase.auth.getUser();
+      const {
+        data: { user },
+        error,
+      } = await supabase.auth.getUser();
       if (error || !user) return null;
 
       // Ensure fallback demo data exists for this user locally
@@ -379,7 +468,7 @@ export const sdk = {
           .select("*")
           .eq("id", user.id)
           .maybeSingle();
-        if (error && error.code !== 'PGRST116') throw error;
+        if (error && error.code !== "PGRST116") throw error;
         profile = data;
       } catch (profileError) {
         // Table doesn't exist yet or no profile row — that's okay, use auth metadata
@@ -403,7 +492,9 @@ export const sdk = {
       window.location.href = buildLoginUrl(returnUrl);
     },
     isAuthenticated: async () => {
-      const { data: { session } } = await supabase.auth.getSession();
+      const {
+        data: { session },
+      } = await supabase.auth.getSession();
       return Boolean(session);
     },
     signInWithGoogle: async (returnUrl) => {
@@ -429,9 +520,14 @@ export const sdk = {
       return data.user;
     },
     updateMe: async (updates) => {
-      const { data: { user } } = await supabase.auth.getUser();
+      const {
+        data: { user },
+      } = await supabase.auth.getUser();
       if (!user) throw new Error("Not authenticated");
-      const { error } = await supabase.from("profiles").update(updates).eq("id", user.id);
+      const { error } = await supabase
+        .from("profiles")
+        .update(updates)
+        .eq("id", user.id);
       if (error) throw error;
       return { ...user, ...updates };
     },
@@ -454,7 +550,8 @@ export const sdk = {
       list: () => Promise.resolve([]),
     },
     UserSpecialty: {
-      filter: () => Promise.resolve([{ user_id: null, primary_specialty: "general" }]),
+      filter: () =>
+        Promise.resolve([{ user_id: null, primary_specialty: "general" }]),
       create: (p) => localDataEngine.create("UserSpecialty", p),
       update: (id, p) => localDataEngine.update("UserSpecialty", id, p),
     },
@@ -488,29 +585,51 @@ export const sdk = {
       delete: (id) => localDataEngine.delete("Appointment", id),
     },
     ServicePreset: {
-      filter: () => Promise.resolve([
-        { id: "sp_1", name: "Handyman Service", is_system: true, items: [{ description: "General labor", quantity: 1, rate: 75 }] },
-        { id: "sp_2", name: "Painting", is_system: true, items: [{ description: "Interior painting", quantity: 1, rate: 450 }] },
-        { id: "sp_3", name: "Plumbing Repair", is_system: true, items: [{ description: "Plumbing fix", quantity: 1, rate: 120 }] },
-      ]),
+      filter: () =>
+        Promise.resolve([
+          {
+            id: "sp_1",
+            name: "Handyman Service",
+            is_system: true,
+            items: [{ description: "General labor", quantity: 1, rate: 75 }],
+          },
+          {
+            id: "sp_2",
+            name: "Painting",
+            is_system: true,
+            items: [
+              { description: "Interior painting", quantity: 1, rate: 450 },
+            ],
+          },
+          {
+            id: "sp_3",
+            name: "Plumbing Repair",
+            is_system: true,
+            items: [{ description: "Plumbing fix", quantity: 1, rate: 120 }],
+          },
+        ]),
       create: (p) => localDataEngine.create("ServicePreset", p),
       update: (id, p) => localDataEngine.update("ServicePreset", id, p),
     },
     CustomServiceTemplate: {
-      filter: (filters, sort, limit) => localDataEngine.list("CustomServiceTemplate", filters, sort, limit),
-      list: (filters, sort, limit) => localDataEngine.list("CustomServiceTemplate", filters, sort, limit),
+      filter: (filters, sort, limit) =>
+        localDataEngine.list("CustomServiceTemplate", filters, sort, limit),
+      list: (filters, sort, limit) =>
+        localDataEngine.list("CustomServiceTemplate", filters, sort, limit),
       create: (p) => localDataEngine.create("CustomServiceTemplate", p),
       update: (id, p) => localDataEngine.update("CustomServiceTemplate", id, p),
       delete: (id) => localDataEngine.delete("CustomServiceTemplate", id),
     },
     TaskNote: {
-      filter: (filters, sort, limit) => localDataEngine.list("TaskNote", filters, sort, limit),
+      filter: (filters, sort, limit) =>
+        localDataEngine.list("TaskNote", filters, sort, limit),
       create: (p) => localDataEngine.create("TaskNote", p),
       update: (id, p) => localDataEngine.update("TaskNote", id, p),
       delete: (id) => localDataEngine.delete("TaskNote", id),
     },
     JobPhotoShare: {
-      filter: (filters, sort, limit) => localDataEngine.list("JobPhotoShare", filters, sort, limit),
+      filter: (filters, sort, limit) =>
+        localDataEngine.list("JobPhotoShare", filters, sort, limit),
       create: (p) => localDataEngine.create("JobPhotoShare", p),
       update: (id, p) => localDataEngine.update("JobPhotoShare", id, p),
       delete: (id) => localDataEngine.delete("JobPhotoShare", id),
@@ -527,8 +646,12 @@ export const sdk = {
       InvokeLLM: invokeLLM,
       SendEmail: () => Promise.resolve({ success: true }),
       SendSMS: () => Promise.resolve({ success: true }),
-      UploadFile: (file) => Promise.resolve({ url: URL.createObjectURL(file), success: true }),
-      GenerateImage: () => Promise.resolve({ url: "https://placehold.co/600x400?text=Generated+Image" }),
+      UploadFile: (file) =>
+        Promise.resolve({ url: URL.createObjectURL(file), success: true }),
+      GenerateImage: () =>
+        Promise.resolve({
+          url: "https://placehold.co/600x400?text=Generated+Image",
+        }),
       ExtractDataFromUploadedFile: () => Promise.resolve({ data: {} }),
     },
   },

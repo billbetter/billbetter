@@ -1274,12 +1274,22 @@ export default function Settings() {
                               if (response.data?.url) {
                                 window.location.href = response.data.url;
                               } else {
-                                throw new Error("No portal URL received");
+                                // The SDK reports Edge Function failures as
+                                // { success: false, error } rather than
+                                // throwing, so read the server's own message
+                                // instead of replacing it with a generic one.
+                                throw new Error(
+                                  response.data?.error ||
+                                    "No portal URL received",
+                                );
                               }
                             } catch (error) {
                               console.error("Portal error:", error);
-                              setSaveMessage("Failed to open billing portal");
-                              setTimeout(() => setSaveMessage(null), 3000);
+                              setSaveMessage(
+                                error.message ||
+                                  "Failed to open billing portal",
+                              );
+                              setTimeout(() => setSaveMessage(null), 6000);
                             } finally {
                               setLoading(false);
                             }
