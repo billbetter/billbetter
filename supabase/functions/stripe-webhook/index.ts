@@ -128,10 +128,17 @@ Deno.serve(async (req) => {
     // signing secret. Accept either, so one URL can serve both endpoints --
     // otherwise every invoice payment fails signature checks and no invoice is
     // ever marked paid.
+    // Either variable may hold several comma-separated secrets. Rolling a
+    // signing secret in the dashboard invalidates the old one the moment it is
+    // replaced, so carrying both across a rotation is what stops live events
+    // being rejected in the gap before the new one is deployed.
     const secrets = [
       Deno.env.get('STRIPE_WEBHOOK_SECRET'),
       Deno.env.get('STRIPE_CONNECT_WEBHOOK_SECRET'),
-    ].filter(Boolean) as string[];
+    ]
+      .flatMap((v) => String(v || '').split(','))
+      .map((s) => s.trim())
+      .filter(Boolean);
 
     if (!secrets.length) {
       console.error('stripe-webhook: no webhook signing secret configured');

@@ -1,6 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
-import { stripeGet, stripePost } from '../_shared/stripe.ts';
+import { stripeGet, stripePost, stripeUploadFile, PLATFORM_BRANDING } from '../_shared/stripe.ts';
 
 // Starts (or resumes) Stripe Express onboarding for a contractor.
 //
@@ -22,7 +22,7 @@ async function resolveAccount(settings: any, user: { id: string; email?: string 
   if (stored) {
     try {
       const account = await stripeGet(`/accounts/${stored}`);
-      if (account?.id) return { id: account.id, created: false };
+      if (account?.id) return { id: account.id, created: false, account };
     } catch (err) {
       // Deleted from the dashboard, or belonging to another platform/mode.
       console.warn('stored connected account unusable, creating a new one:', stored, err?.message || err);
@@ -43,7 +43,70 @@ async function resolveAccount(settings: any, user: { id: string; email?: string 
   if (settings?.website) params['business_profile[url]'] = settings.website;
 
   const account = await stripePost('/accounts', params);
-  return { id: account.id, created: true };
+  return { id: account.id, created: true, account };
+}
+
+// Dress the connected account in Invoicium's brand.
+//
+// With direct charges the client checks out on the CONTRACTOR's account, so the
+// hosted Checkout page takes its icon and colours from that account -- left
+// alone it renders as an unbranded Stripe page that looks nothing like the
+// invoice the client just received. The contractor's own business name stays on
+// the page: they are who the client is paying, and overwriting that would
+// misrepresent the merchant.
+
+// Branding images are File objects, and files belong to whoever uploaded them.
+// They must be uploaded and referenced as the PLATFORM -- uploading against the
+// connected account produces a file id the platform cannot then attach ("No
+// such file upload"). One upload therefore serves every contractor, so this
+// reuses the file already on the platform instead of re-uploading per account.
+let brandFiles: { icon?: string; logo?: string } | null = null;
+
+async function platformBrandFiles() {
+  if (brandFiles) return brandFiles;
+
+  const found: { icon?: string; logo?: string } = {};
+  for (const [purpose, field, path] of [
+    ['business_icon', 'icon', '/logo-icon.png'],
+    ['business_logo', 'logo', '/logo-full.png'],
+  ] as const) {
+    try {
+      const existing = await stripeGet(`/files?purpose=${purpose}&limit=1`);
+      if (existing?.data?.[0]?.id) {
+        found[field] = existing.data[0].id;
+        continue;
+      }
+      const res = await fetch(`${APP_URL}${path}`);
+      if (!res.ok) continue;
+      const file = await stripeUploadFile(await res.blob(), path.slice(1), purpose);
+      found[field] = file.id;
+    } catch (err) {
+      console.warn(`brand ${field} unavailable:`, err instanceof Error ? err.message : err);
+    }
+  }
+
+  brandFiles = found;
+  return found;
+}
+
+async function applyPlatformBranding(accountId: string, account?: Record<string, any>) {
+  try {
+    if (account?.settings?.branding?.icon) return;
+
+    const files = await platformBrandFiles();
+    const params: Record<string, string> = {
+      'settings[branding][primary_color]': PLATFORM_BRANDING.primary_color,
+      'settings[branding][secondary_color]': PLATFORM_BRANDING.secondary_color,
+    };
+    if (files.icon) params['settings[branding][icon]'] = files.icon;
+    if (files.logo) params['settings[branding][logo]'] = files.logo;
+
+    await stripePost(`/accounts/${accountId}`, params);
+  } catch (err) {
+    // Branding is cosmetic. A contractor who cannot get paid because a logo
+    // would not upload is a far worse outcome.
+    console.warn('applyPlatformBranding failed for', accountId, err instanceof Error ? err.message : err);
+  }
 }
 
 Deno.serve(async (req) => {
@@ -60,7 +123,8 @@ Deno.serve(async (req) => {
 
     let settings = await db.findOne('BusinessSettings', { user_id: user.id });
 
-    const { id: accountId } = await resolveAccount(settings, user);
+    const { id: accountId, account } = await resolveAccount(settings, user);
+    await applyPlatformBranding(accountId, account);
 
     // Persist before sending them to Stripe. If they complete onboarding and
     // never come back to the return_url, the webhook still needs this id to

@@ -154,3 +154,47 @@ export function applicationFeeCents(totalCents: number, feePercent: unknown): nu
   // Never let rounding produce a fee at or above the charge itself.
   return Math.min(Math.round(totalCents * pct / 100), Math.max(totalCents - 1, 0));
 }
+
+// Invoicium's own brand, applied to every connected account so the Stripe
+// Checkout page a contractor's client lands on looks like the product that sent
+// the invoice. Values mirror --brand-700 / --brand-500 in src/index.css.
+export const PLATFORM_BRANDING = {
+  primary_color: '#0369A1',
+  secondary_color: '#0EA5E9',
+};
+
+// Stripe stores branding images as File objects, not URLs, so a logo has to be
+// uploaded before it can be referenced.
+//
+// Files belong to whoever uploaded them. Branding images for a connected account
+// must therefore be uploaded and attached as the PLATFORM, with no
+// Stripe-Account: uploading against the connected account yields a file id the
+// platform cannot then attach, and the update fails with "No such file upload".
+// The upside is that one upload serves every connected account.
+//
+// Multipart, so Content-Type is deliberately left unset -- fetch fills in the
+// boundary and overriding it breaks the upload.
+export async function stripeUploadFile(
+  file: Blob,
+  filename: string,
+  purpose: string,
+  options?: StripeOptions,
+): Promise<any> {
+  const form = new FormData();
+  form.append('purpose', purpose);
+  form.append('file', file, filename);
+
+  const headers: Record<string, string> = {
+    Authorization: `Basic ${btoa(STRIPE_SECRET_KEY + ':')}`,
+  };
+  if (options?.stripeAccount) headers['Stripe-Account'] = options.stripeAccount;
+
+  const res = await fetch('https://files.stripe.com/v1/files', {
+    method: 'POST',
+    headers,
+    body: form,
+  });
+  const data = await res.json();
+  if (!res.ok) throw new Error(data?.error?.message || `Stripe files ${res.status}`);
+  return data;
+}
