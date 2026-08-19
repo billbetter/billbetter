@@ -1,0 +1,9 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(node scripts/contrast-audit.cjs)",
+      "Bash(node scripts/dark-mode-audit.cjs)",
+      "Bash(node scripts/dark-mode-audit.cjs *)"
+    ]
+  }
+}
