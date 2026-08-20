@@ -4,6 +4,7 @@ import { createPageUrl } from "@/utils";
 import { hasAppAccess } from "@/lib/access";
 import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
+import { ShinyButton } from "@/components/ui/shiny-button";
 import IPhoneMockup from "@/components/ui/iphone-mockup";
 import SEO from "@/components/seo/SEO";
 import InstallPWA from "@/components/pwa/InstallPWA";
@@ -371,24 +372,7 @@ export default function Home() {
                         Go to Dashboard <ArrowRight className="ml-2 w-5 h-5" />
                       </Button>
                     ) : (
-                      <>
-                        <Button
-                          onClick={handleGetStarted}
-                          size="lg"
-                          className="bg-brand text-content-inverted h-14 px-8 rounded-2xl font-black shadow-2xl shadow-brand-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                        >
-                          Start Free Trial{" "}
-                          <ArrowRight className="ml-2 w-5 h-5" />
-                        </Button>
-                        <Button
-                          onClick={handleLogin}
-                          size="lg"
-                          variant="outline"
-                          className="h-14 px-8 rounded-lg border border-line bg-surface text-content-body hover:bg-surface-sunken hover:text-content font-black transition-colors"
-                        >
-                          Sign In
-                        </Button>
-                      </>
+                      <ShinyButton onClick={handleLogin}>Sign In</ShinyButton>
                     )}
                   </div>
                 </FadeIn>
