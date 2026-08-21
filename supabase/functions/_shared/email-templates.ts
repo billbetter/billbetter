@@ -63,8 +63,9 @@ interface LayoutOptions {
   branding: EmailBranding;
 }
 
-const PRIMARY = "#10b981";
-const PRIMARY_DARK = "#059669";
+// brand-700 / brand-800 from src/index.css, matching notification-layout.ts.
+const PRIMARY = "#0369A1";
+const PRIMARY_DARK = "#075985";
 const TEXT = "#0f172a";
 const MUTED = "#64748b";
 const BORDER = "#e2e8f0";

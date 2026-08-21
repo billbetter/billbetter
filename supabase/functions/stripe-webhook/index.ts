@@ -20,7 +20,7 @@ const PLAN_LIMITS: Record<string, { transactions: number; fee: number }> = {
 /**
  * Which plan a Stripe subscription is now on.
  *
- * Resolved from Stripe's own product name ("BillBetter Core") rather than from
+ * Resolved from Stripe's own product name ("Invoicium Core") rather than from
  * a second copy of the price-id list -- src/config/plans.js warns that an id
  * drifting between places charges for the wrong plan, and a duplicate here
  * would be exactly that. Returns null if it cannot tell, and callers then

@@ -9,10 +9,9 @@
 //   --ink-200    #E2E8F0   borders
 //   --ink-50     #F8FAFC   page background
 //
-// NOTE: the older invoice/quote mail in email-templates.ts still uses an
-// emerald #10b981 primary from the AxisBill era. Those are client-facing
-// documents and were left alone deliberately — aligning them is a separate
-// visual change, not part of adding notifications.
+// NOTE: email-templates.ts (client-facing invoice/quote mail) reads the same
+// brand-700/brand-800 pair from its own PRIMARY/PRIMARY_DARK constants, so the
+// two families of mail now match. Keep them in step when the token moves.
 //
 // Everything is inline-styled with table layout: Gmail strips <style> blocks
 // and Outlook ignores flex/grid.

@@ -1,6 +1,12 @@
 const ALLOWED_ORIGINS = [
   "https://invoicium.ca",
   "https://www.invoicium.ca",
+  // Infrastructure, not branding: this is the hostname Vercel derives from the
+  // PROJECT name, which is still `billbetter`. It is the app's own origin, so
+  // dropping it would refuse the app's own fetches rather than tidy anything.
+  // Rename the Vercel project to `invoicium` and this becomes
+  // https://invoicium.vercel.app; do not change it before the rename, or the
+  // allowlist points at a hostname nobody controls.
   "https://billbetter.vercel.app",
 ];
 
@@ -12,14 +18,14 @@ const LOCALHOST_ORIGIN = /^http:\/\/(?:localhost|127\.0\.0\.1)(?::\d+)?$/;
 
 // Vercel gives every deployment its own hostname, so preview builds can never
 // appear in a fixed list — and until production serves this app, previews are
-// the ONLY place it runs. Scoped to this project's own deployments rather than
-// all of *.vercel.app, which would let any Vercel site call these functions.
-// The middle segment is optional (the stable project alias has none) and may
-// itself contain hyphens (branch previews are billbetter-git-<branch>-...).
+// the ONLY place it runs. Scoped to this team's own deployments rather than all
+// of *.vercel.app, which would let any Vercel site call these functions.
 // The -zubayir-s-projects suffix is the security boundary: only this Vercel
-// team can create hostnames ending that way.
-const PREVIEW_ORIGIN =
-  /^https:\/\/billbetter(?:-[a-z0-9-]+)?-zubayir-s-projects\.vercel\.app$/;
+// team can create hostnames ending that way. Everything before it is left
+// unmatched on purpose — it is the project name plus, on branch previews, a
+// -git-<branch> segment, so pinning it means renaming the Vercel project (or
+// pushing a branch whose name does not fit) silently kills every preview.
+const PREVIEW_ORIGIN = /^https:\/\/[a-z0-9-]+-zubayir-s-projects\.vercel\.app$/;
 
 function isAllowed(origin: string): boolean {
   return (

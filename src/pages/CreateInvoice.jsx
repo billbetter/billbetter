@@ -64,7 +64,28 @@ import {
   DeleteTemplateDialog,
 } from "../components/invoice/TemplateDialogs";
 
-const STORAGE_KEY = "axispay_invoice_draft";
+const STORAGE_KEY = "invoicium_invoice_draft";
+
+// Draft key inherited from an earlier name for this app. An in-progress invoice
+// is unsaved work, so it is carried over once rather than abandoned under the
+// old key; the old entry is deleted as it moves, so this runs at most once per
+// browser and the constant can be retired once the rename is far enough behind
+// (added 2026-08-20).
+const RETIRED_STORAGE_KEY = "axispay_invoice_draft";
+
+if (typeof window !== "undefined") {
+  try {
+    const carried = window.localStorage.getItem(RETIRED_STORAGE_KEY);
+    if (carried) {
+      if (!window.localStorage.getItem(STORAGE_KEY)) {
+        window.localStorage.setItem(STORAGE_KEY, carried);
+      }
+      window.localStorage.removeItem(RETIRED_STORAGE_KEY);
+    }
+  } catch {
+    // private mode / storage disabled — nothing to migrate
+  }
+}
 
 // Camera Analyzer Component with proper dark mode colors
 const CameraAnalyzer = ({ onAnalyze, className }) => {

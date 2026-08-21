@@ -1,6 +1,6 @@
 """Load .env from the repo root so scripts never hardcode refs or credentials.
 
-The AxisBill -> Invoicium migration left every deploy script pointing at the
+An earlier rebrand of this codebase left every deploy script pointing at the
 dead rtflrrugewkphoxukymw project with its own drifted copy of the secrets.
 Reading .env instead keeps one source of truth.
 """

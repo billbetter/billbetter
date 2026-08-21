@@ -5,7 +5,7 @@
 // marketing-facing (feature bullets, taglines, icons) stays in Pricing.jsx --
 // only what Stripe needs lives here.
 //
-// Price IDs belong to the BillBetter Stripe account (acct_1TdLSn...).
+// Price IDs belong to the Invoicium Stripe account (acct_1TdLSn...).
 
 export const PLAN_BILLING = {
   core: {

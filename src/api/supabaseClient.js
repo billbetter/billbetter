@@ -12,16 +12,24 @@ if (!supabaseUrl || !supabaseAnonKey) {
 }
 
 const STORAGE_KEY = "invoicium-auth";
-const LEGACY_STORAGE_KEY = "axisbill-auth";
 
-// The AxisBill -> Invoicium rename changed this key, which silently signed out
-// everyone who was already logged in. Carry the old session over once so the
-// rename doesn't cost anyone their session.
+// The storage key this app shipped under before it was renamed to Invoicium.
+// It is the one legacy brand string that cannot be deleted from the source:
+// a session saved under the old name can only be found by asking for it by
+// name, and dropping this would silently sign out everyone who has not opened
+// the app since the rename. The entry is moved and then deleted, so this runs
+// at most once per browser and the constant can be retired outright once the
+// rename is far enough behind (added 2026-08-19).
+const RETIRED_STORAGE_KEY = "axisbill-auth";
+
 if (typeof window !== "undefined") {
   try {
-    const legacy = window.localStorage.getItem(LEGACY_STORAGE_KEY);
-    if (legacy && !window.localStorage.getItem(STORAGE_KEY)) {
-      window.localStorage.setItem(STORAGE_KEY, legacy);
+    const carried = window.localStorage.getItem(RETIRED_STORAGE_KEY);
+    if (carried) {
+      if (!window.localStorage.getItem(STORAGE_KEY)) {
+        window.localStorage.setItem(STORAGE_KEY, carried);
+      }
+      window.localStorage.removeItem(RETIRED_STORAGE_KEY);
     }
   } catch {
     // private mode / storage disabled — nothing to migrate
