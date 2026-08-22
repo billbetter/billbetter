@@ -13,17 +13,25 @@ import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
 import PageNotFound from "./lib/PageNotFound";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import UserNotRegisteredError from "@/components/UserNotRegisteredError";
+import ErrorBoundary from "@/components/ErrorBoundary";
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
 const MainPage = mainPageKey ? Pages[mainPageKey] : <></>;
 
-const LayoutWrapper = ({ children, currentPageName }) =>
-  Layout ? (
-    <Layout currentPageName={currentPageName}>{children}</Layout>
-  ) : (
-    <>{children}</>
+// The boundary sits INSIDE the layout so a crashing page leaves the nav and
+// sidebar usable instead of blanking the window, and is keyed by page name so
+// navigating away clears a latched error.
+const LayoutWrapper = ({ children, currentPageName }) => {
+  const content = (
+    <ErrorBoundary resetKey={currentPageName}>{children}</ErrorBoundary>
   );
+  return Layout ? (
+    <Layout currentPageName={currentPageName}>{content}</Layout>
+  ) : (
+    <>{content}</>
+  );
+};
 
 const AuthenticatedApp = () => {
   const {
@@ -54,41 +62,44 @@ const AuthenticatedApp = () => {
     }
   }
 
-  // Render the main app
+  // Render the main app. The outer boundary covers the routes that bypass
+  // LayoutWrapper (Login, Register, PrivacyPolicy, 404).
   return (
-    <Routes>
-      <Route
-        path="/"
-        element={
-          <LayoutWrapper currentPageName={mainPageKey}>
-            <MainPage />
-          </LayoutWrapper>
-        }
-      />
-      {Object.entries(Pages).map(([path, Page]) => (
+    <ErrorBoundary>
+      <Routes>
         <Route
-          key={path}
-          path={`/${path}`}
+          path="/"
           element={
-            <LayoutWrapper currentPageName={path}>
-              <Page />
+            <LayoutWrapper currentPageName={mainPageKey}>
+              <MainPage />
             </LayoutWrapper>
           }
         />
-      ))}
-      <Route path="/Login" element={<Login />} />
-      <Route path="/Register" element={<Register />} />
-      <Route
-        path="/BookDemo"
-        element={
-          <LayoutWrapper currentPageName="BookDemo">
-            <BookDemo />
-          </LayoutWrapper>
-        }
-      />
-      <Route path="/PrivacyPolicy" element={<PrivacyPolicy />} />
-      <Route path="*" element={<PageNotFound />} />
-    </Routes>
+        {Object.entries(Pages).map(([path, Page]) => (
+          <Route
+            key={path}
+            path={`/${path}`}
+            element={
+              <LayoutWrapper currentPageName={path}>
+                <Page />
+              </LayoutWrapper>
+            }
+          />
+        ))}
+        <Route path="/Login" element={<Login />} />
+        <Route path="/Register" element={<Register />} />
+        <Route
+          path="/BookDemo"
+          element={
+            <LayoutWrapper currentPageName="BookDemo">
+              <BookDemo />
+            </LayoutWrapper>
+          }
+        />
+        <Route path="/PrivacyPolicy" element={<PrivacyPolicy />} />
+        <Route path="*" element={<PageNotFound />} />
+      </Routes>
+    </ErrorBoundary>
   );
 };
 
