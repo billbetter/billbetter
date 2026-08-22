@@ -376,7 +376,10 @@ async function handleFunctionInvoke(name, payload = {}) {
   }
 
   if (name === "getBillingHistory") {
-    return { data: { history: [] } };
+    // Must match what Settings.jsx reads -- it renders .invoices and
+    // .payment_methods. This used to return { history: [] }, a key nothing
+    // consumes, which left both of those undefined and crashed the billing tab.
+    return { data: { invoices: [], payment_methods: [] } };
   }
 
   if (name === "seedServicePresets") {

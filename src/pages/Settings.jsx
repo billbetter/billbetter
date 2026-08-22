@@ -300,9 +300,19 @@ export default function Settings() {
     try {
       setLoadingBilling(true);
       const response = await sdk.functions.invoke("getBillingHistory");
-      if (response.data) {
-        setBillingHistory(response.data);
-      }
+      // Normalise rather than storing the payload as-is. The billing tab reads
+      // .invoices.length and .payment_methods.length unguarded, so a response
+      // missing either key replaced the initial state with one that has no such
+      // arrays and crashed the whole page on render. Keeping the shape correct
+      // here means the render cannot be handed anything else, whatever the
+      // endpoint returns.
+      const data = response?.data ?? {};
+      setBillingHistory({
+        invoices: Array.isArray(data.invoices) ? data.invoices : [],
+        payment_methods: Array.isArray(data.payment_methods)
+          ? data.payment_methods
+          : [],
+      });
     } catch (error) {
       console.error("Error loading billing history:", error);
     } finally {
