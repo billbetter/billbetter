@@ -136,7 +136,8 @@ export default function Settings() {
     payment_terms: "Payment due within 30 days",
     // Empty means "not customised": src/lib/invoiceTheme.js then derives the
     // colour, which reproduces today's black-on-white PDF exactly. The old
-    // "#10b981" default was the retired AxisBill emerald and was never rendered
+    // "#10b981" default was a retired emerald from an earlier brand and was
+    // never rendered
     // -- see the 20260822120000_pdf_theme_columns migration.
     pdf_color_scheme: "",
     pdf_background_color: "",

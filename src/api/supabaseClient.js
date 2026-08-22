@@ -13,28 +13,11 @@ if (!supabaseUrl || !supabaseAnonKey) {
 
 const STORAGE_KEY = "invoicium-auth";
 
-// The storage key this app shipped under before it was renamed to Invoicium.
-// It is the one legacy brand string that cannot be deleted from the source:
-// a session saved under the old name can only be found by asking for it by
-// name, and dropping this would silently sign out everyone who has not opened
-// the app since the rename. The entry is moved and then deleted, so this runs
-// at most once per browser and the constant can be retired outright once the
-// rename is far enough behind (added 2026-08-19).
-const RETIRED_STORAGE_KEY = "axisbill-auth";
-
-if (typeof window !== "undefined") {
-  try {
-    const carried = window.localStorage.getItem(RETIRED_STORAGE_KEY);
-    if (carried) {
-      if (!window.localStorage.getItem(STORAGE_KEY)) {
-        window.localStorage.setItem(STORAGE_KEY, carried);
-      }
-      window.localStorage.removeItem(RETIRED_STORAGE_KEY);
-    }
-  } catch {
-    // private mode / storage disabled — nothing to migrate
-  }
-}
+// A carry-over that moved sessions off this app's previous storage key ran here
+// from 2026-08-19 to 2026-08-22. It was self-retiring -- it deleted the old
+// entry as it moved it, so it did nothing after a browser's first load -- and is
+// removed now that the rename is far enough behind. A browser that never opened
+// the app in that window simply signs in again.
 
 // "Keep me signed in": supabase-js always persists to localStorage, so the
 // opt-out is enforced here instead — sessionStorage is cleared when the browser

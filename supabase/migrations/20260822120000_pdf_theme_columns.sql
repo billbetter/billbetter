@@ -23,7 +23,7 @@ comment on column public."BusinessSettings".pdf_text_color is
 comment on column public."BusinessSettings".pdf_muted_text_color is
   'Invoice PDF labels and secondary text. Hex. NULL = derived from text + background.';
 
--- pdf_color_scheme shipped defaulting to '#10b981' -- the retired AxisBill
+-- pdf_color_scheme shipped defaulting to '#10b981' -- a retired
 -- emerald, which the rest of the app replaced with #0369A1. It was never
 -- rendered: nothing outside the settings form read the column until now.
 --

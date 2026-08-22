@@ -41,7 +41,8 @@ export const DEFAULT_INVOICE_THEME = Object.freeze({
 
 /**
  * The value `pdf_color_scheme` shipped with as its column default. It is the
- * retired AxisBill emerald -- the rest of the app moved to #0369A1 -- and it was
+ * retired emerald from this app's previous brand -- the rest of the app moved to
+ * #0369A1 -- and it was
  * never rendered, because nothing outside the settings form read the column.
  * Rows still holding it are migrated to #000000 rather than trusted, so this
  * feature does not silently restyle every existing business's invoices. Kept
