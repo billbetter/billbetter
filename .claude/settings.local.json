@@ -4,7 +4,8 @@
       "Bash(echo \"EXIT=$?\")",
       "Read(//tmp/**)",
       "Bash(grep -E \"\\\\.\\(jsx|js|css\\)$\")",
-      "Bash(npm run build)"
+      "Bash(npm run build)",
+      "Bash(python scripts/apply-migration.py supabase/migrations/*)"
     ]
   }
 }
