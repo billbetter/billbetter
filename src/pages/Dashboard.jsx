@@ -293,41 +293,31 @@ export default function Dashboard() {
         recurringData,
         subscriptionData,
       ] = await Promise.all([
-        sdk.entities.Invoice.filter({ user_id: user.id }, "-created_date", 100),
-        sdk.entities.Quote.filter({ user_id: user.id }, "-created_date", 50),
-        sdk.entities.Client.filter({ user_id: user.id }, "-created_date", 50),
-        sdk.entities.BusinessSettings.filter({ user_id: user.id }),
+        sdk.entities.Invoice.filter(
+          { user_id: currentUser.id },
+          "-created_date",
+          100,
+        ),
+        sdk.entities.Quote.filter(
+          { user_id: currentUser.id },
+          "-created_date",
+          50,
+        ),
+        sdk.entities.Client.filter(
+          { user_id: currentUser.id },
+          "-created_date",
+          50,
+        ),
+        sdk.entities.BusinessSettings.filter({ user_id: currentUser.id }),
         sdk.entities.RecurringInvoice.filter(
-          { user_id: user.id },
+          { user_id: currentUser.id },
           "-created_date",
           20,
         ),
-        sdk.entities.Subscription.filter({ user_id: user.id }),
+        sdk.entities.Subscription.filter({ user_id: currentUser.id }),
       ]);
 
-      let filteredInvoiceData = invoiceData;
-      if (profile) {
-        const assignedJobs = await sdk.entities.Job.filter({
-          user_id: user.id,
-          assigned_to: currentUser.id,
-        });
-        const assignedClientIds = [
-          ...new Set(
-            assignedJobs
-              .filter((job) => job.client_id)
-              .map((job) => job.client_id),
-          ),
-        ];
-
-        filteredInvoiceData = invoiceData.filter(
-          (invoice) =>
-            invoice.assigned_to === currentUser.id ||
-            (invoice.client_id &&
-              assignedClientIds.includes(invoice.client_id)),
-        );
-      }
-
-      setInvoices(filteredInvoiceData);
+      setInvoices(invoiceData);
       setQuotes(quoteData);
       setClients(clientData);
       setSettings(settingsData.length > 0 ? settingsData[0] : null);
@@ -340,7 +330,7 @@ export default function Dashboard() {
         const monthStart = startOfMonth(month);
         const monthEnd = endOfMonth(month);
 
-        const monthInvoices = filteredInvoiceData.filter((inv) => {
+        const monthInvoices = invoiceData.filter((inv) => {
           const invDate = new Date(inv.created_date);
           return invDate >= monthStart && invDate <= monthEnd;
         });
@@ -361,11 +351,7 @@ export default function Dashboard() {
       });
       setChartData(sixMonths);
 
-      if (
-        !profile &&
-        !currentUser.onboarding_completed &&
-        settingsData.length === 0
-      ) {
+      if (!currentUser.onboarding_completed && settingsData.length === 0) {
         setShowOnboarding(true);
       }
     } catch (error) {

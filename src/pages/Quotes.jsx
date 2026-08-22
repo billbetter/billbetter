@@ -111,29 +111,7 @@ export default function Quotes() {
         sdk.entities.BusinessSettings.filter({ user_id: user.id }),
       ]);
 
-      let filteredQuoteData = quoteData;
-      if (profile) {
-        const assignedJobs = await sdk.entities.Job.filter({
-          user_id: user.id,
-          assigned_to: user.id,
-        });
-
-        const assignedClientIds = [
-          ...new Set(
-            assignedJobs
-              .filter((job) => job.client_id)
-              .map((job) => job.client_id),
-          ),
-        ];
-
-        filteredQuoteData = quoteData.filter(
-          (quote) =>
-            quote.assigned_to === user.id ||
-            (quote.client_id && assignedClientIds.includes(quote.client_id)),
-        );
-      }
-
-      setQuotes(filteredQuoteData);
+      setQuotes(quoteData);
       if (settingsData.length > 0) {
         setSettings(settingsData[0]);
       }

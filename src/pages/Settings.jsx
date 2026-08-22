@@ -272,11 +272,6 @@ export default function Settings() {
         setSubscription(null);
       }
 
-      // Load employee profile (for permission checking)
-      if (profileData.length > 0) {
-      } else {
-      }
-
       // Load billing history if subscribed
       if (
         subscriptionData.length > 0 &&

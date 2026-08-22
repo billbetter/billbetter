@@ -128,46 +128,11 @@ export default function Clients() {
     try {
       const me = await sdk.auth.me();
 
-      // Load employee profile for permissions
-      // Determine whose data to load (owner's or own)
-
-      // If user is a crew member, only show clients connected to their assigned jobs
-      if (profile) {
-        // First get jobs assigned to this crew member
-        const assignedJobs = await sdk.entities.Job.filter({
-          user_id: me.id,
-          assigned_to: me.id,
-        });
-
-        // Extract unique client IDs from assigned jobs
-        const assignedClientIds = [
-          ...new Set(
-            assignedJobs
-              .filter((job) => job.client_id)
-              .map((job) => job.client_id),
-          ),
-        ];
-
-        // Fetch only those clients
-        if (assignedClientIds.length > 0) {
-          const allClients = await sdk.entities.Client.filter({
-            user_id: me.id,
-          });
-          const filteredClients = allClients.filter((client) =>
-            assignedClientIds.includes(client.id),
-          );
-          setClients(filteredClients);
-        } else {
-          setClients([]);
-        }
-      } else {
-        // Boss sees all clients
-        const clientData = await sdk.entities.Client.filter(
-          { user_id: me.id },
-          "-created_date",
-        );
-        setClients(Array.isArray(clientData) ? clientData : []);
-      }
+      const clientData = await sdk.entities.Client.filter(
+        { user_id: me.id },
+        "-created_date",
+      );
+      setClients(Array.isArray(clientData) ? clientData : []);
     } catch (error) {
       console.error("Error loading clients:", error);
       setClients([]);

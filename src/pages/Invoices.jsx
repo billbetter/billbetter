@@ -102,30 +102,7 @@ export default function Invoices() {
         sdk.entities.BusinessSettings.filter({ user_id: user.id }),
       ]);
 
-      let filteredInvoiceData = invoiceData;
-      if (profile) {
-        const assignedJobs = await sdk.entities.Job.filter({
-          user_id: user.id,
-          assigned_to: user.id,
-        });
-
-        const assignedClientIds = [
-          ...new Set(
-            assignedJobs
-              .filter((job) => job.client_id)
-              .map((job) => job.client_id),
-          ),
-        ];
-
-        filteredInvoiceData = invoiceData.filter(
-          (invoice) =>
-            invoice.assigned_to === user.id ||
-            (invoice.client_id &&
-              assignedClientIds.includes(invoice.client_id)),
-        );
-      }
-
-      setInvoices(filteredInvoiceData);
+      setInvoices(invoiceData);
       if (settingsData.length > 0) {
         setSettings(settingsData[0]);
       }

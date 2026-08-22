@@ -209,8 +209,7 @@ export default function Calendar() {
       const s = settingsData.length > 0 ? settingsData[0] : null;
       if (s) setSettings(s);
 
-      let jobs = await sdk.entities.Job.filter({ user_id: user.id });
-      if (profile) jobs = jobs.filter((j) => j.assigned_to === user.id);
+      const jobs = await sdk.entities.Job.filter({ user_id: user.id });
 
       const jobEvents = jobs
         .filter((job) => job.scheduled_start_time)
