@@ -6,6 +6,7 @@ import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import { ShinyButton } from "@/components/ui/shiny-button";
 import IPhoneMockup from "@/components/ui/iphone-mockup";
+import { TestimonialsMarquee } from "@/components/ui/testimonials-columns";
 import SEO from "@/components/seo/SEO";
 import InstallPWA from "@/components/pwa/InstallPWA";
 import {
@@ -1143,38 +1144,9 @@ export default function Home() {
               </div>
             </FadeIn>
 
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-6">
-              {testimonials.map((t, i) => (
-                <FadeIn key={i} delay={i * 100}>
-                  <div className="bg-surface rounded-2xl p-6 border border-line hover:border-brand-300 shadow-sm hover:shadow-md transition-all h-full flex flex-col">
-                    <div className="flex gap-1 mb-4">
-                      {[...Array(t.stars)].map((_, si) => (
-                        <Star
-                          key={si}
-                          className="w-4 h-4 text-warning-400 fill-current"
-                        />
-                      ))}
-                    </div>
-                    <blockquote className="text-ink-700 leading-relaxed flex-1 mb-6 text-[15px]">
-                      "{t.quote}"
-                    </blockquote>
-                    <div className="flex items-center gap-3 pt-4 border-t border-line-subtle">
-                      <div className="w-10 h-10 bg-brand rounded-full flex items-center justify-center flex-shrink-0">
-                        <span className="text-content-inverted text-sm font-black">
-                          {t.name[0]}
-                        </span>
-                      </div>
-                      <div>
-                        <p className="font-bold text-content text-sm">
-                          {t.name}
-                        </p>
-                        <p className="text-content-muted text-xs">{t.trade}</p>
-                      </div>
-                    </div>
-                  </div>
-                </FadeIn>
-              ))}
-            </div>
+            <FadeIn delay={100}>
+              <TestimonialsMarquee testimonials={testimonials} />
+            </FadeIn>
           </div>
         </section>
 
