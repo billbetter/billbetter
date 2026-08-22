@@ -23,7 +23,7 @@ const businessSettings = {
   hourly_rate: 85,
   invoice_prefix: "INV",
   payment_terms: "Net 30",
-  pdf_color_scheme: "#10b981",
+  pdf_color_scheme: "#000000",
   pdf_footer_text: "Thank you for choosing Miller Construction!",
   show_pdf_branding: true,
   font_family: "helvetica",

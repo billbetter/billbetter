@@ -6,6 +6,7 @@
 // of @react-pdf/renderer do not run. See src/lib/invoicePdf.js for the callers.
 
 import React from "react";
+import { resolveInvoiceTheme } from "@/lib/invoiceTheme";
 import {
   Document,
   Page,
@@ -25,106 +26,106 @@ Font.register({
     { src: "/fonts/Inter-Bold.ttf", fontWeight: "bold" },
     { src: "/fonts/Inter-Italic.ttf", fontWeight: "normal", fontStyle: "italic" },
   ],
-});
+  });
 
 // No hyphenation dictionary is loaded for Inter, and the default hyphenator
 // splits long line-item descriptions mid-word. Keep words intact instead.
 Font.registerHyphenationCallback((word) => [word]);
 
-const BLACK = "#000000";
-const GREY = "#595959";
-const LINE = "#BFBFBF";
-const WHITE = "#FFFFFF";
+// Colours come from the business's theme rather than module constants, so the
+// StyleSheet has to be built per-render instead of once at module load. Layout,
+// spacing and type sizes are untouched -- only colour is themeable.
+const makeStyles = (t) =>
+  StyleSheet.create({
+    page: {
+      fontFamily: "Inter",
+      fontSize: 9.5,
+      color: t.textColor,
+      backgroundColor: t.pageFill,
+      padding: 36,
+    },
+    headerRow: {
+      flexDirection: "row",
+      justifyContent: "space-between",
+    },
+    brand: { fontSize: 17, fontWeight: "bold" },
+    small: { fontSize: 9, color: t.mutedTextColor, marginTop: 2 },
+    invoiceTitle: { fontSize: 17, fontWeight: "bold", textAlign: "right" },
+    metaRow: { fontSize: 9, textAlign: "right", marginTop: 3 },
+    metaLabel: { color: t.mutedTextColor },
+    metaValue: { fontWeight: "bold" },
+    rule: {
+      borderBottomWidth: 1,
+      borderBottomColor: t.lineColor,
+      marginVertical: 14,
+    },
+    twoCol: { flexDirection: "row", justifyContent: "space-between" },
+    col: { width: "48%" },
+    label: {
+      fontSize: 7.5,
+      color: t.mutedTextColor,
+      fontWeight: "bold",
+      letterSpacing: 1,
+      marginBottom: 3,
+      textTransform: "uppercase",
+    },
+    value: { fontSize: 10, marginTop: 1 },
+    valueBold: { fontSize: 10, fontWeight: "bold", marginTop: 1 },
 
-const styles = StyleSheet.create({
-  page: {
-    fontFamily: "Inter",
-    fontSize: 9.5,
-    color: BLACK,
-    padding: 36,
-  },
-  headerRow: {
-    flexDirection: "row",
-    justifyContent: "space-between",
-  },
-  brand: { fontSize: 17, fontWeight: "bold" },
-  small: { fontSize: 9, color: GREY, marginTop: 2 },
-  invoiceTitle: { fontSize: 17, fontWeight: "bold", textAlign: "right" },
-  metaRow: { fontSize: 9, textAlign: "right", marginTop: 3 },
-  metaLabel: { color: GREY },
-  metaValue: { fontWeight: "bold" },
-  rule: {
-    borderBottomWidth: 1,
-    borderBottomColor: LINE,
-    marginVertical: 14,
-  },
-  twoCol: { flexDirection: "row", justifyContent: "space-between" },
-  col: { width: "48%" },
-  label: {
-    fontSize: 7.5,
-    color: GREY,
-    fontWeight: "bold",
-    letterSpacing: 1,
-    marginBottom: 3,
-    textTransform: "uppercase",
-  },
-  value: { fontSize: 10, marginTop: 1 },
-  valueBold: { fontSize: 10, fontWeight: "bold", marginTop: 1 },
+    table: { marginTop: 18 },
+    tableHeaderRow: {
+      flexDirection: "row",
+      backgroundColor: t.primaryColor,
+      paddingVertical: 6,
+      paddingHorizontal: 6,
+    },
+    tableHeaderCell: { color: t.onPrimaryColor, fontWeight: "bold", fontSize: 9 },
+    tableRow: {
+      flexDirection: "row",
+      paddingVertical: 6,
+      paddingHorizontal: 6,
+      borderBottomWidth: 0.5,
+      borderBottomColor: t.lineColor,
+    },
+    tableCell: { fontSize: 9.5 },
+    colDesc: { width: "50%" },
+    colQty: { width: "12%", textAlign: "center" },
+    colRate: { width: "19%", textAlign: "right" },
+    colAmount: { width: "19%", textAlign: "right" },
 
-  table: { marginTop: 18 },
-  tableHeaderRow: {
-    flexDirection: "row",
-    backgroundColor: BLACK,
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-  },
-  tableHeaderCell: { color: WHITE, fontWeight: "bold", fontSize: 9 },
-  tableRow: {
-    flexDirection: "row",
-    paddingVertical: 6,
-    paddingHorizontal: 6,
-    borderBottomWidth: 0.5,
-    borderBottomColor: LINE,
-  },
-  tableCell: { fontSize: 9.5 },
-  colDesc: { width: "50%" },
-  colQty: { width: "12%", textAlign: "center" },
-  colRate: { width: "19%", textAlign: "right" },
-  colAmount: { width: "19%", textAlign: "right" },
+    totals: { marginTop: 14, alignItems: "flex-end" },
+    totalRow: {
+      flexDirection: "row",
+      width: 220,
+      justifyContent: "space-between",
+      paddingVertical: 4,
+    },
+    totalLabel: { fontSize: 9.5, color: t.mutedTextColor },
+    totalValue: { fontSize: 9.5, fontWeight: "bold" },
+    grandTotalRow: {
+      flexDirection: "row",
+      width: 220,
+      justifyContent: "space-between",
+      backgroundColor: t.primaryColor,
+      paddingVertical: 6,
+      paddingHorizontal: 8,
+      marginTop: 2,
+    },
+    grandTotalLabel: { fontSize: 10, color: t.onPrimaryColor, fontWeight: "bold" },
+    grandTotalValue: { fontSize: 10, color: t.onPrimaryColor, fontWeight: "bold" },
 
-  totals: { marginTop: 14, alignItems: "flex-end" },
-  totalRow: {
-    flexDirection: "row",
-    width: 220,
-    justifyContent: "space-between",
-    paddingVertical: 4,
-  },
-  totalLabel: { fontSize: 9.5, color: GREY },
-  totalValue: { fontSize: 9.5, fontWeight: "bold" },
-  grandTotalRow: {
-    flexDirection: "row",
-    width: 220,
-    justifyContent: "space-between",
-    backgroundColor: BLACK,
-    paddingVertical: 6,
-    paddingHorizontal: 8,
-    marginTop: 2,
-  },
-  grandTotalLabel: { fontSize: 10, color: WHITE, fontWeight: "bold" },
-  grandTotalValue: { fontSize: 10, color: WHITE, fontWeight: "bold" },
-
-  notes: { marginTop: 24 },
-  notesText: { fontSize: 9, color: GREY, fontStyle: "italic", marginTop: 4 },
-  footer: {
-    marginTop: 30,
-    borderTopWidth: 0.5,
-    borderTopColor: LINE,
-    paddingTop: 10,
-    textAlign: "center",
-    fontSize: 9,
-    color: GREY,
-    fontStyle: "italic",
-  },
+    notes: { marginTop: 24 },
+    notesText: { fontSize: 9, color: t.mutedTextColor, fontStyle: "italic", marginTop: 4 },
+    footer: {
+      marginTop: 30,
+      borderTopWidth: 0.5,
+      borderTopColor: t.lineColor,
+      paddingTop: 10,
+      textAlign: "center",
+      fontSize: 9,
+      color: t.mutedTextColor,
+      fontStyle: "italic",
+    },
 });
 
 /**
@@ -154,6 +155,8 @@ const styles = StyleSheet.create({
  *                                       src/lib/invoicePdfData.js converts it.
  * @property {string} [paymentDetails]
  * @property {string} [notes]
+ * @property {import("@/lib/invoiceTheme").InvoiceTheme} [theme]
+ *            Per-business colours. Omit for the default black-on-white look.
  */
 
 const money = (n) =>
@@ -164,6 +167,10 @@ const money = (n) =>
 
 /** @param {InvoiceData} data */
 export const InvoiceDocument = (data) => {
+  // resolveInvoiceTheme fills every missing or malformed field from the default
+  // theme, so an unthemed business renders exactly as it did before.
+  const styles = makeStyles(resolveInvoiceTheme(data.theme));
+
   const lineItems = Array.isArray(data.lineItems) ? data.lineItems : [];
   const subtotal = lineItems.reduce(
     (sum, li) => sum + Number(li.qty || 0) * Number(li.rate || 0),

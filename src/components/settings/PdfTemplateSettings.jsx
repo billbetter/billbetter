@@ -4,8 +4,14 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Eye, CheckCircle, Palette, Info } from "lucide-react";
+import { Eye, CheckCircle, Palette } from "lucide-react";
 import CustomTemplatePreview from "@/components/invoice/CustomTemplatePreview";
+import InvoiceThemePreview from "@/components/invoice/InvoiceThemePreview";
+import {
+  contrastRatio,
+  normalizeHex,
+  resolveInvoiceTheme,
+} from "@/lib/invoiceTheme";
 
 const initialCustomTemplateConfig = {
   show_logo: true,
@@ -19,6 +25,36 @@ const initialCustomTemplateConfig = {
   accent_color: "#10b981",
   secondary_color: "#6b7280",
 };
+
+// The four colours InvoiceTheme exposes. `fallback` is only what the native
+// swatch shows while the field is empty -- it is never written to the row, so an
+// untouched field stays NULL and keeps deriving from the background.
+const PDF_THEME_FIELDS = [
+  {
+    key: "pdf_color_scheme",
+    label: "Brand Color",
+    fallback: "#000000",
+    hint: "Header bars, section titles and the totals box.",
+  },
+  {
+    key: "pdf_background_color",
+    label: "Page Background",
+    fallback: "#ffffff",
+    hint: "The paper colour. Leave empty for white.",
+  },
+  {
+    key: "pdf_text_color",
+    label: "Body Text",
+    fallback: "#000000",
+    hint: "Leave empty to follow the background automatically.",
+  },
+  {
+    key: "pdf_muted_text_color",
+    label: "Labels & Secondary Text",
+    fallback: "#595959",
+    hint: "Leave empty to derive from the body text and background.",
+  },
+];
 
 const templateOptions = [
   {
@@ -41,6 +77,13 @@ const templateOptions = [
     preview: "📝 Streamlined one-page format",
   },
   {
+    id: "detailed",
+    name: "Detailed",
+    description:
+      "Grouped sections with subtotals, PO and job refs, terms and signature lines",
+    preview: "📐 Multi-section layout for commercial jobs",
+  },
+  {
     id: "custom",
     name: "Custom Template",
     description:
@@ -57,6 +100,12 @@ export default function PdfTemplateSettings({
   showCustomPreview,
   setShowCustomPreview,
 }) {
+  const [showThemePreview, setShowThemePreview] = React.useState(false);
+
+  // The same resolution the PDF itself uses, so the swatch below is not a
+  // second opinion about what will print.
+  const previewTheme = resolveInvoiceTheme(formData);
+
   return (
     <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
       <CardHeader>
@@ -353,28 +402,105 @@ export default function PdfTemplateSettings({
             PDF Style Customization
           </h3>
           <div className="space-y-4">
-            <div>
-              <Label className="text-ink-700 dark:text-ink-300">
-                Brand Color (Hex)
-              </Label>
-              <div className="flex gap-2">
-                <Input
-                  type="text"
-                  value={formData.pdf_color_scheme}
-                  onChange={(e) =>
-                    setFormData({
-                      ...formData,
-                      pdf_color_scheme: e.target.value,
-                    })
-                  }
-                  placeholder="#10b981"
-                  className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
-                />
-                <div
-                  className="w-12 h-10 rounded border dark:border-ink-700"
-                  style={{ backgroundColor: formData.pdf_color_scheme }}
-                />
+            {/* Invoice PDF colours. Each row is a native swatch plus the hex,
+                matching the custom-template pickers above. An empty field means
+                "not set" -- invoiceTheme.js then derives that colour from the
+                background rather than assuming a white page. */}
+            {PDF_THEME_FIELDS.map(({ key, label, hint, fallback }) => (
+              <div key={key}>
+                <Label className="text-ink-700 dark:text-ink-300">{label}</Label>
+                <div className="flex gap-2 mt-1">
+                  <Input
+                    type="color"
+                    aria-label={`${label} swatch`}
+                    value={normalizeHex(formData[key]) || fallback}
+                    onChange={(e) =>
+                      setFormData({ ...formData, [key]: e.target.value })
+                    }
+                    className="w-16 h-10 p-0 bg-transparent border-0 shrink-0"
+                  />
+                  <Input
+                    type="text"
+                    value={formData[key] ?? ""}
+                    onChange={(e) =>
+                      setFormData({ ...formData, [key]: e.target.value })
+                    }
+                    placeholder={fallback}
+                    className="bg-surface dark:bg-ink-800 border-line-strong dark:border-ink-700 text-content dark:text-content-inverted"
+                  />
+                  {formData[key] ? (
+                    <Button
+                      type="button"
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => setFormData({ ...formData, [key]: "" })}
+                      className="shrink-0 text-content-muted"
+                    >
+                      Reset
+                    </Button>
+                  ) : null}
+                </div>
+                <p className="text-xs text-content-muted dark:text-content-subtle mt-1">
+                  {hint}
+                </p>
               </div>
+            ))}
+
+            {/* The filled bars draw their text in whichever of black/white reads
+                better on the brand colour, so this is what will actually print. */}
+            <div className="rounded-lg border border-line dark:border-ink-700 p-3">
+              <p className="text-xs font-semibold text-content-muted mb-2">
+                Contrast check
+              </p>
+              <div
+                className="rounded px-3 py-2 text-sm font-bold flex justify-between"
+                style={{
+                  backgroundColor: previewTheme.primaryColor,
+                  color: previewTheme.onPrimaryColor,
+                }}
+              >
+                <span>Total Due</span>
+                <span>$2,945.60</span>
+              </div>
+              <p className="text-xs text-content-muted mt-2">
+                Text on your brand colour is set to{" "}
+                {previewTheme.onPrimaryColor === "#ffffff" ? "white" : "black"}{" "}
+                automatically (
+                {contrastRatio(
+                  previewTheme.primaryColor,
+                  previewTheme.onPrimaryColor,
+                ).toFixed(1)}
+                :1 contrast).
+                {previewTheme.accentColor !== previewTheme.primaryColor
+                  ? " Your brand colour is too light to read as a rule or border on this background, so those fall back to the body colour."
+                  : ""}
+              </p>
+            </div>
+
+            <div>
+              <div className="flex items-center justify-between mb-2">
+                <Label className="text-ink-700 dark:text-ink-300">
+                  Live preview
+                </Label>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => setShowThemePreview((v) => !v)}
+                  className="gap-1 dark:border-ink-700 dark:text-ink-300"
+                >
+                  <Eye className="w-3 h-3" />
+                  {showThemePreview ? "Hide" : "Show"}
+                </Button>
+              </div>
+              {showThemePreview ? (
+                <InvoiceThemePreview settings={{ ...settings, ...formData }} />
+              ) : (
+                <p className="text-xs text-content-muted dark:text-content-subtle">
+                  Renders a sample invoice with your colours, using the template
+                  selected above.
+                </p>
+              )}
             </div>
 
             <div>

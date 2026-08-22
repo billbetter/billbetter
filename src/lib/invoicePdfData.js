@@ -16,6 +16,7 @@
 // on the invoice, shaped { description, quantity, rate, total }.
 
 import { format, isValid, parseISO } from "date-fns";
+import { resolveInvoiceTheme } from "@/lib/invoiceTheme";
 
 /**
  * Format a timestamptz / ISO string the way the template wants it: "Aug 20, 2026".
@@ -107,6 +108,12 @@ export function mapInvoiceToPdfData(invoice = {}, settings = {}, options = {}) {
     // The DB calls it `quantity`; the template calls it `qty`.
     qty: Number(item?.quantity ?? item?.qty ?? 0),
     rate: Number(item?.rate ?? 0),
+    // Neither is written today -- nothing in CreateInvoice.jsx produces them --
+    // but both are carried through so the Complex template's grouping and unit
+    // column light up on their own if the item shape ever grows them, rather
+    // than needing this mapper changed again.
+    category: item?.category ?? item?.section ?? undefined,
+    unit: item?.unit ?? undefined,
   }));
 
   return {
@@ -141,6 +148,87 @@ export function mapInvoiceToPdfData(invoice = {}, settings = {}, options = {}) {
 
     paymentDetails: paymentDetails || undefined,
     notes: invoice.notes || undefined,
+
+    // Per-business colours. resolveInvoiceTheme fills anything unset from the
+    // default, so a business that never opened the branding settings renders
+    // exactly as it did before theming existed.
+    theme: resolveInvoiceTheme(settings),
+  };
+}
+
+/**
+ * Map the same rows onto the RICHER shape InvoiceDocumentComplex.jsx expects.
+ *
+ * The Complex layout was designed for data this schema does not carry yet:
+ *
+ *   sections   "Invoice".items is a flat array with no category, so items are
+ *              grouped by an optional `category`/`section` field if one is ever
+ *              written, and otherwise land in a single untitled-by-default
+ *              section. No item is dropped either way.
+ *   taxes      there is one `tax_rate` column, so this emits at most one tax
+ *              line. Separate GST/PST needs two columns before it can be real.
+ *   discount   there is no discount column -- omitted entirely rather than
+ *              printing a zero line that implies one was applied.
+ *
+ * Fields with no home in the schema (businessNumber, poNumber, jobReference,
+ * projectManager) are accepted through `options` so a caller can supply them,
+ * and render as an em dash otherwise.
+ *
+ * @param {object}  invoice   a row from public."Invoice"
+ * @param {object}  settings  a row from public."BusinessSettings"
+ * @param {object} [options]  everything mapInvoiceToPdfData takes, plus
+ *                            { sectionTitle, poNumber, jobReference,
+ *                              projectManager, businessNumber, requireSignature }
+ * @returns {import("@/components/invoice/InvoiceDocumentComplex").ComplexInvoiceData}
+ */
+export function mapInvoiceToComplexPdfData(invoice = {}, settings = {}, options = {}) {
+  const base = mapInvoiceToPdfData(invoice, settings, options);
+  const {
+    sectionTitle = "Services",
+    poNumber,
+    jobReference,
+    projectManager,
+    businessNumber,
+    requireSignature = false,
+  } = options;
+
+  // Preserve the order categories first appear in, so the PDF matches the order
+  // the contractor entered the work rather than an alphabetical reshuffle.
+  const grouped = new Map();
+  for (const li of base.lineItems) {
+    const title = li.category || li.section || sectionTitle;
+    if (!grouped.has(title)) grouped.set(title, []);
+    grouped.get(title).push({
+      description: li.description,
+      qty: li.qty,
+      unit: li.unit,
+      rate: li.rate,
+    });
+  }
+
+  const taxRate = base.taxRate;
+
+  return {
+    ...base,
+    businessNumber: businessNumber || undefined,
+    poNumber: poNumber || undefined,
+    jobReference: jobReference || undefined,
+    projectManager: projectManager || undefined,
+
+    sections: grouped.size
+      ? Array.from(grouped, ([title, lineItems]) => ({ title, lineItems }))
+      : [{ title: sectionTitle, lineItems: [] }],
+
+    taxes: taxRate
+      ? [{ label: `HST / Tax (${Math.round(taxRate * 100)}%)`, rate: taxRate }]
+      : [],
+
+    // One detail per line; the template renders each as its own row.
+    bankDetails: base.paymentDetails
+      ? String(base.paymentDetails).split("\n").filter(Boolean)
+      : undefined,
+    terms: base.terms,
+    requireSignature: Boolean(requireSignature),
   };
 }
 

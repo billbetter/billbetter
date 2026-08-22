@@ -134,7 +134,14 @@ export default function Settings() {
     invoice_template: "professional",
     invoice_prefix: "INV",
     payment_terms: "Payment due within 30 days",
-    pdf_color_scheme: "#10b981",
+    // Empty means "not customised": src/lib/invoiceTheme.js then derives the
+    // colour, which reproduces today's black-on-white PDF exactly. The old
+    // "#10b981" default was the retired AxisBill emerald and was never rendered
+    // -- see the 20260822120000_pdf_theme_columns migration.
+    pdf_color_scheme: "",
+    pdf_background_color: "",
+    pdf_text_color: "",
+    pdf_muted_text_color: "",
     pdf_footer_text: "Thank you for your business!",
     show_pdf_branding: true, // Show Invoicium branding by default
     font_family: "helvetica",
