@@ -26,6 +26,7 @@ import {
   MessageSquare,
 } from "lucide-react";
 import { generateQuotePDF } from "@/functions/generateQuotePDF";
+import { generateInvoicePDF } from "@/functions/generateInvoicePDF";
 
 const formatMoney = (n) =>
   Number(n || 0).toLocaleString("en-US", {
@@ -369,7 +370,6 @@ Return JSON only.`;
           // 1. Generate PDF
           let pdfUrl = null;
           try {
-            const pdfFn = isQuote ? "generateQuotePDF" : "generateInvoicePDF";
             const payload = isQuote
               ? {
                   quote: {
@@ -393,7 +393,7 @@ Return JSON only.`;
                 };
             const pdfResponse = isQuote
               ? await generateQuotePDF(payload)
-              : await sdk.functions.invoke(pdfFn, payload);
+              : await generateInvoicePDF(payload);
             if (pdfResponse?.data?.pdf_url) {
               pdfUrl = pdfResponse.data.pdf_url;
               const updateFn = isQuote

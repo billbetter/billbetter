@@ -3,6 +3,7 @@ import { InvokeLLM } from "@/integrations/Core";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { sdk } from "@/api/sdk";
+import { generateInvoicePDF } from "@/functions/generateInvoicePDF";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -962,7 +963,7 @@ Provide line items in this format.`,
         setSubscription((prev) => ({ ...prev, ...updates }));
       }
 
-      const pdfResponse = await sdk.functions.invoke("generateInvoicePDF", {
+      const pdfResponse = await generateInvoicePDF({
         invoice: {
           ...createdInvoice,
           ...formData,
@@ -1139,7 +1140,7 @@ Provide line items in this format.`,
 
       try {
         setSendingStatus("generating_pdf");
-        const pdfResponse = await sdk.functions.invoke("generateInvoicePDF", {
+        const pdfResponse = await generateInvoicePDF({
           invoice: {
             ...createdInvoice,
             ...formData,
