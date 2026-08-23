@@ -76,6 +76,9 @@ import QuoteDetail from './pages/QuoteDetail';
 import Quotes from './pages/Quotes';
 import RecurringInvoices from './pages/RecurringInvoices';
 import Settings from './pages/Settings';
+import Team from './pages/Team';
+import Timesheet from './pages/Timesheet';
+import AcceptCrewInvite from './pages/AcceptCrewInvite';
 import SharedPhotos from './pages/SharedPhotos';
 import Sitemap from './pages/Sitemap';
 import TermsOfService from './pages/TermsOfService';
@@ -114,6 +117,9 @@ export const PAGES = {
     "Quotes": Quotes,
     "RecurringInvoices": RecurringInvoices,
     "Settings": Settings,
+    "Team": Team,
+    "Timesheet": Timesheet,
+    "AcceptCrewInvite": AcceptCrewInvite,
     "SharedPhotos": SharedPhotos,
     "Sitemap": Sitemap,
     "TermsOfService": TermsOfService,

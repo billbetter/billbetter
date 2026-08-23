@@ -71,3 +71,37 @@ export function accessState(subscription) {
   }
   return "no_subscription";
 }
+
+/**
+ * The same question, asked of the database.
+ *
+ * hasAppAccess() above reads the user's OWN Subscription row, which is all a
+ * solo contractor has ever needed. A crew member has no such row -- their
+ * employer holds it, and Subscription stays owner-only on purpose because it
+ * carries the Stripe customer and subscription ids. So the browser cannot
+ * answer this for them by reading anything it is allowed to read.
+ *
+ * public.my_app_access() returns the one bit, computed by the same function
+ * every RLS policy uses. Asking it is what stops the UI bouncing a valid crew
+ * member to the pricing page while the database serves them happily.
+ *
+ * Falls back to the local answer if the RPC is unavailable (an install that has
+ * not run the crew migration), so this can never be the reason someone is
+ * locked out.
+ *
+ * @param {any} subscription
+ * @param {{ from: (t: string) => any, rpc: (fn: string) => Promise<any> }} client
+ * @returns {Promise<boolean>}
+ */
+export async function resolveAppAccess(subscription, client) {
+  if (hasAppAccess(subscription)) return true;
+  if (!client?.rpc) return false;
+  try {
+    const { data, error } = await client.rpc("my_app_access");
+    if (error) throw error;
+    return data === true;
+  } catch (err) {
+    console.warn("access: my_app_access unavailable", err);
+    return false;
+  }
+}

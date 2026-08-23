@@ -71,6 +71,7 @@ export const PLANS = {
     legacyYearlyPriceId: "price_1U60o5LvDc7eLOdrxxJCo8zS",
     transactions: 30,
     processingFee: 1,
+    seats: 1, // the owner, alone
     popular: false,
     features: [
       "30 invoices or quotes/month",
@@ -81,7 +82,13 @@ export const PLANS = {
       "Email & SMS delivery",
       "Automated overdue reminders",
     ],
-    notIncluded: ["Recurring invoices", "Expense tracking", "Analytics"],
+    notIncluded: [
+      "Recurring invoices",
+      "Expense tracking",
+      "Analytics",
+      "Time tracking",
+      "Crew members",
+    ],
   },
 
   essential: {
@@ -100,11 +107,13 @@ export const PLANS = {
     legacyYearlyPriceId: "price_1U60o5LvDc7eLOdr2ZLowIZ7",
     transactions: 100,
     processingFee: 1,
+    seats: 1,
     popular: false,
     features: [
       "100 invoices or quotes/month",
       "Recurring invoices",
       "Expense tracking + AI receipt scanner",
+      "Time tracking & job costing",
       "Analytics dashboard & profit per job",
       "Full job tracking (status, cost, location)",
       "Your logo & colours on every PDF",
@@ -130,11 +139,13 @@ export const PLANS = {
     legacyYearlyPriceId: "price_1U60o6LvDc7eLOdri6HlnG3Z",
     transactions: 300,
     processingFee: 0.75,
+    seats: 5, // owner + 4 crew
     popular: true,
     features: [
       "300 invoices or quotes/month",
       "0.75% platform fee (down from 1%)",
       "Crew management, roles & permissions",
+      "Up to 4 crew members on your account",
       "Smart Insights (AI analytics)",
       "Custom PDF templates",
       "Material pricing & supplier comparison",
@@ -161,11 +172,13 @@ export const PLANS = {
     legacyYearlyPriceId: "price_1U60o7LvDc7eLOdrlrzvmXhb",
     transactions: 750,
     processingFee: 0.5,
+    seats: 20,
     popular: false,
     features: [
       "750 invoices or quotes/month",
       "0.5% platform fee (half of Core)",
       "White-label - no Invoicium branding anywhere",
+      "Up to 19 crew members on your account",
       "Advanced granular permissions",
       "API access",
       "Dedicated account manager",
@@ -190,6 +203,7 @@ export const PLANS = {
     legacyYearlyPriceId: null,
     transactions: -1, // unlimited
     processingFee: 0.5, // floor; negotiated per contract
+    seats: -1, // unlimited
     popular: false,
     features: [
       "Unlimited invoices & quotes",
@@ -212,6 +226,7 @@ export const PLANS = {
  */
 export const TRIAL_DAYS = 7;
 export const TRIAL_TRANSACTIONS = 50;
+export const TRIAL_SEATS = 3;
 export const CURRENCY = "CAD";
 
 /** Stripe's own cut, quoted alongside our platform fee so the FAQ stays honest. */
@@ -272,6 +287,25 @@ export function getTransactionLimit(planId) {
 export function getProcessingFee(planId) {
   const plan = getPlan(planId);
   return plan ? plan.processingFee : PLANS.core.processingFee;
+}
+
+/**
+ * Total seats on the plan, INCLUDING the owner. -1 means unlimited.
+ *
+ * A trial gets 3 so the crew feature can actually be evaluated -- a feature you
+ * cannot try is a feature you will not buy -- but not enough to run a real
+ * business on and skip subscribing.
+ */
+export function getSeatLimit(planId, status) {
+  if (status === "trial" || status === "trialing") return TRIAL_SEATS;
+  const plan = getPlan(planId);
+  return plan ? plan.seats : PLANS.core.seats;
+}
+
+/** Seats available to people other than the owner. -1 means unlimited. */
+export function getCrewSeatLimit(planId, status) {
+  const total = getSeatLimit(planId, status);
+  return total === -1 ? -1 : Math.max(0, total - 1);
 }
 
 /** Position in the ladder. Custom sits above everything; unknown plans below. */

@@ -31,6 +31,7 @@ import {
   PLANS,
   PLAN_ORDER,
   TRIAL_TRANSACTIONS,
+  getCrewSeatLimit,
   getPlanRank,
   resolvePlanId,
 } from "@/config/plans";
@@ -77,6 +78,12 @@ export const FEATURE_MINIMUM_PLAN = {
   // a one-van business lives in its calendar, and it makes the $24 -> $49
   // step feel like a different product rather than a bigger bucket.
   google_calendar: "essential",
+  // Job already carried estimated_hours / hourly_rate / labor_cost and the
+  // profitability chart already read them -- there was simply no way to record
+  // an actual hour. Sits with expenses because the two together are what turn
+  // "what did I invoice?" into "what did I earn?".
+  time_tracking: "essential",
+  job_costing: "essential",
   // Also moved down. "My logo on my invoice" is table stakes for anyone
   // paying anything. Building a bespoke LAYOUT is the premium bit, and that
   // stays at professional as custom_templates.
@@ -116,8 +123,11 @@ export const ENTITY_MINIMUM_PLAN = {
   Receipt: "essential",
   JobMaterial: "essential",
   JobNote: "essential",
+  TimeEntry: "essential",
   InvoiceTemplate: "professional",
   PriceComparison: "professional",
+  EmployeeProfile: "professional",
+  CrewInvite: "professional",
 };
 
 const ALL_FEATURES = Object.keys(FEATURE_MINIMUM_PLAN);
@@ -256,6 +266,29 @@ export function getTransactionAllowance(subscription) {
 /** Our platform fee on a payment, as a percentage. */
 export function getProcessingFeePercent(subscription) {
   return getUserPlan(subscription).payment_processing_fee;
+}
+
+/**
+ * How many people other than the owner this subscription may seat.
+ *
+ * -1 means unlimited. Zero is a real answer, not an error: Core and Essential
+ * are single-operator plans, and the Team screen uses the zero to explain why
+ * rather than to hide itself.
+ *
+ * This is the courteous check. The binding one is in the send-crew-invite edge
+ * function, which is the side holding the service role -- anyone can call that
+ * endpoint directly with the anon key that ships in the bundle.
+ */
+export function getCrewSeatAllowance(subscription) {
+  if (!subscription) return 0;
+  return getCrewSeatLimit(subscription.plan_name, subscription.status);
+}
+
+/** Whether another crew member fits, given how many seats are already spoken for. */
+export function hasCrewSeatFor(subscription, seatsInUse) {
+  const allowed = getCrewSeatAllowance(subscription);
+  if (allowed === -1) return true;
+  return Number(seatsInUse || 0) < allowed;
 }
 
 /** Display name for a feature, used in upgrade prompts. */

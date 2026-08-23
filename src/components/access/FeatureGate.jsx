@@ -11,13 +11,23 @@ import {
 /**
  * FeatureGate - Redirects to upgrade page if user doesn't have access
  *
- * @param {boolean} hasAccess - Whether the user has access (legacy prop)
- * @param {string} feature - Feature key to check against subscription
- * @param {string} featureName - Name of the feature (for upgrade message, legacy)
- * @param {string} title - Display title for the feature
- * @param {string} mode - 'redirect' (default) or 'blur' to just hide content
- * @param {React.ReactNode} children - Content to show if user has access
+ * The props are declared as ONE typedef rather than six loose @param tags.
+ * A component's parameter list is a single props object, so the old form told
+ * TypeScript the whole object was `hasAccess` -- a boolean -- and every
+ * <FeatureGate feature="..."> in the codebase reported as a type error.
+ *
+ * @typedef {Object} FeatureGateProps
+ * @property {boolean} [hasAccess]  bypass the lookup entirely (legacy prop)
+ * @property {string} [feature]     feature key checked against the subscription
+ * @property {string} [featureName] legacy alias for `feature`
+ * @property {string} [title]       display title, used in the upgrade message
+ * @property {"redirect"|"blur"} [mode] 'redirect' (default) sends the user to
+ *                                  UpgradeRequired; 'blur' just renders nothing
+ *                                  and lets the page show its own prompt
+ * @property {React.ReactNode} [children] content shown when access is granted
  */
+
+/** @param {FeatureGateProps} props */
 export default function FeatureGate({
   hasAccess,
   feature,

@@ -1,7 +1,9 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { hasAppAccess } from "@/lib/access";
+import { hasAppAccess, resolveAppAccess } from "@/lib/access";
+import { supabase } from "@/api/supabaseClient";
+import { canAccessFeature } from "@/components/utils/permissions";
 import { sdk } from "@/api/sdk";
 import {
   LayoutDashboard,
@@ -23,6 +25,8 @@ import {
   ArrowLeft,
   Search,
   Lock,
+  Clock,
+  UserCog,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -42,6 +46,10 @@ export default function Layout({ children, currentPageName }) {
   const [user, setUser] = useState(null);
   const [settings, setSettings] = useState(null);
   const [subscription, setSubscription] = useState(null);
+  // Crew members have no Subscription row of their own -- their employer holds
+  // it, and it stays owner-only. null means "not asked yet"; the database
+  // answers via my_app_access(). See lib/access.js resolveAppAccess.
+  const [crewAccess, setCrewAccess] = useState(null);
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -123,6 +131,20 @@ export default function Layout({ children, currentPageName }) {
     };
   }, [user, subscription, location.pathname]);
 
+  // Asked once per signed-in user, and only when the local answer was no --
+  // a paying owner never issues this call at all.
+  useEffect(() => {
+    if (!user || hasAppAccess(subscription) || crewAccess !== null) return;
+    let cancelled = false;
+    (async () => {
+      const allowed = await resolveAppAccess(subscription, supabase);
+      if (!cancelled) setCrewAccess(allowed);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [user, subscription, crewAccess]);
+
   useEffect(() => {
     // Only load settings if user is authenticated and we've checked employee status
     if (user && !loading) {
@@ -144,8 +166,12 @@ export default function Layout({ children, currentPageName }) {
         // LOGGED IN - but an account alone does not grant access. Without a
         // live subscription send them to Pricing to choose a plan; feature
         // gates within pages then handle plan-level restrictions.
-        const hasLiveSubscription = hasAppAccess(subscription);
+        const hasLiveSubscription = hasAppAccess(subscription) || crewAccess === true;
         if (
+          // crewAccess === null means the database has not answered yet.
+          // Redirecting on a pending answer would bounce every crew member on
+          // their first paint, before the one query that admits them returns.
+          crewAccess !== null &&
           !hasLiveSubscription &&
           !subscriptionExemptPages.includes(currentPageName)
         ) {
@@ -157,6 +183,7 @@ export default function Layout({ children, currentPageName }) {
   }, [
     user,
     subscription,
+    crewAccess,
     loading,
     isPublicPage,
     navigate,
@@ -526,10 +553,22 @@ export default function Layout({ children, currentPageName }) {
     },
     { name: "Jobs", href: createPageUrl("JobPhotos"), icon: Building2 },
     {
+      name: "Time",
+      href: createPageUrl("Timesheet"),
+      icon: Clock,
+    },
+    {
       name: "Recurring",
       href: createPageUrl("RecurringInvoices"),
       icon: RefreshCw,
     },
+    // Team is hidden rather than shown-and-refused on the single-operator
+    // plans: a nav item that only ever leads to an upsell is a nav item that
+    // wastes a tap every time. FeatureGate on the page is still the boundary --
+    // this is just tidiness.
+    ...(canAccessFeature(subscription, "crew_management")
+      ? [{ name: "Team", href: createPageUrl("Team"), icon: UserCog }]
+      : []),
     {
       name: "Settings",
       href: createPageUrl("Settings"),

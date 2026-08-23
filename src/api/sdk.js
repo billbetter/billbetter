@@ -13,6 +13,10 @@ import { Subscription } from "@/entities/Subscription";
 import { RecurringInvoice } from "@/entities/RecurringInvoice";
 import { InvoiceTemplate } from "@/entities/InvoiceTemplate";
 import { Receipt } from "@/entities/Receipt";
+import { EmployeeProfile } from "@/entities/EmployeeProfile";
+import { CrewInvite } from "@/entities/CrewInvite";
+import { CrewMemberSettings } from "@/entities/CrewMemberSettings";
+import { TimeEntry } from "@/entities/TimeEntry";
 import { buildLoginUrl } from "@/lib/auth-redirects";
 
 function buildPDFBlobUrl(title) {
@@ -192,6 +196,8 @@ async function handleFunctionInvoke(name, payload = {}) {
     createStripeConnectAccount: "stripe-connect-onboard",
     checkStripeStatus: "stripe-connect-status",
     confirmAndActivate: "confirm-and-activate",
+    sendCrewInvite: "send-crew-invite",
+    acceptCrewInvite: "accept-crew-invite",
   };
 
   // Only invoice/quote send functions need the client-contact normalizer. Crew
@@ -551,6 +557,10 @@ export const sdk = {
     RecurringInvoice,
     InvoiceTemplate,
     Receipt,
+    EmployeeProfile,
+    CrewInvite,
+    CrewMemberSettings,
+    TimeEntry,
     // Aliases for any legacy references
     Query: {
       list: () => Promise.resolve([]),

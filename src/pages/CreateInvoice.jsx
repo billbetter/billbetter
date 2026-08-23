@@ -3,6 +3,7 @@ import { InvokeLLM } from "@/integrations/Core";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { sdk } from "@/api/sdk";
+import { markTimeEntriesInvoiced } from "@/lib/timeTracking";
 import { generateInvoicePDF } from "@/functions/generateInvoicePDF";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -1102,6 +1103,16 @@ Provide line items in this format.`,
 
         await sdk.entities.Subscription.update(subscription.id, updates);
         setSubscription((prev) => ({ ...prev, ...updates }));
+      }
+
+      // Hours billed from the Timesheet are marked only once the invoice
+      // actually exists. Marking them when the button was pressed would bill
+      // work that was never invoiced if the user backed out of this screen.
+      if (createdInvoice?.id && prefillData?.time_entry_ids?.length) {
+        await markTimeEntriesInvoiced(
+          prefillData.time_entry_ids,
+          createdInvoice.id,
+        );
       }
 
       const urlJobId = new URLSearchParams(location.search).get("jobId");

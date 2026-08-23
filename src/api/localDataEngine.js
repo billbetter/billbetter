@@ -1,4 +1,5 @@
 import { supabase } from "./supabaseClient";
+import { getOwnerId } from "@/lib/crew";
 
 const STORAGE_PREFIX = "invoicium_";
 
@@ -86,6 +87,96 @@ function stripLegacyDates(payload) {
 }
 
 /**
+ * Tables whose `user_id` means "the business", not "the person".
+ *
+ * Every page writes `user_id: user.id` because for a solo contractor those are
+ * the same value. They stop being the same the moment a crew member signs in:
+ * their rows would be stamped with their own id, land outside the owner's
+ * `accessible_owner_ids`, and become invisible to the employer who is paying
+ * for the seat -- while still looking fine to the person who created them,
+ * which is the worst kind of wrong.
+ *
+ * Fixing it centrally here rather than at the ~60 call sites means a page
+ * cannot forget, and a new page gets it right without knowing crew exists.
+ *
+ * Excluded on purpose: EmployeeProfile and CrewMemberSettings (`user_id` is
+ * genuinely the person), CrewInvite (`owner_id` carries the business), and
+ * Subscription / BusinessSettings (owner-only writes; a crew member must never
+ * create either).
+ */
+const OWNER_SCOPED_TABLES = new Set([
+  "Client",
+  "Invoice",
+  "Quote",
+  "Job",
+  "JobPhoto",
+  "JobMaterial",
+  "JobNote",
+  "RecurringInvoice",
+  "InvoiceTemplate",
+  "Receipt",
+  "TimeEntry",
+]);
+
+/**
+ * Tables a crew member READS from the business but must never WRITE as it.
+ *
+ * BusinessSettings is the whole list. Crew need the business name, logo and
+ * PDF theme or every document they produce comes out unbranded and nameless --
+ * but the same row carries the Stripe Connect account and the payout email, so
+ * the write side stays owner-only (enforced in RLS, not merely here).
+ *
+ * It is deliberately NOT in OWNER_SCOPED_TABLES: stamping a crew member's
+ * insert with the owner's id would aim it straight at a policy that rejects it,
+ * turning "you cannot edit this" into an opaque 403 at a confusing moment.
+ */
+const OWNER_READ_TABLES = new Set(["BusinessSettings"]);
+
+/**
+ * Stamp a write with the owning business.
+ *
+ * Overrides any user_id the caller supplied: for a solo account that is a
+ * no-op (owner id === auth id), and for crew the caller's value is the thing
+ * being corrected. A failure to resolve leaves the payload untouched rather
+ * than writing a null owner.
+ */
+async function withOwner(entityName, payload) {
+  if (!OWNER_SCOPED_TABLES.has(entityName)) return payload;
+  try {
+    const ownerId = await getOwnerId();
+    return ownerId ? { ...payload, user_id: ownerId } : payload;
+  } catch (e) {
+    console.warn(`Could not resolve owner for ${entityName}`, e);
+    return payload;
+  }
+}
+
+/**
+ * The read-side mirror of withOwner.
+ *
+ * Pages ask for `{ user_id: user.id }`, which for a crew member selects their
+ * own id and matches nothing -- the business's rows are stamped with the
+ * OWNER's id. Rewriting the filter here keeps reads and writes symmetric: both
+ * speak "the business", and no page has to know which it is.
+ *
+ * Only the user_id key is touched. A query already scoped to something else --
+ * TimeEntry by member_user_id, say -- passes through untouched.
+ */
+async function withOwnerFilters(entityName, filters) {
+  const scoped =
+    OWNER_SCOPED_TABLES.has(entityName) || OWNER_READ_TABLES.has(entityName);
+  if (!filters || !scoped) return filters;
+  if (!Object.prototype.hasOwnProperty.call(filters, "user_id")) return filters;
+  try {
+    const ownerId = await getOwnerId();
+    return ownerId ? { ...filters, user_id: ownerId } : filters;
+  } catch (e) {
+    console.warn(`Could not resolve owner for ${entityName}`, e);
+    return filters;
+  }
+}
+
+/**
  * Only a genuinely missing TABLE may fall back to localStorage.
  *
  * This used to match the bare substring "does not exist", which also catches
@@ -168,9 +259,10 @@ function localSeed(entityName, dataArray) {
 export const localDataEngine = {
   async create(entityName, payload) {
     try {
+      const row = await withOwner(entityName, payload);
       const { data, error } = await supabase
         .from(entityName)
-        .insert([stripLegacyDates(payload)])
+        .insert([stripLegacyDates(row)])
         .select()
         .single();
       if (error) throw error;
@@ -186,9 +278,10 @@ export const localDataEngine = {
 
   async list(entityName, filters, sort, limit) {
     try {
+      const scoped = await withOwnerFilters(entityName, filters);
       let query = supabase.from(entityName).select("*");
-      if (filters) {
-        Object.entries(filters).forEach(([key, value]) => {
+      if (scoped) {
+        Object.entries(scoped).forEach(([key, value]) => {
           query = query.eq(key, value);
         });
       }
