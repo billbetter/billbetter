@@ -430,15 +430,23 @@ export default function Layout({ children, currentPageName }) {
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
+              {/* Mark plus real text, not the baked-in logo-full lockup. The
+                  wordmark in that bitmap renders about 13px tall here, which is
+                  soft on every display and cannot follow the dark-mode token.
+                  Live text is sharp at any zoom, selectable, and matches the
+                  app-nav lockup further down this file. */}
               <Link
                 to={createPageUrl("Home")}
-                className="flex items-center py-2"
+                className="flex items-center gap-2.5 py-2"
               >
                 <img
-                  src="/logo-full.png"
-                  alt="Invoicium"
-                  className="h-8 w-auto object-contain"
+                  src="/logo-mark.png"
+                  alt=""
+                  className="h-8 w-8 object-contain"
                 />
+                <span className="text-xl font-bold tracking-tight text-content dark:text-content-inverted sm:text-2xl">
+                  Invoicium
+                </span>
               </Link>
 
               <div className="flex items-center gap-2">
