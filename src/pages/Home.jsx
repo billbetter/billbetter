@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { hasAppAccess } from "@/lib/access";
+import { listPlans, getAmount } from "@/config/plans";
 import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import { ShinyButton } from "@/components/ui/shiny-button";
@@ -121,6 +122,7 @@ export default function Home() {
   const handleLogin = () =>
     sdk.auth.redirectToLogin(createPageUrl("Dashboard"));
   const handleViewPricing = () => navigate(createPageUrl("Pricing"));
+  const handleContactSales = () => navigate(createPageUrl("Contact"));
   const handleLogout = async () => {
     try {
       await sdk.auth.logout();
@@ -215,65 +217,25 @@ export default function Home() {
     },
   ];
 
-  const pricingPlans = [
-    {
-      name: "Free",
-      price: 0,
-      features: [
-        "10 documents (lifetime)",
-        "Manual invoices & quotes",
-        "Client management",
-        "Email support",
-      ],
-      cta: "Start Free",
-      isFree: true,
-    },
-    {
-      name: "Core",
-      price: 24,
-      features: [
-        "30 transactions/mo",
-        "AI assistance",
-        "Online payments",
-        "Photo attachments",
-      ],
-      cta: "Get Core",
-    },
-    {
-      name: "Essential",
-      price: 39,
-      features: [
-        "75 transactions/mo",
-        "Analytics dashboard",
-        "Recurring invoices",
-        "Job tracking",
-      ],
-      cta: "Get Essential",
-    },
-    {
-      name: "Professional",
-      price: 79,
-      features: [
-        "250 transactions/mo",
-        "Custom templates",
-        "Priority support",
-        "Advanced reporting",
-      ],
-      cta: "Get Professional",
-      popular: true,
-    },
-    {
-      name: "Enterprise",
-      price: 99,
-      features: [
-        "500 transactions/mo",
-        "Crew management",
-        "White-label options",
-        "Dedicated support",
-      ],
-      cta: "Get Enterprise",
-    },
-  ];
+  // Derived from config/plans.js so this teaser can never contradict the
+  // Pricing page or Stripe. It used to be a hand-written array that still
+  // advertised a Free tier long after the hard paywall removed it.
+  const pricingPlans = listPlans().map((plan) => {
+    const price = getAmount(plan.id, "monthly");
+    return {
+      id: plan.id,
+      name: plan.name,
+      price,
+      priceLabel: price === null ? "Custom" : `$${price}`,
+      popular: plan.popular,
+      // Four short bullets fit the card; the first is always the allowance.
+      features: plan.features.slice(0, 4),
+      cta: plan.id === "custom" ? "Talk to Sales" : `Get ${plan.name}`,
+    };
+  });
+
+  const featuredPlan =
+    pricingPlans.find((p) => p.popular) || pricingPlans[0];
 
   return (
     <>
@@ -953,10 +915,11 @@ export default function Home() {
                   Pricing
                 </p>
                 <h2 className="text-3xl sm:text-5xl font-black text-content mb-4">
-                  Start Free. Upgrade When Ready.
+                  Pick a Plan. Move Up When You Grow.
                 </h2>
                 <p className="text-content-body text-lg">
-                  No contracts. No surprises. Cancel any time.
+                  Every plan starts with a free trial. No contracts, no
+                  surprises, cancel any time.
                 </p>
               </div>
             </FadeIn>
@@ -977,11 +940,6 @@ export default function Home() {
                         <Star className="w-3 h-3 fill-current" /> MOST POPULAR
                       </div>
                     )}
-                    {plan.isFree && (
-                      <div className="absolute -top-4 left-1/2 -translate-x-1/2 bg-ink-700 text-content-inverted text-[10px] font-bold px-3 py-1 rounded-full whitespace-nowrap">
-                        NO RISK
-                      </div>
-                    )}
                     <div className="pt-2">
                       <h3 className="font-black text-content mb-1">
                         {plan.name}
@@ -990,9 +948,9 @@ export default function Home() {
                         <span
                           className={`text-3xl font-black ${plan.popular ? "text-brand-700" : "text-content"}`}
                         >
-                          ${plan.price}
+                          {plan.priceLabel}
                         </span>
-                        {!plan.isFree && (
+                        {plan.price !== null && (
                           <span className="text-content-muted text-xs">
                             /mo
                           </span>
@@ -1011,7 +969,9 @@ export default function Home() {
                       </ul>
                       <Button
                         onClick={
-                          plan.isFree ? handleGetStarted : handleViewPricing
+                          plan.id === "custom"
+                            ? handleContactSales
+                            : handleViewPricing
                         }
                         className={`w-full h-10 rounded-xl text-xs font-bold transition-all ${
                           plan.popular
@@ -1036,22 +996,17 @@ export default function Home() {
                   </div>
                   <div className="text-center pt-2 mb-5">
                     <h3 className="text-xl font-black text-content mb-1">
-                      Professional
+                      {featuredPlan.name}
                     </h3>
                     <div className="flex items-baseline justify-center gap-1">
                       <span className="text-4xl font-black text-brand-700">
-                        $79
+                        {featuredPlan.priceLabel}
                       </span>
                       <span className="text-content-muted text-sm">/mo</span>
                     </div>
                   </div>
                   <div className="grid grid-cols-2 gap-2 mb-5">
-                    {[
-                      "250 transactions/mo",
-                      "Custom templates",
-                      "Priority support",
-                      "Advanced reporting",
-                    ].map((f, i) => (
+                    {featuredPlan.features.map((f, i) => (
                       <div
                         key={i}
                         className="flex items-center gap-2 text-sm text-ink-700"
@@ -1065,7 +1020,7 @@ export default function Home() {
                     onClick={handleViewPricing}
                     className="w-full h-12 rounded-xl font-black bg-brand text-content-inverted"
                   >
-                    Get Professional
+                    {featuredPlan.cta}
                   </Button>
                 </div>
               </FadeIn>
@@ -1079,8 +1034,8 @@ export default function Home() {
                           {plan.name}
                         </h3>
                         <div className="text-2xl font-black text-content mb-2">
-                          ${plan.price}
-                          {!plan.isFree && (
+                          {plan.priceLabel}
+                          {plan.price !== null && (
                             <span className="text-xs text-content-muted font-normal">
                               /mo
                             </span>
@@ -1099,7 +1054,9 @@ export default function Home() {
                         </ul>
                         <Button
                           onClick={
-                            plan.isFree ? handleGetStarted : handleViewPricing
+                            plan.id === "custom"
+                              ? handleContactSales
+                              : handleViewPricing
                           }
                           className="w-full h-9 rounded-lg text-xs font-bold bg-surface-inverted hover:bg-ink-800 text-content-inverted"
                         >

@@ -70,6 +70,10 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Badge } from "@/components/ui/badge"; // Assuming Badge component exists
 import { format } from "date-fns"; // Import date-fns for date formatting
+import {
+  getTransactionAllowance,
+  getProcessingFeePercent,
+} from "@/components/utils/permissions";
 
 // Define default template content
 const defaultEmailSubjectTemplate =
@@ -1168,16 +1172,9 @@ export default function Settings() {
                                   Invoice Limit
                                 </p>
                                 <p className="text-lg font-semibold text-content dark:text-content-inverted">
-                                  {subscription.monthly_transaction_limit !==
-                                    undefined &&
-                                  subscription.monthly_transaction_limit !==
-                                    null ? (
-                                    `${subscription.monthly_transaction_limit} / month`
-                                  ) : (
-                                    <span className="text-danger-600 dark:text-danger-400">
-                                      Not Set
-                                    </span>
-                                  )}
+                                  {getTransactionAllowance(subscription) === -1
+                                    ? "Unlimited"
+                                    : `${getTransactionAllowance(subscription)} / month`}
                                 </p>
                               </div>
                               <div>
@@ -1202,7 +1199,7 @@ export default function Settings() {
                                   Platform Processing Fee
                                 </p>
                                 <p className="text-lg font-semibold text-content dark:text-content-inverted">
-                                  1%
+                                  {getProcessingFeePercent(subscription)}%
                                 </p>
                               </div>
                             </div>

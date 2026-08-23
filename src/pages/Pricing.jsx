@@ -1,7 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { PLAN_BILLING } from "@/config/plans";
+import {
+  listPlans,
+  getAmount,
+  yearlySavingPercent,
+  TRIAL_DAYS,
+  STRIPE_PROCESSING,
+} from "@/config/plans";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -133,126 +139,21 @@ export default function Pricing() {
     }
   };
 
-  const plans = [
-    // Free tier removed: access now requires a live subscription (see Layout.jsx).
-    {
-      id: "core",
-      name: "Core",
-      icon: Sparkles,
-      monthlyPrice: 24,
-      yearlyPrice: 240,
-      monthlyPriceId: PLAN_BILLING.core.monthlyPriceId,
-      yearlyPriceId: PLAN_BILLING.core.yearlyPriceId,
-      transactions: 30,
-      description: "For solo contractors",
-      valueLine: "Accept payments and automate your workflow",
-      features: [
-        "30 transactions/month",
-        "AI invoice & quote generation",
-        "Online payments via Stripe",
-        "Basic job tracking & photos",
-        "SMS notifications",
-        "Everything in Free",
-      ],
-      notIncluded: ["Recurring invoices", "Expenses", "Analytics"],
-      cta: "Start Free Trial",
-      popular: false,
-    },
-    {
-      id: "essential",
-      name: "Essential",
-      icon: TrendingUp,
-      monthlyPrice: 39,
-      yearlyPrice: 390,
-      monthlyPriceId: PLAN_BILLING.essential.monthlyPriceId,
-      yearlyPriceId: PLAN_BILLING.essential.yearlyPriceId,
-      transactions: 75,
-      description: "Best value for small businesses",
-      valueLine: "Save time with automation and expense tracking",
-      features: [
-        "75 transactions/month",
-        "Recurring invoices",
-        "Expense tracking + AI receipt scanner",
-        "Analytics dashboard",
-        "Full job tracking (status, cost, location)",
-        "Job notes",
-        "Everything in Core",
-      ],
-      notIncluded: ["Crew management", "Custom templates", "Smart Insights"],
-      cta: "Start Free Trial",
-      popular: false,
-    },
-    {
-      id: "professional",
-      name: "Professional",
-      icon: Zap,
-      monthlyPrice: 79,
-      yearlyPrice: 790,
-      monthlyPriceId: PLAN_BILLING.professional.monthlyPriceId,
-      yearlyPriceId: PLAN_BILLING.professional.yearlyPriceId,
-      transactions: 250,
-      description: "For growing businesses",
-      valueLine: "Run your entire business in one place",
-      features: [
-        "250 transactions/month",
-        "Crew management (roles & permissions)",
-        "Smart Insights (AI analytics)",
-        "Custom PDF templates & branding",
-        "Google Calendar integration",
-        "Priority support",
-        "Everything in Essential",
-      ],
-      notIncluded: [],
-      cta: "Start Free Trial",
-      popular: true,
-    },
-    {
-      id: "enterprise",
-      name: "Enterprise",
-      icon: Crown,
-      monthlyPrice: 99,
-      yearlyPrice: 990,
-      monthlyPriceId: PLAN_BILLING.enterprise.monthlyPriceId,
-      yearlyPriceId: PLAN_BILLING.enterprise.yearlyPriceId,
-      transactions: 500,
-      description: "For larger operations",
-      valueLine: "Scale your operations with full control",
-      features: [
-        "500 transactions/month",
-        "White-label options",
-        "Dedicated support",
-        "Advanced granular permissions",
-        "Everything in Professional",
-      ],
-      notIncluded: [],
-      cta: "Start Free Trial",
-      popular: false,
-    },
-    {
-      id: "custom",
-      name: "Custom",
-      icon: Building2,
-      monthlyPrice: null,
-      yearlyPrice: null,
-      monthlyPriceId: null,
-      yearlyPriceId: null,
-      transactions: -1,
-      description: "Tailored solutions for large enterprises",
-      valueLine: "Custom pricing for custom needs",
-      features: [
-        "Unlimited transactions",
-        "Custom features",
-        "Website design",
-        "24/7 support",
-        "Enhanced AI features",
-        "No Invoicium branding",
-        "+ More (just ask!)",
-      ],
-      notIncluded: [],
-      cta: "Contact Sales",
-      popular: false,
-    },
-  ];
+  // Cards are generated from config/plans.js. This page used to keep its own
+  // copy of every price, limit and bullet, which is how it drifted out of step
+  // with what Stripe actually charged. The only thing added here is the icon
+  // component, since the config stores an icon by name to stay dependency-free.
+  const ICONS = { Sparkles, TrendingUp, Zap, Crown, Building2 };
+
+  const plans = listPlans().map((plan) => ({
+    ...plan,
+    icon: ICONS[plan.icon] || Sparkles,
+    monthlyPrice: getAmount(plan.id, "monthly"),
+    yearlyPrice: getAmount(plan.id, "yearly"),
+    cta: plan.id === "custom" ? "Contact Sales" : "Start Free Trial",
+  }));
+
+  const savingPercent = yearlySavingPercent();
 
   return (
     <>
@@ -278,8 +179,8 @@ export default function Pricing() {
               <span className="text-brand-700">Start Free.</span>
             </h1>
             <p className="text-lg sm:text-xl text-content-body max-w-2xl mx-auto leading-relaxed">
-              Start free, scale as you grow. All paid plans include a 7-day free
-              trial with no credit card required.
+              Start small, scale as you grow. Every plan includes a {TRIAL_DAYS}-day
+              free trial with no credit card required.
             </p>
             <div className="flex flex-wrap justify-center gap-5 mt-8 text-sm">
               {[
@@ -400,7 +301,7 @@ export default function Pricing() {
                       : "bg-success-50 text-success-600 border-success-200"
                   }`}
                 >
-                  Save 17%
+                  Save {savingPercent}%
                 </span>
               </button>
             </div>
@@ -506,7 +407,11 @@ export default function Pricing() {
                       {plan.id !== "free" && plan.id !== "custom" && (
                         <div className="mt-4 flex items-center gap-2 text-sm rounded-lg px-3 py-2 bg-success-50 border border-success-200 text-success-700 font-semibold">
                           <CheckCircle className="w-4 h-4 flex-shrink-0" />
-                          <span>{plan.transactions} transactions/month</span>
+                          <span>
+                            {plan.transactions === -1
+                              ? "Unlimited transactions"
+                              : `${plan.transactions} transactions/month`}
+                          </span>
                         </div>
                       )}
                     </div>
@@ -570,7 +475,7 @@ export default function Pricing() {
                           ) : (
                             <>
                               <Sparkles className="w-4 h-4" />
-                              Start 7-Day Free Trial
+                              Start {TRIAL_DAYS}-Day Free Trial
                             </>
                           )}
                         </button>
@@ -612,7 +517,7 @@ export default function Pricing() {
             {[
               { icon: Shield, text: "SSL Secure Checkout" },
               { icon: CreditCard, text: "Cancel Anytime" },
-              { icon: CheckCircle, text: "7-Day Free Trial" },
+              { icon: CheckCircle, text: `${TRIAL_DAYS}-Day Free Trial` },
             ].map((item, idx) => (
               <div
                 key={idx}
@@ -645,23 +550,31 @@ export default function Pricing() {
               {[
                 {
                   q: "What counts as a transaction?",
-                  a: "Each invoice or quote you create counts as one transaction. For example, if you send 50 invoices and 25 quotes in a month, that's 75 transactions total.",
+                  a: "Each invoice or quote you create counts as one transaction. For example, if you send 70 invoices and 30 quotes in a month, that's 100 transactions total. Reminders, payments and job photos don't count.",
+                },
+                {
+                  q: "How do I know which plan I need?",
+                  a: "Count the invoices and quotes you send in a typical month. Core covers 30, Essential 100, Professional 300, Enterprise 750. If you're on the boundary, start lower — upgrading takes effect immediately and the cost per transaction drops every time you move up.",
                 },
                 {
                   q: "Can I change plans at any time?",
-                  a: "Absolutely! You can upgrade or downgrade your plan at any time. When upgrading, you'll get immediate access to new features. When downgrading, changes take effect at your next billing cycle.",
+                  a: "Absolutely. You can upgrade or downgrade at any time. When upgrading, you get immediate access to the new features and limits. When downgrading, changes take effect at your next billing cycle.",
                 },
                 {
                   q: "What happens if I exceed my transaction limit?",
-                  a: "When you reach your monthly transaction limit, you'll need to upgrade to a higher plan to continue creating invoices and quotes. You cannot purchase extra transactions — simply upgrade your plan.",
+                  a: "When you reach your monthly limit you'll need to move up a plan to keep creating invoices and quotes. There are no overage charges and no way to accidentally run up a bill — you simply upgrade.",
+                },
+                {
+                  q: "What's the platform fee?",
+                  a: `When a client pays you through Stripe we take a small platform fee on top of Stripe's own processing (${STRIPE_PROCESSING} per transaction). That fee is 1% on Core and Essential, 0.75% on Professional and 0.5% on Enterprise — so the more you process, the less we take.`,
                 },
                 {
                   q: "Is there a setup fee or hidden costs?",
-                  a: "No setup fees, no hidden costs, no overage fees. You only pay your subscription fee. When you accept payments through Stripe, there's a 1% platform fee plus Stripe's standard processing fees (2.9% + $0.30 per transaction).",
+                  a: "No setup fees, no hidden costs, no overage fees. You pay your subscription, plus the platform and Stripe fees above only when you actually get paid online.",
                 },
                 {
                   q: "Do you offer refunds?",
-                  a: "We offer a 7-day free trial so you can test everything risk-free. After subscribing, you can cancel anytime and won't be charged for future billing periods.",
+                  a: `We offer a ${TRIAL_DAYS}-day free trial so you can test everything risk-free. After subscribing you can cancel anytime and won't be charged for future billing periods.`,
                 },
               ].map((faq, idx) => (
                 <div
@@ -732,7 +645,7 @@ export default function Pricing() {
                 <p className="font-bold mb-3 text-success-700">You'll get:</p>
                 <ul className="space-y-2">
                   {[
-                    "7 days completely free",
+                    `${TRIAL_DAYS} days completely free`,
                     "Full access to all plan features",
                     "Cancel anytime, no questions asked",
                     "No charges until trial ends",

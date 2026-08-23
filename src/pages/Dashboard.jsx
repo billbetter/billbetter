@@ -4,7 +4,10 @@ import { Link, useNavigate } from "react-router-dom";
 import QuickActionCard from "@/components/dashboard/QuickActionCard";
 import { createPageUrl } from "@/utils";
 import { sdk } from "@/api/sdk";
-import { canAccessFeature } from "@/components/utils/permissions";
+import {
+  canAccessFeature,
+  getTransactionAllowance,
+} from "@/components/utils/permissions";
 import OnboardingModal from "@/components/onboarding/OnboardingModal";
 import {
   Card,
@@ -467,7 +470,10 @@ export default function Dashboard() {
 
   const transactionStats = useMemo(() => {
     const used = subscription?.transactions_used_this_month || 0;
-    const limit = subscription?.monthly_transaction_limit || 30;
+    // Not the raw column: it holds whatever the limit was on the day this user
+    // last checked out, so it goes stale every time the ladder is rebalanced.
+    // getTransactionAllowance prefers the current plan definition.
+    const limit = getTransactionAllowance(subscription);
     const unlimited = limit === -1;
     const percentage = unlimited ? 0 : Math.min(100, (used / limit) * 100);
 
@@ -648,10 +654,8 @@ export default function Dashboard() {
                 </div>
                 <div className="mt-auto">
                   <p className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-content dark:text-content-inverted mb-1 sm:mb-2 tracking-tight truncate">
-                    {subscription?.transactions_used_this_month || 0}/
-                    {subscription?.monthly_transaction_limit === -1
-                      ? "∞"
-                      : subscription?.monthly_transaction_limit || 0}
+                    {transactionStats.used}/
+                    {transactionStats.unlimited ? "∞" : transactionStats.limit}
                   </p>
                   <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
                     This month
