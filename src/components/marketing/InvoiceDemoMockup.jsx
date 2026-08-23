@@ -60,16 +60,16 @@ import { Receipt } from "lucide-react";
  * @property {string}            [className]
  */
 
-const DEFAULT_BUSINESS = { name: "Invoicium", email: "billing@invoicium.ca" };
+export const DEFAULT_BUSINESS = { name: "Invoicium", email: "billing@invoicium.ca" };
 
-const DEFAULT_CLIENT = {
+export const DEFAULT_CLIENT = {
   name: "Marlowe & Sons HVAC Client",
   email: "accounts@marloweandsons.ca",
   phone: "(604) 555-0142",
 };
 
 /** @type {InvoiceLineItem[]} */
-const DEFAULT_LINE_ITEMS = [
+export const DEFAULT_LINE_ITEMS = [
   { name: "High-Efficiency Furnace Install", subtitle: "96% AFUE, variable speed", amount: 4200 },
   { name: "Central AC Unit Installation", subtitle: "3.5 ton, 16 SEER", amount: 3800 },
   { name: "Ductwork Redesign & Install", amount: 1650 },
@@ -80,13 +80,13 @@ const DEFAULT_LINE_ITEMS = [
 
 const BADGE_GREEN = "#14b866";
 
-const currency = (n) =>
+export const currency = (n) =>
   `$${Number(n || 0).toLocaleString("en-CA", {
     minimumFractionDigits: 2,
     maximumFractionDigits: 2,
   })}`;
 
-const formatDate = (value) => {
+export const formatDate = (value) => {
   const d = value instanceof Date ? value : new Date(value);
   if (Number.isNaN(d.getTime())) return "—";
   return d.toLocaleDateString("en-CA", { month: "short", day: "numeric", year: "numeric" });

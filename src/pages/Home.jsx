@@ -6,6 +6,7 @@ import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import { ShinyButton } from "@/components/ui/shiny-button";
 import InvoiceDemoMockup from "@/components/marketing/InvoiceDemoMockup";
+import InvoiceScrollDemo from "@/components/marketing/InvoiceScrollDemo";
 import { TestimonialsMarquee } from "@/components/ui/testimonials-columns";
 import SEO from "@/components/seo/SEO";
 import InstallPWA from "@/components/pwa/InstallPWA";
@@ -439,6 +440,9 @@ export default function Home() {
             ))}
           </div>
         </div>
+
+        {/* ── SCROLL REVEAL PRODUCT SHOT ───────────────────────── */}
+        <InvoiceScrollDemo />
 
         {/* ── PROBLEM STATEMENT ────────────────────────────────── */}
         <section className="py-20 sm:py-32 bg-surface relative overflow-hidden">
