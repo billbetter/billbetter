@@ -172,15 +172,18 @@ export default function InvoiceDemoMockup({
         </motion.div>
 
         {/* ── Device frame ──────────────────────────────────────────────── */}
-        <div className="relative rounded-[44px] bg-black p-[10px] shadow-2xl shadow-black/30">
-          <div className="relative overflow-hidden rounded-[36px] bg-white">
+        {/* 9/19.5 is the real proportion of every iPhone since the X (393x852
+            on a 14 Pro). Letting the content set the height instead drifted to
+            roughly 21:9, which reads as a stretched phone rather than a phone. */}
+        <div className="relative aspect-[9/19.5] rounded-[44px] bg-black p-[10px] shadow-2xl shadow-black/30">
+          <div className="relative flex h-full flex-col overflow-hidden rounded-[36px] bg-white">
             {/* Dynamic island */}
             <div
               aria-hidden="true"
               className="absolute left-1/2 top-2 z-10 h-[22px] w-[76px] -translate-x-1/2 rounded-full bg-black"
             />
 
-            <div className="px-4 pb-4 pt-9 text-[11px] text-neutral-900">
+            <div className="flex min-h-0 flex-1 flex-col px-4 pb-2 pt-8 text-[11px] text-neutral-900">
               {/* Header */}
               <div className="flex items-start justify-between">
                 <div>
@@ -193,7 +196,7 @@ export default function InvoiceDemoMockup({
               </div>
 
               {/* Bill to */}
-              <div className="mt-3 rounded-xl bg-neutral-100 px-3 py-2.5">
+              <div className="mt-3 rounded-xl bg-neutral-100 px-3 py-2">
                 <p className="text-[8px] font-bold uppercase tracking-wider text-neutral-500">
                   Bill To
                 </p>
@@ -223,12 +226,12 @@ export default function InvoiceDemoMockup({
               </div>
 
               {/* Services */}
-              <p className="mt-3 text-[8px] font-bold uppercase tracking-wider text-neutral-500">
+              <p className="mt-2 text-[8px] font-bold uppercase tracking-wider text-neutral-500">
                 Description of Services
               </p>
-              <ul className="mt-1.5 divide-y divide-neutral-200 border-t border-neutral-200">
+              <ul className="mt-1.5 min-h-0 flex-1 divide-y divide-neutral-200 overflow-hidden border-t border-neutral-200">
                 {(Array.isArray(lineItems) ? lineItems : []).map((li, i) => (
-                  <li key={`${li.name}-${i}`} className="flex items-start justify-between gap-3 py-1.5">
+                  <li key={`${li.name}-${i}`} className="flex items-start justify-between gap-3 py-1">
                     <span className="min-w-0">
                       <span className="block text-[10px] font-bold leading-tight">{li.name}</span>
                       {li.subtitle ? (
@@ -264,7 +267,7 @@ export default function InvoiceDemoMockup({
               </div>
 
               {/* Payment information */}
-              <div className="mt-3 rounded-xl bg-neutral-100 px-3 py-2">
+              <div className="mt-2 rounded-xl bg-neutral-100 px-3 py-1.5">
                 <p className="text-[8px] font-bold uppercase tracking-wider text-neutral-500">
                   Payment Information
                 </p>
@@ -276,12 +279,15 @@ export default function InvoiceDemoMockup({
               </div>
 
               {/* Notes / terms */}
-              <div className="mt-2 rounded-xl bg-amber-50 px-3 py-2">
+              <div className="mt-2 rounded-xl bg-amber-50 px-3 py-1.5">
                 <p className="text-[8px] font-bold text-amber-900">{notesTitle}</p>
                 <p className="mt-0.5 text-[8px] leading-relaxed text-amber-800">{notes}</p>
               </div>
 
-              <p className="mt-3 text-center text-[7px] text-neutral-400">
+              {/* mt-auto pins the footer to the bottom of the fixed-ratio
+                  screen, so any slack collects here rather than leaving the
+                  invoice floating in the middle. */}
+              <p className="mt-auto pt-2 text-center text-[7px] text-neutral-400">
                 Powered by {business.name}
               </p>
             </div>
