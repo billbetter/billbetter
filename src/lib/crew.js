@@ -107,14 +107,40 @@ const ROLE_CAPABILITIES = {
  * @property {Object|null} membership   the EmployeeProfile row, when crew
  */
 
-/** The resolved context, cached for the session. */
+/**
+ * The resolved context, cached and KEYED BY THE USER IT DESCRIBES.
+ *
+ * The key is the whole point. This cache is module-level, so it outlives a
+ * sign-out: without the key, signing in as a second person in the same tab
+ * kept the first person's context. getOwnerId() would then return the previous
+ * user's id, localDataEngine would rewrite every `user_id` filter to it, and
+ * RLS would correctly refuse -- so the new user saw empty lists and their saves
+ * failed with "new row violates row-level security policy". A cache that can
+ * describe the wrong person is worse than no cache.
+ *
+ * onAuthStateChange below clears it too. That is the fast path; the key is the
+ * one that cannot be missed, because it is checked on every read.
+ */
+let cachedUserId;
 let cached = null;
 let inFlight = null;
 
 /** Drop the cache. Call on sign-in, sign-out, or after accepting an invite. */
 export function clearBusinessContext() {
+  cachedUserId = undefined;
   cached = null;
   inFlight = null;
+}
+
+// Belt and braces: drop the cache the moment auth changes, so the next reader
+// does not even pay for the mismatch check. Guarded because this module is
+// imported by localDataEngine, which some tooling loads outside a browser.
+if (typeof window !== "undefined") {
+  try {
+    supabase.auth.onAuthStateChange(() => clearBusinessContext());
+  } catch (err) {
+    console.warn("crew: could not subscribe to auth changes", err);
+  }
 }
 
 /** A solo owner, and the shape returned when nobody is signed in. */
@@ -139,8 +165,22 @@ function soloContext(user) {
  * @returns {Promise<BusinessContext>}
  */
 export async function getBusinessContext() {
-  if (cached) return cached;
-  if (inFlight) return inFlight;
+  // getSession reads the stored session locally -- no network -- so checking
+  // who is actually signed in on every call is cheap enough to do always.
+  // getUser() would be a round trip and would defeat the point of caching.
+  let currentId = null;
+  try {
+    const { data } = await supabase.auth.getSession();
+    currentId = data?.session?.user?.id ?? null;
+  } catch {
+    // Fall through: a session we cannot read is treated as a cache miss, which
+    // costs one lookup rather than serving somebody else's business.
+  }
+
+  if (cached && cachedUserId === currentId) return cached;
+  if (inFlight && cachedUserId === currentId) return inFlight;
+  if (cachedUserId !== currentId) clearBusinessContext();
+  cachedUserId = currentId;
 
   inFlight = (async () => {
     const {
