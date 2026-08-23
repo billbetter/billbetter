@@ -116,7 +116,7 @@ export const SignInPage = ({
               className="animate-element animate-delay-100 flex items-center gap-2.5 self-start"
             >
               <img
-                src="/logo-icon.png"
+                src="/logo-mark.png"
                 alt=""
                 className="h-9 w-9 object-contain"
               />

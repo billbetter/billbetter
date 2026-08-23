@@ -1,15 +1,14 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 32 32" fill="none" role="img" aria-label="Invoicium">
-  <!-- Favicon build of the Invoicium mark: the sheet's ruled lines are dropped
-       because they close up below ~24px; the shape and the check still read. -->
-  <defs>
-    <linearGradient id="if-tile" x1="0" y1="0" x2="32" y2="32" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0EA5E9"/>
-      <stop offset="1" stop-color="#0369A1"/>
-    </linearGradient>
-  </defs>
-  <rect width="32" height="32" rx="7" fill="url(#if-tile)"/>
-  <path d="M8.5 8.6a2 2 0 0 1 2-2h10.2a2 2 0 0 1 2 2v17.1l-2.44-1.9-2.45 1.9-2.44-1.9-2.45 1.9-2.44-1.9-1.98 1.9z" fill="#FFFFFF"/>
-  <circle cx="22.6" cy="22.4" r="6" fill="#FFFFFF"/>
-  <circle cx="22.6" cy="22.4" r="4.5" fill="#10B981"/>
-  <path d="m20.5 22.5 1.5 1.5 2.8-2.8" stroke="#FFFFFF" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Favicon build of the Invoicium cell. The atomic number and the element
+       name are dropped: at 16px they are two or three pixels tall and turn into
+       grey mush that makes the whole mark look smudged. The frame and INV are
+       what identify it in a tab, so they get the whole cell.
+
+       The tile also runs edge to edge here rather than inset -- a favicon has no
+       room to spend on padding, and the browser supplies its own. -->
+  <rect x="1.5" y="1.5" width="29" height="29" rx="6.5" fill="#E2E8F0" stroke="#231F20" stroke-width="3"/>
+  <text x="16" y="22" text-anchor="middle"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="13.5" font-weight="700" fill="#22324A"
+        textLength="21" lengthAdjust="spacingAndGlyphs">INV</text>
 </svg>

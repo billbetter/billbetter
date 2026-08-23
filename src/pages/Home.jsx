@@ -1161,7 +1161,7 @@ export default function Home() {
               <div className="col-span-2">
                 <div className="flex items-center gap-2.5 mb-4">
                   <img
-                    src="/logo-icon.png"
+                    src="/logo-mark.png"
                     alt="Invoicium"
                     className="w-10 h-10 object-contain"
                   />

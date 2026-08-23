@@ -1,22 +1,29 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 254 80" fill="none" role="img" aria-label="Invoicium">
-  <!-- Invoicium lockup: the mark from logo-icon.svg plus the wordmark set in
-       Inter Bold. The wordmark is outlined rather than <text> so the file
-       renders identically where Inter is not installed (an <img>-embedded SVG
-       cannot load the page's webfonts). Regenerate from public/fonts/Inter-Bold.ttf. -->
-  <defs>
-    <linearGradient id="il-tile" x1="0" y1="12" x2="56" y2="68" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0EA5E9"/>
-      <stop offset="1" stop-color="#0369A1"/>
-    </linearGradient>
-  </defs>
-  <g transform="translate(0 12) scale(0.466667)">
-    <rect width="120" height="120" rx="28" fill="url(#il-tile)"/>
-    <path d="M32 31a7 7 0 0 1 7-7h38a7 7 0 0 1 7 7v65l-8.67-7-8.66 7-8.67-7-8.67 7-8.66-7L32 96z" fill="#FFFFFF"/>
-    <rect x="41" y="38" width="34" height="7" rx="3.5" fill="#0EA5E9"/>
-    <rect x="41" y="53" width="23" height="7" rx="3.5" fill="#7DD3FC"/>
-    <circle cx="86" cy="84" r="20" fill="#FFFFFF"/>
-    <circle cx="86" cy="84" r="16" fill="#10B981"/>
-    <path d="m78.5 84.5 5 5 10-10" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
-  </g>
-  <path transform="translate(69.36 55.35)" fill="#0F172A" d="M2.64-29.10L8.59-29.10L8.59 0L2.64 0L2.64-29.10M18.99-12.64L18.99 0L13.13 0L13.13-21.84L18.66-21.84L18.76-16.39L18.40-16.39Q19.26-19.12 21.01-20.62Q22.76-22.11 25.53-22.11Q27.80-22.11 29.49-21.12Q31.18-20.14 32.11-18.29Q33.03-16.45 33.03-13.89L33.03 0L27.17 0L27.17-12.87Q27.17-14.90 26.13-16.05Q25.08-17.21 23.23-17.21Q22-17.21 21.03-16.67Q20.06-16.13 19.53-15.12Q18.99-14.10 18.99-12.64M50.25 0L43.59 0L35.54-21.84L41.77-21.84L45.44-10.51Q46.10-8.38 46.60-6.21Q47.10-4.04 47.63-1.72L46.38-1.72Q46.89-4.04 47.37-6.21Q47.86-8.38 48.53-10.51L52.16-21.84L58.31-21.84L50.25 0M70.58 0.43Q67.30 0.43 64.90-0.99Q62.50-2.40 61.20-4.93Q59.90-7.46 59.90-10.82Q59.90-14.22 61.20-16.75Q62.50-19.28 64.90-20.69Q67.30-22.11 70.58-22.11Q73.88-22.11 76.28-20.69Q78.67-19.28 79.97-16.75Q81.27-14.22 81.27-10.82Q81.27-7.46 79.97-4.93Q78.67-2.40 76.28-0.99Q73.88 0.43 70.58 0.43M70.58-4.18Q72.15-4.18 73.20-5.05Q74.25-5.92 74.78-7.43Q75.31-8.95 75.31-10.84Q75.31-12.77 74.78-14.28Q74.25-15.78 73.20-16.64Q72.15-17.50 70.58-17.50Q69.02-17.50 67.98-16.64Q66.93-15.78 66.40-14.28Q65.88-12.77 65.88-10.84Q65.88-8.95 66.40-7.43Q66.93-5.92 67.98-5.05Q69.02-4.18 70.58-4.18M90.61 0L84.75 0L84.75-21.84L90.61-21.84L90.61 0M87.68-24.69Q86.35-24.69 85.41-25.57Q84.47-26.45 84.47-27.70Q84.47-28.95 85.41-29.82Q86.35-30.70 87.68-30.70Q89.01-30.70 89.95-29.83Q90.90-28.96 90.90-27.70Q90.90-26.45 89.95-25.57Q89.01-24.69 87.68-24.69M104.75 0.43Q101.45 0.43 99.06-0.99Q96.67-2.40 95.37-4.93Q94.07-7.46 94.07-10.82Q94.07-14.22 95.37-16.75Q96.67-19.28 99.06-20.69Q101.45-22.11 104.75-22.11Q106.69-22.11 108.33-21.60Q109.97-21.09 111.24-20.16Q112.51-19.22 113.33-17.87Q114.15-16.52 114.46-14.84L109.01-13.83Q108.84-14.69 108.46-15.36Q108.09-16.04 107.57-16.51Q107.04-16.99 106.35-17.25Q105.65-17.50 104.81-17.50Q103.25-17.50 102.19-16.66Q101.12-15.82 100.58-14.32Q100.05-12.81 100.05-10.84Q100.05-8.91 100.58-7.40Q101.12-5.90 102.19-5.04Q103.25-4.18 104.81-4.18Q105.65-4.18 106.36-4.44Q107.06-4.71 107.61-5.21Q108.15-5.70 108.52-6.41Q108.89-7.11 109.05-7.99L114.50-6.99Q114.19-5.25 113.37-3.90Q112.55-2.54 111.28-1.56Q110.01-0.59 108.36-0.08Q106.71 0.43 104.75 0.43M123.78 0L117.92 0L117.92-21.84L123.78-21.84L123.78 0M120.85-24.69Q119.53-24.69 118.59-25.57Q117.65-26.45 117.65-27.70Q117.65-28.95 118.59-29.82Q119.53-30.70 120.85-30.70Q122.18-30.70 123.13-29.83Q124.08-28.96 124.08-27.70Q124.08-26.45 123.13-25.57Q122.18-24.69 120.85-24.69M135.68 0.27Q133.42 0.27 131.72-0.71Q130.02-1.70 129.09-3.54Q128.16-5.39 128.16-7.95L128.16-21.84L134.02-21.84L134.02-8.96Q134.02-6.93 135.08-5.78Q136.13-4.63 137.97-4.63Q139.22-4.63 140.18-5.17Q141.13-5.70 141.67-6.73Q142.21-7.75 142.21-9.20L142.21-21.84L148.09-21.84L148.09 0L142.54 0L142.46-5.45L142.79-5.45Q141.93-2.70 140.17-1.21Q138.40 0.27 135.68 0.27M158.33 0L152.47 0L152.47-21.84L157.90-21.84L158.19-16.41L157.76-16.41Q158.27-18.42 159.25-19.69Q160.24-20.96 161.57-21.56Q162.90-22.17 164.36-22.17Q166.72-22.17 168.17-20.67Q169.61-19.18 170.30-16.05L169.61-16.05Q170.10-18.14 171.21-19.50Q172.31-20.86 173.82-21.51Q175.34-22.17 177-22.17Q179.01-22.17 180.58-21.29Q182.15-20.41 183.06-18.76Q183.97-17.11 183.97-14.73L183.97 0L178.11 0L178.11-13.61Q178.11-15.47 177.10-16.37Q176.10-17.27 174.63-17.27Q173.54-17.27 172.73-16.79Q171.92-16.31 171.48-15.45Q171.04-14.59 171.04-13.44L171.04 0L165.38 0L165.38-13.77Q165.38-15.37 164.43-16.32Q163.48-17.27 161.98-17.27Q160.94-17.27 160.11-16.80Q159.28-16.33 158.80-15.42Q158.33-14.51 158.33-13.20"/>
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 620 240" fill="none" role="img" aria-label="Invoicium">
+  <!-- Horizontal lockup: the mark, then the wordmark.
+
+       The cell here carries only INV, not the full 119 / Invoicium cell. Two
+       reasons, and they point the same way. The only place this file renders is
+       the site nav at 32px tall (Layout.jsx, h-8), where the atomic number and
+       the element name inside the cell are under two pixels tall and read as
+       grey smudge. And at any size the cell's own "Invoicium" sits a few pixels
+       from the wordmark saying the same thing, which is noise even when it is
+       legible. The full cell is logo-icon.svg, for app icons and large format.
+
+       Text is pinned with textLength + lengthAdjust: loaded through <img> this
+       file gets no page CSS and no webfont, so without it the wordmark would
+       set at one width in Chrome and another wherever Inter is missing, and the
+       gap between mark and word would move with it.
+
+       Transparent background, not the light grey of the source artwork -- that
+       grey was the canvas around the logo, and baking it in would put a grey
+       slab behind the mark on every surface it sits on. -->
+  <rect x="10" y="15" width="210" height="210" rx="44" fill="#E2E8F0" stroke="#231F20" stroke-width="16"/>
+  <text x="115" y="152" text-anchor="middle"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="92" font-weight="700" fill="#22324A"
+        textLength="144" lengthAdjust="spacingAndGlyphs">INV</text>
+
+  <text x="256" y="157" font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="104" font-weight="700" fill="#22324A"
+        textLength="352" lengthAdjust="spacingAndGlyphs">Invoicium</text>
 </svg>

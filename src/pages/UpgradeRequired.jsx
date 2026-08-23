@@ -114,7 +114,7 @@ export default function UpgradeRequired() {
     <div className="min-h-screen bg-surface-sunken dark:bg-surface-inverted-deep flex items-center justify-center p-4">
       <div className="w-full max-w-lg">
         <div className="flex items-center justify-center gap-2.5 mb-8">
-          <img src="/logo-icon.png" alt="" className="h-9 w-9 object-contain" />
+          <img src="/logo-mark.png" alt="" className="h-9 w-9 object-contain" />
           <span className="text-lg font-black tracking-tight text-content dark:text-content-inverted">
             Invoicium
           </span>

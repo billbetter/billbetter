@@ -1,0 +1,18 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="Invoicium">
+  <!-- Small-size build of the Invoicium cell.
+       Use this anywhere the mark renders below ~64px. Use logo-icon.svg above it.
+
+       Every in-app usage of the mark is between 28px and 40px (a nav, a sidebar,
+       a dialog header). At those sizes the atomic number and the element name
+       from the full cell are two or three pixels tall: they stop being readable
+       and start being grey noise that makes the whole tile look out of focus.
+       Dropping them lets INV take the room and stay sharp.
+
+       Same decision, and the same reason, as favicon.svg -- this is just the
+       version with enough resolution to also serve a 40px slot. -->
+  <rect x="5" y="5" width="110" height="110" rx="24" fill="#E2E8F0" stroke="#231F20" stroke-width="9"/>
+  <text x="60" y="79" text-anchor="middle"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="50" font-weight="700" fill="#22324A"
+        textLength="78" lengthAdjust="spacingAndGlyphs">INV</text>
+</svg>

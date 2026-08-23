@@ -1,20 +1,25 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" fill="none" role="img" aria-label="Invoicium">
-  <!-- Invoicium mark: an invoice sheet on the brand tile, cleared by a check.
-       Colours are the app's own design tokens (src/index.css):
-       brand-500 #0EA5E9, brand-700 #0369A1, brand-300 #7DD3FC, success-500 #10B981. -->
-  <defs>
-    <linearGradient id="ii-tile" x1="0" y1="0" x2="120" y2="120" gradientUnits="userSpaceOnUse">
-      <stop stop-color="#0EA5E9"/>
-      <stop offset="1" stop-color="#0369A1"/>
-    </linearGradient>
-  </defs>
-  <rect width="120" height="120" rx="28" fill="url(#ii-tile)"/>
-  <!-- Invoice sheet with a torn bottom edge -->
-  <path d="M32 31a7 7 0 0 1 7-7h38a7 7 0 0 1 7 7v65l-8.67-7-8.66 7-8.67-7-8.67 7-8.66-7L32 96z" fill="#FFFFFF"/>
-  <rect x="41" y="38" width="34" height="7" rx="3.5" fill="#0EA5E9"/>
-  <rect x="41" y="53" width="23" height="7" rx="3.5" fill="#7DD3FC"/>
-  <!-- Paid check, ringed so it stays legible where it crosses the sheet -->
-  <circle cx="86" cy="84" r="20" fill="#FFFFFF"/>
-  <circle cx="86" cy="84" r="16" fill="#10B981"/>
-  <path d="m78.5 84.5 5 5 10-10" stroke="#FFFFFF" stroke-width="4.5" stroke-linecap="round" stroke-linejoin="round"/>
+  <!-- Invoicium mark: the periodic-table cell. Element 119, symbol INV.
+
+       Text is set with textLength + lengthAdjust, which pins each string to an
+       exact width no matter which font actually resolves. An SVG loaded through
+       <img> gets no page CSS and no webfont, so without that pin this renders at
+       one width in Chrome and another in a PDF viewer, and the lockup shifts.
+
+       Colours: frame #231F20, tile #E2E8F0, symbol/label the navy pair. -->
+  <rect x="6" y="6" width="108" height="108" rx="22" fill="#E2E8F0" stroke="#231F20" stroke-width="6"/>
+
+  <text x="21" y="35" font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="17" font-weight="700" fill="#0F0F0F"
+        textLength="20" lengthAdjust="spacingAndGlyphs">119</text>
+
+  <text x="60" y="76" text-anchor="middle"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="40" font-weight="700" fill="#22324A"
+        textLength="66" lengthAdjust="spacingAndGlyphs">INV</text>
+
+  <text x="60" y="99" text-anchor="middle"
+        font-family="Inter, 'Helvetica Neue', Helvetica, Arial, sans-serif"
+        font-size="14" font-weight="700" fill="#3E4C60"
+        textLength="60" lengthAdjust="spacingAndGlyphs">Invoicium</text>
 </svg>

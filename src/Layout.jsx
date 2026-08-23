@@ -373,7 +373,7 @@ export default function Layout({ children, currentPageName }) {
   const Logo = ({ className = "w-8 h-8", circular = false }) => {
     return (
       <img
-        src="/logo-icon.png"
+        src="/logo-mark.png"
         alt="Invoicium Logo"
         className={`${className} object-contain ${circular ? "rounded-full" : ""}`}
       />
@@ -588,7 +588,7 @@ export default function Layout({ children, currentPageName }) {
           {!sidebarCollapsed && (
             <div className="flex items-center gap-2 min-w-0 flex-1">
               <img
-                src="/logo-icon.png"
+                src="/logo-mark.png"
                 alt="Invoicium"
                 className="w-7 h-7 flex-shrink-0"
               />
@@ -726,7 +726,7 @@ export default function Layout({ children, currentPageName }) {
               to={createPageUrl("Dashboard")}
               className="flex items-center gap-2 py-1"
             >
-              <img src="/logo-icon.png" alt="Invoicium" className="w-7 h-7" />
+              <img src="/logo-mark.png" alt="Invoicium" className="w-7 h-7" />
               <span className="text-xl font-bold text-content dark:text-content-inverted tracking-tight">
                 Invoicium
               </span>
