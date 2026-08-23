@@ -40,6 +40,86 @@ function buildPDFBlobUrl(title) {
   return URL.createObjectURL(blob);
 }
 
+/**
+ * Upload a file to Supabase Storage and return a URL that survives a reload.
+ *
+ * This replaces a stub that did `URL.createObjectURL(file)`. Three things were
+ * wrong with it, and all five call sites hit all three:
+ *
+ *   1. Every caller invokes it as UploadFile({ file }), an OBJECT. Passing that
+ *      to createObjectURL throws "Overload resolution failed" -- a TypeError,
+ *      not a rejected promise -- which is what surfaced on Settings as the
+ *      generic "Failed to save settings. Please try again."
+ *   2. Every caller reads `.file_url`; the stub returned `.url`. So even when
+ *      it did not throw, the result was undefined.
+ *   3. A blob: URL is local to the tab that made it and dies on reload. Nothing
+ *      was ever uploaded anywhere, so a logo could never have persisted.
+ *
+ * Objects are keyed <user_id>/<uuid>-<name>: the first segment is what the
+ * storage policies use to confine a user to their own folder, and the uuid
+ * makes the URL unguessable, which is what makes a public-read bucket
+ * acceptable for logos that have to render inside emailed PDFs.
+ *
+ * Returns both `file_url` and `url` -- callers here use the former, but the
+ * name `url` is what the stub returned and what any future caller is likely to
+ * reach for.
+ *
+ * @param {File|Blob|{file: File|Blob}} input
+ * @returns {Promise<{file_url: string|null, url: string|null, path?: string,
+ *                    success: boolean, error?: string}>}
+ */
+async function uploadFile(input) {
+  // Accept both shapes. Every current caller passes { file }, but the exported
+  // name reads like it takes a file, and one day someone will pass one.
+  const file = input && typeof input === "object" && "file" in input ? input.file : input;
+
+  if (!file) {
+    return { file_url: null, url: null, success: false, error: "No file provided" };
+  }
+
+  try {
+    const {
+      data: { user },
+    } = await supabase.auth.getUser();
+    if (!user) {
+      return { file_url: null, url: null, success: false, error: "Not signed in" };
+    }
+
+    // Strip anything that would make a messy or ambiguous object key. Keeping
+    // the original extension matters: Storage serves Content-Type from it, and
+    // an <img> pointed at an extensionless object renders as a broken icon.
+    const rawName = String(file.name || "upload").split(/[\\/]/).pop();
+    const safeName = rawName.replace(/[^A-Za-z0-9._-]/g, "_").slice(-80);
+    const unique =
+      globalThis.crypto?.randomUUID?.() ??
+      `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
+    const path = `${user.id}/${unique}-${safeName}`;
+
+    const { error } = await supabase.storage.from("uploads").upload(path, file, {
+      cacheControl: "3600",
+      upsert: false,
+      contentType: file.type || undefined,
+    });
+    if (error) throw error;
+
+    const {
+      data: { publicUrl },
+    } = supabase.storage.from("uploads").getPublicUrl(path);
+
+    return { file_url: publicUrl, url: publicUrl, path, success: true };
+  } catch (e) {
+    console.error("UploadFile failed:", e);
+    // Reported rather than thrown: callers check `success`/`file_url`, and a
+    // throw here aborts a whole settings save over one image.
+    return {
+      file_url: null,
+      url: null,
+      success: false,
+      error: e?.message || String(e),
+    };
+  }
+}
+
 function safeParseJSON(s) {
   try {
     return JSON.parse(s);
@@ -662,8 +742,7 @@ export const sdk = {
       InvokeLLM: invokeLLM,
       SendEmail: () => Promise.resolve({ success: true }),
       SendSMS: () => Promise.resolve({ success: true }),
-      UploadFile: (file) =>
-        Promise.resolve({ url: URL.createObjectURL(file), success: true }),
+      UploadFile: uploadFile,
       GenerateImage: () =>
         Promise.resolve({
           url: "https://placehold.co/600x400?text=Generated+Image",
