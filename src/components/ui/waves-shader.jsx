@@ -14,11 +14,11 @@ import { useEffect, useRef } from "react";
  *    eslint.config.js matches only {js,mjs,cjs,jsx}, so a .tsx file would ship
  *    unlinted.
  *  - No "use client" -- this is a Vite SPA, not the Next.js App Router.
- *  - Honours prefers-reduced-motion. The upstream animates continuously off
- *    rAF; under that setting it draws one frame and stops. A perpetually
- *    moving full-viewport background is close to the canonical case the
- *    guideline exists for, and it is also the difference between an idle
- *    laptop and a warm one.
+ *  - Honours prefers-reduced-motion BY DEFAULT, drawing a single frozen frame
+ *    instead of animating: a perpetually moving full-viewport background is
+ *    close to the canonical case that guideline exists for. Callers can opt
+ *    out with respectReducedMotion={false}, which is correct only where the
+ *    user themselves switched the animation on.
  */
 
 const VERT = `attribute vec2 a_position;
@@ -329,8 +329,15 @@ const UNIFORMS = {
 /** @type {WeakMap<HTMLCanvasElement, number>} */
 const pendingContextReleases = new WeakMap();
 
-/** @param {{ className?: string }} props */
-export function ShaderBackground({ className }) {
+/**
+ * @param {{ className?: string, respectReducedMotion?: boolean }} props
+ *   respectReducedMotion defaults to true, which is right for a decorative
+ *   background nobody asked for. Pass false where the user has explicitly
+ *   switched the animation on: a setting called "Animated background" that a
+ *   person deliberately enabled IS the consent, and an OS-wide default should
+ *   not silently overrule the specific choice they just made.
+ */
+export function ShaderBackground({ className, respectReducedMotion = true }) {
   const canvasRef = useRef(null);
 
   useEffect(() => {
@@ -342,6 +349,7 @@ export function ShaderBackground({ className }) {
     // A full-viewport surface repainting every frame forever is the case the
     // guideline is about. Under reduced motion it draws once and stops.
     const prefersReducedMotion =
+      respectReducedMotion &&
       typeof window.matchMedia === "function" &&
       window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 
@@ -647,7 +655,7 @@ export function ShaderBackground({ className }) {
       }, 0);
       pendingContextReleases.set(canvas, releaseTimer);
     };
-  }, []);
+  }, [respectReducedMotion]);
 
   return (
     <canvas

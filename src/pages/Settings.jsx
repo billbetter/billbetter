@@ -1717,8 +1717,8 @@ export default function Settings() {
                       </button>
                       <p className="mt-2 text-xs text-content-muted dark:text-content-subtle">
                         Saved to this browser, like your theme. It pauses when
-                        the tab is hidden, and stays still if your device is set
-                        to reduce motion.
+                        the tab is hidden or scrolled out of view, so it costs
+                        nothing while you are not looking at it.
                       </p>
                     </div>
                   </CardContent>

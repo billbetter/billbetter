@@ -823,7 +823,14 @@ export default function Layout({ children, currentPageName }) {
               className="pointer-events-none sticky top-0 z-0 h-0 overflow-visible"
             >
               <div className="h-[100dvh] w-full opacity-30 dark:opacity-40">
-                <ShaderBackground className="h-full w-full" />
+                {/* The toggle is the consent: someone who switched on a
+                    setting called "Animated background" has asked for motion,
+                    so the OS-wide default does not override it here. It still
+                    pauses when the tab is hidden or scrolled out of view. */}
+                <ShaderBackground
+                  className="h-full w-full"
+                  respectReducedMotion={false}
+                />
               </div>
             </div>
           ) : null}
