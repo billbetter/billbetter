@@ -31,6 +31,24 @@ export default function PublicQuote() {
       ]);
 
       if (quoteData.length > 0) setQuote(quoteData[0]);
+      // settingsData[0] is the wrong row: it takes the FIRST BusinessSettings
+      // row rather than the one belonging to this quote's owner, so it would
+      // show a client another contractor's name, logo and address.
+      //
+      // It is unreachable today. Both queries above run with the anon key, and
+      // the RLS policies resolve to false for an anonymous caller --
+      // has_app_access(null) is false, and accessible_owner_ids(null) yields a
+      // single NULL so `user_id IN (NULL)` is never true. Verified by direct
+      // anonymous request: both return 200 [] against tables that do hold rows.
+      // So these arrays are always empty and this page always renders
+      // "Quote Not Found" -- a live outage, not a leak.
+      //
+      // THE TRAP: the obvious fix for blank branding is to loosen the anon
+      // policy on BusinessSettings. Do not. That would make this line reachable
+      // and turn a dormant bug into a cross-tenant branding leak, while also
+      // exposing every business's address, phone and tax details. The fix is a
+      // service-role edge function that resolves settings BY the quote's
+      // user_id and returns a narrowed payload. See docs/invoice-links-plan.md.
       if (settingsData.length > 0) setSettings(settingsData[0]);
     } catch (error) {
       console.error("Error loading data:", error);

@@ -7,6 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "eslint . --quiet",
+    "check:functions": "node check-functions.cjs",
+    "check:imports": "node check-imports.cjs",
+    "check": "npm run check:functions && npm run check:imports && npm run lint",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"

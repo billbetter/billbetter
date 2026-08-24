@@ -528,7 +528,38 @@ async function handleFunctionInvoke(name, payload = {}) {
     };
   }
 
-  return { data: { success: true } };
+  // ---------------------------------------------------------------------
+  // Catch-all for a name with NO handling at all.
+  //
+  // This used to `return { data: { success: true } }` -- it fabricated success
+  // for any function nobody had implemented. That is how quote approval broke:
+  // ApproveQuote.jsx calls invoke("approveQuote"), no such edge function was
+  // ever written and no stub matched, so this line answered "success" and the
+  // page rendered a green "Quote Approved!" to the client while the quote's
+  // status was never touched. Silent data loss, presented to the customer as
+  // confirmation.
+  //
+  // A missing function is a programming error, so it now fails loudly and
+  // returns success:false. Returning rather than throwing keeps the contract
+  // every caller here already relies on ("this never throws, check .success"),
+  // so the failure surfaces as a normal error path instead of a new crash.
+  //
+  // The build-time guard is check-functions.cjs, which catches this class
+  // before it ships. This is only the runtime backstop.
+  // ---------------------------------------------------------------------
+  console.error(
+    `[sdk] No implementation for function "${name}". It is not in ` +
+      `realEdgeFunctions and matches no stub. Add an edge function and map it, ` +
+      `or add an explicit stub. Returning failure rather than a fake success.`,
+    payload,
+  );
+  return {
+    data: {
+      success: false,
+      error: `${name} is not implemented`,
+      not_implemented: true,
+    },
+  };
 }
 
 async function invokeLLM({ prompt, response_json_schema }) {
