@@ -723,36 +723,6 @@
     background: hsl(var(--muted-foreground) / 0.4);
   }
 
-  .animate-in {
-    animation: animateIn 0.18s cubic-bezier(0.16, 1, 0.3, 1);
-  }
-
-  .animate-out {
-    animation: animateOut 0.14s ease-in;
-  }
-
-  @keyframes animateIn {
-    from {
-      opacity: 0;
-      transform: scale(0.97) translateY(-3px);
-    }
-    to {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-  }
-
-  @keyframes animateOut {
-    from {
-      opacity: 1;
-      transform: scale(1) translateY(0);
-    }
-    to {
-      opacity: 0;
-      transform: scale(0.97) translateY(-3px);
-    }
-  }
-
   .backdrop-blur-modal {
     backdrop-filter: blur(8px);
     background-color: hsl(0 0% 0% / 0.35);
