@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
 import { sdk } from "@/api/sdk";
+import {
+  useShaderBackground,
+  setShaderBackgroundEnabled,
+} from "@/lib/appearance";
 import { supabase } from "@/api/supabaseClient";
 import { BusinessSettings } from "@/entities/BusinessSettings"; // This import is not directly used in the new logic but kept for safety.
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -39,6 +43,7 @@ import {
   File,
   RotateCcw,
   Palette,
+  Waves,
   CreditCard,
   ExternalLink,
   ArrowRight,
@@ -120,6 +125,7 @@ export default function Settings() {
   });
   const [loadingBilling, setLoadingBilling] = useState(false);
   const [userSpecialty, setUserSpecialty] = useState(null);
+  const shaderBackground = useShaderBackground();
   const [darkMode, setDarkMode] = useState(() => {
     const stored = localStorage.getItem("invoicium-dark-mode");
     if (stored !== null) return stored === "true";
@@ -1665,6 +1671,55 @@ export default function Settings() {
                           </p>
                         </div>
                       </div>
+                    </div>
+
+                    {/* Animated background ------------------------------- */}
+                    <div>
+                      <Label className="text-ink-700 dark:text-ink-300 mb-4 block">
+                        Background
+                      </Label>
+                      <button
+                        type="button"
+                        role="switch"
+                        aria-checked={shaderBackground}
+                        onClick={() => setShaderBackgroundEnabled(!shaderBackground)}
+                        className={`flex w-full items-center gap-4 rounded-xl border-2 p-6 text-left transition-all ${
+                          shaderBackground
+                            ? "border-success-500 bg-success-50 dark:bg-success-900/30"
+                            : "border-line bg-surface hover:border-line-strong dark:border-ink-700 dark:bg-ink-800 dark:hover:border-ink-600"
+                        }`}
+                      >
+                        <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#1b6ba8] to-[#5ad2f4] shadow-lg">
+                          <Waves className="h-5 w-5 text-white" />
+                        </span>
+                        <span className="min-w-0 flex-1">
+                          <span className="block font-bold text-content dark:text-content-inverted">
+                            Animated background
+                          </span>
+                          <span className="block text-sm text-content-body dark:text-content-subtle">
+                            A slow wave behind your pages instead of the flat
+                            colour. Your cards and text are unchanged.
+                          </span>
+                        </span>
+                        <span
+                          className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${
+                            shaderBackground
+                              ? "bg-success-600"
+                              : "bg-ink-300 dark:bg-ink-600"
+                          }`}
+                        >
+                          <span
+                            className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
+                              shaderBackground ? "left-[1.375rem]" : "left-0.5"
+                            }`}
+                          />
+                        </span>
+                      </button>
+                      <p className="mt-2 text-xs text-content-muted dark:text-content-subtle">
+                        Saved to this browser, like your theme. It pauses when
+                        the tab is hidden, and stays still if your device is set
+                        to reduce motion.
+                      </p>
                     </div>
                   </CardContent>
                 </Card>

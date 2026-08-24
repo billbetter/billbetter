@@ -52,7 +52,8 @@ const SECTIONS = [
         tab: "appearance",
         icon: Palette,
         title: "Appearance",
-        description: "Switch between the light and dark theme.",
+        description:
+          "Light or dark theme, and the animated page background.",
       },
     ],
   },

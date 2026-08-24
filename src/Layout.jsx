@@ -4,6 +4,8 @@ import { createPageUrl } from "@/utils";
 import { hasAppAccess, resolveAppAccess } from "@/lib/access";
 import { supabase } from "@/api/supabaseClient";
 import { canAccessFeature } from "@/components/utils/permissions";
+import { useShaderBackground } from "@/lib/appearance";
+import { ShaderBackground } from "@/components/ui/waves-shader";
 import { sdk } from "@/api/sdk";
 import {
   LayoutDashboard,
@@ -50,6 +52,7 @@ export default function Layout({ children, currentPageName }) {
   // it, and it stays owner-only. null means "not asked yet"; the database
   // answers via my_app_access(). See lib/access.js resolveAppAccess.
   const [crewAccess, setCrewAccess] = useState(null);
+  const shaderBackground = useShaderBackground();
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -794,9 +797,37 @@ export default function Layout({ children, currentPageName }) {
         {/* Main Content */}
         <main
           ref={mainContentRef}
-          className="flex-1 overflow-y-auto lg:pb-0 bg-[hsl(210_20%_97%)] dark:bg-[hsl(220_20%_7%)]"
+          className="relative flex-1 overflow-y-auto lg:pb-0 bg-[hsl(210_20%_97%)] dark:bg-[hsl(220_20%_7%)]"
         >
-          <div className="pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
+          {/* The animated background replaces the flat page colour and nothing
+              else. It sits behind the content, never receives a pointer event,
+              and is aria-hidden, so every card, table and control above it
+              behaves exactly as before.
+
+              Positioning is a zero-height sticky wrapper, not `fixed` and not
+              `absolute`. <main> is the scroll container: `absolute` would scroll
+              away with the content and leave bare colour below the fold, while
+              `fixed` is positioned against the VIEWPORT and so spilled across
+              the sidebar, tinting a block that was supposed to stay untouched.
+              `sticky top-0` with `h-0` stays pinned to the top of this scroller
+              while taking no layout space, and stays inside <main>'s box, so
+              the canvas only ever covers one screen and only this column.
+
+              Held at 30% over the existing light background rather than drawn
+              at full strength. The palette runs to near-black at one end, and
+              page headings sit directly on this surface in dark text -- at full
+              strength they would be unreadable. */}
+          {shaderBackground ? (
+            <div
+              aria-hidden
+              className="pointer-events-none sticky top-0 z-0 h-0 overflow-visible"
+            >
+              <div className="h-[100dvh] w-full opacity-30 dark:opacity-40">
+                <ShaderBackground className="h-full w-full" />
+              </div>
+            </div>
+          ) : null}
+          <div className="relative z-10 pb-[calc(6rem+env(safe-area-inset-bottom))] lg:pb-0">
             {children}
           </div>
         </main>

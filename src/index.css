@@ -896,3 +896,24 @@
     transform: none;
   }
 }
+
+/* --- Animated dashboard background (Settings → Appearance) ------------------
+ *
+ * The shader canvas lives at the top of <main>, underneath the page content.
+ * That is not enough on its own: every page renders its own outermost
+ * container with a flat background token, and that container paints straight
+ * over the canvas. Measured with elementsFromPoint -- the nearest opaque layer
+ * above the shader was the page root at rgb(248,250,252), which is exactly the
+ * flat colour this feature is meant to replace.
+ *
+ * So the page's OUTERMOST containers are cleared, and only those. The selector
+ * stops at `main > div > *`, one level deep, so nothing nested is touched:
+ * cards, tables, toolbars and dialogs keep their own surfaces and the blocks
+ * look exactly as they did. No !important needed -- these selectors already
+ * outrank a single Tailwind utility class.
+ */
+html.shader-bg main,
+html.shader-bg main > div,
+html.shader-bg main > div > * {
+  background-color: transparent;
+}
