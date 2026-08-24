@@ -902,18 +902,28 @@
  * The shader canvas lives at the top of <main>, underneath the page content.
  * That is not enough on its own: every page renders its own outermost
  * container with a flat background token, and that container paints straight
- * over the canvas. Measured with elementsFromPoint -- the nearest opaque layer
- * above the shader was the page root at rgb(248,250,252), which is exactly the
- * flat colour this feature is meant to replace.
+ * over the canvas.
  *
- * So the page's OUTERMOST containers are cleared, and only those. The selector
- * stops at `main > div > *`, one level deep, so nothing nested is touched:
- * cards, tables, toolbars and dialogs keep their own surfaces and the blocks
- * look exactly as they did. No !important needed -- these selectors already
- * outrank a single Tailwind utility class.
+ * Depth is the trap. The first version of this rule stopped at
+ * `main > div > *`, which works for a page whose root is a direct child. But
+ * six pages -- Invoices, Clients, Get Paid, Jobs, Quotes, Dashboard -- wrap
+ * themselves in <PullToRefresh>, so their real background sits one level
+ * further down and was never cleared. Those were exactly the pages reported as
+ * missing the background.
+ *
+ * So the selector keys off `min-h-screen` instead of position in the tree.
+ * That class marks a full-height PAGE container and nothing else: 54 uses
+ * across src/pages, zero on any card, header or dialog. Cards keep their own
+ * `bg-surface`, so the blocks are untouched.
+ *
+ * The direct-child rules stay for page roots that set a background without
+ * min-h-screen. No !important anywhere -- these already outrank a single
+ * Tailwind utility class.
  */
 html.shader-bg main,
 html.shader-bg main > div,
-html.shader-bg main > div > * {
+html.shader-bg main > div > *,
+html.shader-bg main .min-h-screen,
+html.shader-bg main .min-h-\[60vh\] {
   background-color: transparent;
 }
