@@ -617,12 +617,24 @@
     color: hsl(var(--foreground));
     border: 1px solid hsl(var(--input));
     border-radius: calc(var(--radius) - 1px);
-    padding: 0.5rem 0.75rem;
     font-size: 0.875rem;
     transition:
       border-color 0.15s ease,
       box-shadow 0.15s ease;
     outline: none;
+  }
+
+  /* Padding is split out deliberately, at element-level specificity.
+     Tailwind v3 flattens @layer into plain CSS, so the cascade here is settled
+     by specificity -- and input:not(...):not(...):not(...) scores 0-3-1, which
+     beats a 0-1-0 utility like `pl-10`. That silently ate the left padding that
+     every input-with-a-leading-icon depends on, dropping the placeholder
+     underneath the icon. :where() adds no specificity, so the shorthand below
+     stays a default that any utility is free to override. */
+  input:where(:not([type="checkbox"]):not([type="radio"]):not([type="range"])),
+  textarea,
+  select {
+    padding: 0.5rem 0.75rem;
   }
 
   input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):hover,
