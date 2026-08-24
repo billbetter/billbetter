@@ -35,6 +35,7 @@ import {
   getPlanRank,
   resolvePlanId,
 } from "@/config/plans";
+import { isFeatureDormant } from "@/config/dormantFeatures";
 
 /**
  * The lowest plan that unlocks each feature.
@@ -228,9 +229,17 @@ export function canAccessEntity(subscription, entityName) {
   return getUserPlan(subscription).entities.includes(entityName);
 }
 
-/** Whether the subscription's plan has a feature. */
+/**
+ * Whether the subscription's plan has a feature.
+ *
+ * A dormant feature (config/dormantFeatures.js) is refused regardless of plan.
+ * Putting it here rather than at each call site means every existing gate --
+ * FeatureGate, the nav, the onboarding tour -- and every future one inherits it
+ * without knowing dormancy exists.
+ */
 export function canAccessFeature(subscription, featureName) {
   if (!subscription) return false;
+  if (isFeatureDormant(featureName)) return false;
   return getUserPlan(subscription).features[featureName] === true;
 }
 

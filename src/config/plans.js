@@ -51,6 +51,11 @@
 //      plan switches use the new Prices.
 export const STRIPE_PRICES_UPDATED = false;
 
+import {
+  DORMANT_PLAN_BULLETS,
+  withoutDormantBullets,
+} from "@/config/dormantFeatures";
+
 /** Order matters: it drives the hierarchy, the upgrade path and the card order. */
 export const PLAN_ORDER = ["core", "essential", "professional", "enterprise"];
 
@@ -217,6 +222,43 @@ export const PLANS = {
     notIncluded: [],
   },
 };
+
+// -- Dormant features -----------------------------------------------------
+//
+// Crew and time tracking are switched off (config/dormantFeatures.js), so the
+// pricing page must stop selling them. Filtering here rather than at the six
+// places that render these lists is what keeps them consistent: Home.jsx takes
+// `.slice(0, 4)` and `.slice(0, 2)` of `features`, so a bullet removed at the
+// render site would still have counted toward the slice and silently shortened
+// the list.
+//
+// Mutating in place keeps the exported object identity, so every existing
+// importer sees the filtered lists without changing how it imports.
+const bulletsBeforeFiltering = new Set();
+for (const plan of Object.values(PLANS)) {
+  for (const b of [...plan.features, ...plan.notIncluded]) {
+    bulletsBeforeFiltering.add(b);
+  }
+  plan.features = withoutDormantBullets(plan.features);
+  plan.notIncluded = withoutDormantBullets(plan.notIncluded);
+}
+
+// The failure mode worth catching is a bullet that was REWORDED: it stops
+// matching, so nothing is stripped and the pricing page quietly goes back to
+// advertising a feature with no way in. An entry matching nothing is the
+// signal, so check against the pre-filter lists.
+if (typeof import.meta !== "undefined" && import.meta.env?.DEV) {
+  const neverMatched = DORMANT_PLAN_BULLETS.filter(
+    (b) => !bulletsBeforeFiltering.has(b),
+  );
+  if (neverMatched.length) {
+    console.warn(
+      `[plans] These dormant bullets matched nothing, so they are no longer ` +
+        `being stripped -- check whether the real bullet was reworded: ` +
+        neverMatched.join(", "),
+    );
+  }
+}
 
 /**
  * The trial. Generous enough to prove the product, capped below Essential so

@@ -30,6 +30,7 @@ import {
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
 import { canAccessFeature } from "@/components/utils/permissions";
+import { isFeatureDormant } from "@/config/dormantFeatures";
 import { Badge } from "@/components/ui/badge";
 
 const ALL_TOUR_SECTIONS = [
@@ -445,11 +446,18 @@ export default function FeatureTour({ isOpen, onClose, onComplete }) {
     if (isOpen) loadData();
   }, [isOpen]);
 
-  const TOUR_SECTIONS = ALL_TOUR_SECTIONS.filter(
+  // Dormant sections are removed before either split. canAccessFeature already
+  // refuses them, but that alone would only move them into LOCKED_SECTIONS --
+  // where they would be advertised as "upgrade to unlock", which is the one
+  // thing a switched-off feature must never do.
+  const LIVE_TOUR_SECTIONS = ALL_TOUR_SECTIONS.filter(
+    (s) => !isFeatureDormant(s.requiredFeature),
+  );
+  const TOUR_SECTIONS = LIVE_TOUR_SECTIONS.filter(
     (s) =>
       !s.requiredFeature || canAccessFeature(subscription, s.requiredFeature),
   );
-  const LOCKED_SECTIONS = ALL_TOUR_SECTIONS.filter(
+  const LOCKED_SECTIONS = LIVE_TOUR_SECTIONS.filter(
     (s) =>
       s.requiredFeature && !canAccessFeature(subscription, s.requiredFeature),
   );

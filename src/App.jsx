@@ -14,6 +14,7 @@ import PageNotFound from "./lib/PageNotFound";
 import { AuthProvider, useAuth } from "@/lib/AuthContext";
 import UserNotRegisteredError from "@/components/UserNotRegisteredError";
 import ErrorBoundary from "@/components/ErrorBoundary";
+import { isPageDormant } from "@/config/dormantFeatures";
 
 const { Pages, Layout, mainPage } = pagesConfig;
 const mainPageKey = mainPage ?? Object.keys(Pages)[0];
@@ -75,17 +76,26 @@ const AuthenticatedApp = () => {
             </LayoutWrapper>
           }
         />
-        {Object.entries(Pages).map(([path, Page]) => (
-          <Route
-            key={path}
-            path={`/${path}`}
-            element={
-              <LayoutWrapper currentPageName={path}>
-                <Page />
-              </LayoutWrapper>
-            }
-          />
-        ))}
+        {/*
+          Dormant pages are dropped from the router rather than redirected, so
+          a guessed or bookmarked URL lands on the same 404 as any other address
+          that does not exist -- which is the honest answer while the feature is
+          switched off. The page files themselves are untouched; see
+          config/dormantFeatures.js.
+        */}
+        {Object.entries(Pages)
+          .filter(([path]) => !isPageDormant(path))
+          .map(([path, Page]) => (
+            <Route
+              key={path}
+              path={`/${path}`}
+              element={
+                <LayoutWrapper currentPageName={path}>
+                  <Page />
+                </LayoutWrapper>
+              }
+            />
+          ))}
         <Route path="/Login" element={<Login />} />
         <Route path="/Register" element={<Register />} />
         <Route

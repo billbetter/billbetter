@@ -563,11 +563,12 @@ export default function Layout({ children, currentPageName }) {
       icon: CalendarIcon,
     },
     { name: "Jobs", href: createPageUrl("JobPhotos"), icon: Building2 },
-    {
-      name: "Time",
-      href: createPageUrl("Timesheet"),
-      icon: Clock,
-    },
+    // Time is dormant (config/dormantFeatures.js). Unlike Team below it was not
+    // gated on anything, so it needs its own check -- the page still exists and
+    // works, it just has no way in.
+    ...(canAccessFeature(subscription, "time_tracking")
+      ? [{ name: "Time", href: createPageUrl("Timesheet"), icon: Clock }]
+      : []),
     {
       name: "Recurring",
       href: createPageUrl("RecurringInvoices"),

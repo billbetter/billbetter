@@ -1,6 +1,7 @@
 import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { DORMANT_FEATURE_CARDS } from "@/config/dormantFeatures";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import {
@@ -148,7 +149,10 @@ export default function Features() {
         "Labor cost calculation",
       ],
     },
-  ];
+    // Crew Management and Time Tracking cards are filtered out below while
+    // those features are dormant. Left in place so switching them back on is
+    // one edit to config/dormantFeatures.js, not a rewrite of this page.
+  ].filter((f) => !DORMANT_FEATURE_CARDS.has(f.title));
 
   const tradeSpecific = [
     {
