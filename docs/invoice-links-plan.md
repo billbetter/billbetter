@@ -229,18 +229,39 @@ const invoice = await db.getOne('Invoice', id);
 return buildInvoiceCheckoutSession(invoice);     return buildInvoiceCheckoutSession(inv);
 ```
 
-**Can I get them down to that? Yes, with one exception I have to flag.**
+**Can I get them down to that? Yes — zero differing lines in the builder.**
 
-The fee differs — not by code path, but by input. Decision 4 says a lapsed
-contractor's clients can still pay, at the Core rate. The contractor path can
-never be lapsed (`requireAppAccess` already returned). So the builder takes the
-subscription and derives the rate itself via `feePercentForSubscription()`
-(§2.3b), which returns the Core rate for a non-live subscription. Same function,
-same input, no branch in either caller — the difference is data, not logic.
+But you spotted a policy hiding inside it, and you are right. Deriving the rate
+at payment time means a lapsed contractor's client pays at the **Core 1%** when
+their plan promised 0.5%. **The fee goes up when they stop subscribing** — we
+would earn more from a churning customer than a paying one, on the same invoice.
+That is a perverse incentive nobody chose.
 
-Everything else is genuinely identical. If a future change cannot be expressed
-inside the builder, that is the signal the split has drifted and should be
-challenged rather than worked around.
+**Decision: lock the rate onto the invoice at SEND time.**
+
+```sql
+alter table public."Invoice"
+  add column if not exists platform_fee_percent numeric;
+```
+
+Set when the invoice is sent, read at payment time, never recomputed. Rationale,
+and this is deliberate rather than incidental:
+
+1. **It is the honest number.** The rate the contractor was promised when the
+   work was invoiced is the rate that should apply to it.
+2. **Their books become predictable.** Fee per invoice is knowable at send time
+   rather than depending on subscription state weeks later.
+3. **It removes the perverse incentive** above entirely.
+4. **Precedent exists.** The function already writes `platform_fee_amount` onto
+   the invoice — this stores the rate beside the amount it produced.
+
+Fallback for an invoice with a null `platform_fee_percent` (everything sent
+before this ships): derive from the subscription as before. That path is
+temporary and should carry a comment saying so.
+
+Everything else in the builder is genuinely identical between the two callers.
+If a future change cannot be expressed inside it, that is the signal the split
+has drifted, and it should be challenged rather than worked around.
 
 ### 2.1 `create-invoice-payment-link` cannot serve the public page
 
@@ -806,6 +827,48 @@ The second-order risk I flagged before still stands: **a link that never expires
 will outlive some contractors' Stripe accounts.** `can_pay_online` must be
 re-derived from `stripe_account_status` on every load, never cached, because a
 Pay button that 500s is worse than one that was never shown.
+
+---
+
+## 8b. Two rules this work produced
+
+### A check must be able to pass AND fail — and you must prove both
+
+The two checkers in this repo failed in opposite directions and were both
+useless, which is why both were ignored:
+
+| | Defect | Result |
+|---|---|---|
+| `check-functions.cjs` | could never fail — printed and exited 0 | `approveQuote` was line 2 of its output for months |
+| `check-imports.cjs` | always failed — 39 false `MISSING` | output became noise, nobody read it |
+
+A check nobody can act on is worse than no check: it occupies the slot where a
+real one would go. So the bar is now: **demonstrate a green run on correct input
+and a red run on broken input, and say how you demonstrated it.**
+
+Done for both — `check-imports` by probing a genuinely missing import,
+`check-functions` by probing all three of its failure modes. The half still
+owed is proving `check-functions` goes **green** once `approveQuote` exists;
+red-now is only half the proof.
+
+### The root cause was no CI, not a bad check
+
+`check-functions.cjs` reported this bug correctly on every run. Nothing ran it.
+
+Cheapest real fix, since deploys already go through Vercel — set the project's
+**Build Command** to:
+
+```
+npm run check && vite build
+```
+
+(`npm run check` already chains `check:functions`, `check:imports` and `lint`.)
+A failing check then blocks the deploy. That is one dashboard field and it beats
+a GitHub Actions file nobody has written; Actions can come later for per-PR
+checks. **This needs your dashboard — I cannot set it.**
+
+Note it will block deploys until `approveQuote` exists, which is the point, but
+means the order is: land the fix, then flip the build command.
 
 ---
 

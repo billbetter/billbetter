@@ -79,7 +79,13 @@ export function renderEmailLayout(opts: LayoutOptions): string {
     heroValue,
     heroAccent = PRIMARY,
     intro,
-    detailsRows,
+    // Defaulted, not just optional. The type has always said `detailsRows?`,
+    // but the render below called .map() on it unguarded -- so omitting it
+    // threw "Cannot read properties of undefined (reading 'map')" and took the
+    // whole email with it. Every existing caller happens to pass one, which is
+    // why it went unnoticed until approve-quote did not. `items` and `summary`
+    // are guarded at their use sites; this one was not.
+    detailsRows = [],
     items,
     summary,
     ctaLabel,

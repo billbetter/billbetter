@@ -300,6 +300,7 @@ async function handleFunctionInvoke(name, payload = {}) {
     confirmAndActivate: "confirm-and-activate",
     sendCrewInvite: "send-crew-invite",
     acceptCrewInvite: "accept-crew-invite",
+    approveQuote: "approve-quote",
   };
 
   // Only invoice/quote send functions need the client-contact normalizer. Crew

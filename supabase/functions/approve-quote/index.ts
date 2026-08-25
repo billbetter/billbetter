@@ -1,0 +1,148 @@
+import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
+import { db, getUserContact } from '../_shared/supabase-admin.ts';
+import { sendEmail } from '../_shared/resend.ts';
+import { renderEmailLayout, formatCurrency, escapeHtml } from '../_shared/email-templates.ts';
+
+/**
+ * Approve a quote from the public link a client was emailed.
+ *
+ * THIS FUNCTION NEVER EXISTED. ApproveQuote.jsx has called
+ * sdk.functions.invoke("approveQuote") since it was written; nothing answered,
+ * so the request fell through to a catch-all in src/api/sdk.js that returned
+ * { success: true } for any unimplemented name. The page then rendered a green
+ * "Quote Approved!" to the client while the quote's status was never touched
+ * and the contractor was never told. Every approval ever made was discarded,
+ * and both sides were shown a confirmation.
+ *
+ * -- DELIBERATE: no requireAppAccess() on this path -----------------------
+ *
+ * Every other function here starts with the paywall. This one must not, and it
+ * is the same reasoning recorded for the public invoice pages:
+ *
+ *   1. The caller is the contractor's CLIENT. They have no account, no session
+ *      and no subscription. requireAppAccess would reject every legitimate use.
+ *   2. If the contractor's own subscription has lapsed, blocking their client
+ *      from approving punishes the contractor by killing work they already won.
+ *   3. The exposure is bounded: RLS still stops a lapsed user creating new
+ *      quotes, so the set of approvable documents is frozen at the moment
+ *      access lapsed.
+ *
+ * The approval_token is therefore the only credential, which is why it is
+ * compared in constant time and why unknown tokens are answered identically to
+ * expired ones.
+ */
+
+/** Approve/expire outcomes the page distinguishes. */
+type Outcome =
+  | { ok: true; client_name: string; business_name: string; quote_number: string; total: number }
+  | { ok: false; already_approved?: true; expired?: true; error?: string };
+
+/**
+ * Constant-time string compare.
+ *
+ * The token is the whole credential, so a plain === would leak its prefix
+ * through timing. Deno gives us no crypto.timingSafeEqual, so compare every
+ * byte and accumulate.
+ */
+function tokensMatch(a: string, b: string): boolean {
+  if (a.length !== b.length) return false;
+  let diff = 0;
+  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
+  return diff === 0;
+}
+
+Deno.serve(async (req) => {
+  const cors = handleCors(req);
+  if (cors) return cors;
+  const headers = { ...getCorsHeaders(req), 'Content-Type': 'application/json' };
+
+  const respond = (body: Outcome, status = 200) =>
+    new Response(JSON.stringify({ success: body.ok, ...body }), { status, headers });
+
+  try {
+    const { token } = await req.json().catch(() => ({ token: null }));
+
+    if (!token || typeof token !== 'string' || token.length < 16) {
+      return respond({ ok: false, error: 'This approval link is not valid.' }, 400);
+    }
+
+    // PostgREST filter, then a constant-time confirm. The filter is what makes
+    // the lookup indexed; the compare is what makes it safe to have used a
+    // string equality to get here.
+    const quote = await db.findOne('Quote', { approval_token: token });
+    if (!quote || !tokensMatch(String(quote.approval_token), token)) {
+      // Deliberately the same answer as an expired quote: distinguishing them
+      // would turn this endpoint into an oracle for guessing valid tokens.
+      return respond({ ok: false, error: 'This approval link is no longer valid.' }, 404);
+    }
+
+    if (quote.status === 'approved') {
+      return respond({ ok: false, already_approved: true });
+    }
+    if (quote.status === 'rejected') {
+      return respond({ ok: false, error: 'This quote was already declined.' });
+    }
+
+    // Expiry is checked against the stored date, never against anything the
+    // client sends.
+    if (quote.expiry_date && new Date(quote.expiry_date).getTime() < Date.now()) {
+      return respond({ ok: false, expired: true });
+    }
+
+    const settings = await db.findOne('BusinessSettings', { user_id: quote.user_id });
+    const businessName = settings?.business_name || 'Your contractor';
+
+    // The write. Everything above is a read, so a failure here is the only one
+    // that can leave the client believing something untrue -- hence it happens
+    // BEFORE the notification, and a notification failure never fails the call.
+    await db.update('Quote', quote.id, {
+      status: 'approved',
+      updated_at: new Date().toISOString(),
+    });
+
+    // Tell the contractor. Best-effort by design: the approval is already
+    // committed, and a Resend outage must not make the client think their
+    // approval failed and click again.
+    try {
+      const contact = await getUserContact(quote.user_id);
+      if (contact?.email) {
+        const total = formatCurrency(Number(quote.total) || 0);
+        await sendEmail({
+          to: contact.email,
+          subject: `Quote ${quote.quote_number} approved by ${quote.client_name || 'your client'}`,
+          html: renderEmailLayout({
+            heading: 'Quote approved',
+            intro:
+              `<strong>${escapeHtml(quote.client_name || 'Your client')}</strong> has approved quote ` +
+              `<strong>${escapeHtml(quote.quote_number || '')}</strong> for <strong>${total}</strong>.`,
+            footerMessage: 'You can convert it to an invoice whenever you are ready.',
+            // This email goes to the CONTRACTOR, so it is branded as their own
+            // business writing to them -- the same settings row the client-
+            // facing quote email uses.
+            branding: {
+              business_name: businessName,
+              sender_name: settings?.business_name || businessName,
+              sender_email: settings?.email,
+              sender_phone: settings?.phone,
+              sender_address: settings?.address,
+              website: settings?.website,
+            },
+          }),
+        });
+      }
+    } catch (notifyError) {
+      console.error('approve-quote: approval saved but notification failed:', notifyError);
+    }
+
+    return respond({
+      ok: true,
+      client_name: quote.client_name || '',
+      business_name: businessName,
+      quote_number: quote.quote_number || '',
+      total: Number(quote.total) || 0,
+    });
+  } catch (err) {
+    console.error('approve-quote failed:', err);
+    return respond({ ok: false, error: 'Something went wrong approving this quote.' }, 500);
+  }
+});
