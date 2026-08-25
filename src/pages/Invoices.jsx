@@ -179,6 +179,14 @@ export default function Invoices() {
       if (response.data.success) {
         alert(`Overdue notification sent via ${method}!`);
         setNotificationDialog({ open: false, invoice: null });
+      } else if (response.data.not_implemented) {
+        // Was silently treated as sent. Chasing is the product's core promise,
+        // so saying nothing here is worse than admitting it is not built.
+        alert(
+          `Automatic ${method} reminders aren't available yet. The invoice detail screen has the client's contact details so you can chase them directly.`,
+        );
+      } else {
+        alert(`Couldn't send that reminder: ${response.data.error || "unknown error"}`);
       }
     } catch (error) {
       console.error("Error sending overdue notification:", error);

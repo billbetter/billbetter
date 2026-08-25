@@ -221,6 +221,17 @@ export default function Quotes() {
         quote_ids: [],
       });
 
+      // Without this the line below wrapped a plain object in a Blob and
+      // downloaded a .xlsx containing the text [object Object].
+      if (!response?.data || response.data.success === false) {
+        alert(
+          response?.data?.not_implemented
+            ? "Excel export isn't available yet."
+            : "Export failed. Please try again.",
+        );
+        return;
+      }
+
       const blob = new Blob([response.data], {
         type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
       });

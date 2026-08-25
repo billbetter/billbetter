@@ -48,7 +48,21 @@ export default function Contact() {
     }
     setLoading(true);
     try {
-      await sdk.functions.invoke("sendContactEmail", formData);
+      const response = await sdk.functions.invoke("sendContactEmail", formData);
+      // This used to assume success and clear the form. sendContactEmail has
+      // never been implemented, so every message was discarded while the
+      // sender was told it had been sent. Keep their text on failure -- losing
+      // what someone typed is the second insult after not delivering it.
+      if (!response?.data?.success) {
+        // alert() to match the catch block below -- this component has no error
+        // state, and inventing one here would mean restyling the form.
+        alert(
+          response?.data?.not_implemented
+            ? "Our contact form isn't available right now. Please email us directly at support@invoicium.ca and we'll get straight back to you."
+            : "We couldn't send that. Please try again, or email support@invoicium.ca.",
+        );
+        return;
+      }
       setSuccess(true);
       setFormData({ name: "", email: "", subject: "", message: "" });
       setTimeout(() => setSuccess(false), 6000);

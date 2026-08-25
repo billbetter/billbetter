@@ -80,6 +80,16 @@ export default function PhoneVerification() {
         code: verificationCode,
       });
 
+      if (response.data?.not_implemented) {
+        // Accepted ANY code and claimed the phone was verified. Nothing in the
+        // app reads phone_verified, so skipping is honest and costs nothing.
+        setError(
+          "Phone verification isn't available right now — you can carry on without it.",
+        );
+        setLoading(false);
+        return;
+      }
+
       if (response.data?.success) {
         setSuccess("Phone verified successfully! Redirecting...");
 

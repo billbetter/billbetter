@@ -809,6 +809,59 @@ Pay button that 500s is worse than one that was never shown.
 
 ---
 
+## 9. The catch-all lied to all 15 stubs, not one
+
+`approveQuote` was not special. It was the one we found, because a client acts
+on it. The same `return { data: { success: true } }` answered every stub.
+
+**Reachable** = can a user get to the call site in production today.
+**Acted on** = does a human change their behaviour because of the fake success.
+
+| # | Stub | Reachable | Acted on | Verdict |
+|---|---|---|---|---|
+| 1 | `sendOverdueNotification` | **Yes** — Invoices, any plan | **Yes** — alerts *"Overdue notification sent via email!"* | **REAL.** This is the product's core promise. The contractor believes they chased a client. Nothing was sent. |
+| 2 | `sendContactEmail` | **Yes** — public `/Contact` | **Yes** — renders "message sent" | **REAL.** Every message to support has been silently discarded. Does not even check `.success`. |
+| 3 | `getInvoiceBySession` | **Yes** — public, after real payment | **Yes** — shows a receipt | **REAL.** Client pays, lands on success page, sees invoice **"INV-000", total $0.00**. Shown at the moment money moves. |
+| 4 | `notifyInvoiceCreated` | **Yes** — CreateInvoice | No — `console.log` only | **REAL**, low urgency. Nobody is told; nobody is misled. |
+| 5 | `notifyQuoteApproval` | **Yes** — Quotes | No — `console.log` only | **REAL**, low urgency. Same shape as 4. |
+| 6 | `createBooking` | **Not yet** — blocked by the PublicBooking RLS outage (§1.7) | **Would be** — `setSuccess(true)` → confirmation | **REAL, and a landmine.** Exactly your prediction: slot picked, confirmation shown, no booking exists. Currently unreachable *only* because the page dies earlier. **Fixing PublicBooking without fixing this ships the bug.** Sold at Professional. |
+| 7 | `getAvailableSlots` | **Not yet** — same blocker | No — silently empty | **REAL.** Also has a key mismatch: returns `{ slots: [] }`, caller reads `available_slots`. Would show no availability even once implemented. |
+| 8 | `verifyPhoneCode` | **Yes** — public `/PhoneVerification` | **Yes** — "Phone verified successfully!" | **REAL.** Returns success for *any* code. Mitigated: `phone_verified` is enforced nowhere in `src/`, so the step is cosmetic — it gates nothing. Fix or delete the screen. |
+| 9 | `sendPhoneVerification` | **Yes** — same screen | **Yes** — "code sent" | **REAL.** No SMS is sent, so there is no code to enter — which is why 8 has to accept anything for the screen to work at all. |
+| 10 | `sendWelcomeEmail` | **Yes** — after 8 | No — already `try`-wrapped and ignored | **REAL**, low urgency. No welcome email has ever been sent. |
+| 11 | `exportQuotesToExcel` | **Yes** — Quotes toolbar | **Yes** — downloads a file | **REAL.** `new Blob([{success:true}])` produces a file containing `[object Object]` with an `.xlsx` name. Corrupt download — visibly broken rather than a silent lie. |
+| 12 | `fixSubscriptionLimits` | **Yes** — Settings | **Yes** — a repair button that repairs nothing | **UI-OFF.** An admin self-heal control. `getTransactionAllowance()` already takes `max(plan, stored)`, so the problem it addressed is solved. Delete the button. |
+| 13 | `createCheckoutSession` | **Yes** — `/TestCheckout` **is routed in production** | Only whoever finds it | **UI-OFF.** A test page shipping to customers. Delete the page. |
+| 14 | `getBillingHistory` | **Yes** — Settings billing tab | No | **Not a lie.** Returns `{ invoices: [], payment_methods: [] }` — honestly empty, and its docblock explains the shape. Leave; implement when billing history is wanted. |
+| 15 | `saveNotificationSettings` | **Yes** — NotificationSettings | No | **Not a lie.** Has a real client-side implementation that writes to the database and returns `success:false` on auth failure. Miscounted as a stub because it matches `name === "..."`. Leave alone. |
+
+**13 of 15 are real bugs. 11 of those are reachable today. 6 cause a human to
+act on something that did not happen.**
+
+### Why the catch-all cannot be fixed first
+
+Right now the lie is load-bearing. Making it honest turns all 13 into visible
+failures simultaneously — including `sendContactEmail` and
+`sendOverdueNotification` on live screens. That trades a silent lie for a
+production outage, which is not an improvement.
+
+So the order is: **honest contract → callers handle it → then remove the lie.**
+
+### The contract
+
+Your preference, adopted. A stub returns:
+
+```js
+{ data: { success: false, error: "not_implemented", not_implemented: true } }
+```
+
+Not a throw. Every caller in this codebase already follows "this never throws,
+check `.success`", and 4 of the 15 do not wrap the call in `try` at all — a
+throw would take the page down. The flag is separate from `error` so a caller
+can distinguish "not built yet" from "failed", and say so honestly.
+
+---
+
 ## 9. Status
 
 ### Done (step 1 of your order of work)

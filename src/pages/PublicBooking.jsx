@@ -124,6 +124,13 @@ export default function PublicBooking() {
 
       if (response.data?.success) {
         setSuccess(true);
+      } else if (response.data?.not_implemented) {
+        // Previously invented a booking_id and showed a confirmation. A client
+        // believing they have an appointment that does not exist is the worst
+        // outcome on this page.
+        setError(
+          "Online booking isn't available yet. Please contact the business directly to arrange a time.",
+        );
       } else {
         setError(response.data?.error || "Failed to create booking");
       }

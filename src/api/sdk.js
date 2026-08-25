@@ -255,6 +255,28 @@ async function normalizeSendPayload(name, payload) {
   return { ...p, ...ctx };
 }
 
+/**
+ * The honest answer for a function that was never built.
+ *
+ * Every one of these used to return { success: true }. That is how quote
+ * approval shipped a green "Quote Approved!" for a quote nobody approved, and
+ * how the Contact form has been telling people their message was sent while
+ * discarding it. A stub may do nothing; it may not claim it did something.
+ *
+ * Returns rather than throws, deliberately: every caller here follows "this
+ * never throws, check .success", and several do not wrap the call in try at
+ * all, so throwing would take those pages down instead of showing a message.
+ *
+ * `not_implemented` is separate from `error` so a caller can tell "not built
+ * yet" from "tried and failed" and say the honest one to the user.
+ */
+function notImplemented(name) {
+  console.warn(`[sdk] ${name} is not implemented; returning failure.`);
+  return {
+    data: { success: false, error: "not_implemented", not_implemented: true },
+  };
+}
+
 async function handleFunctionInvoke(name, payload = {}) {
   const realEdgeFunctions = {
     generateInvoicePDF: "generate-invoice-pdf",
@@ -400,17 +422,21 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { pdf_url: buildPDFBlobUrl(title), success: true } };
   }
 
+  // Alerted that an overdue notification was sent, having sent nothing. This
+  // is the product's central promise, so it is the highest-value one to build.
   if (name === "sendOverdueNotification") {
-    return { data: { success: true } };
+    return notImplemented(name);
   }
 
+  // No user-facing claim -- callers only console.log. The contractor simply
+  // never hears that an invoice went out or a quote was approved.
   if (
     name === "notifyInvoiceCreated" ||
     name === "notifyQuoteCreated" ||
     name === "notifyQuoteApproval" ||
     name === "notifyQuoteResponse"
   ) {
-    return { data: { success: true } };
+    return notImplemented(name);
   }
 
   if (
@@ -422,8 +448,10 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { success: true } };
   }
 
+  // Quotes.jsx does new Blob([response.data]) -- a success object produced a
+  // file named .xlsx containing the text [object Object].
   if (name === "exportInvoicesToExcel" || name === "exportQuotesToExcel") {
-    return { data: { success: true } };
+    return notImplemented(name);
   }
 
   // getStripeCustomerPortal is a real Edge Function now (see realEdgeFunctions
@@ -441,25 +469,34 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { success: true } };
   }
 
+  // Returned { slots: [] } while PublicBooking reads available_slots, so even
+  // the empty answer never landed.
   if (name === "getAvailableSlots" || name === "suggestOptimalTime") {
-    return { data: { slots: [] } };
+    return notImplemented(name);
   }
 
+  // The worst of the remaining stubs: it invented a booking_id and
+  // PublicBooking rendered a confirmation for a booking that does not exist.
+  // Unreachable today only because that page dies earlier on an anon RLS read --
+  // fixing the page without fixing this would ship the bug to clients.
   if (name === "createBooking") {
-    return { data: { success: true, booking_id: "bk_" + Date.now() } };
+    return notImplemented(name);
   }
 
+  // Contact.jsx does not check .success at all, so the public contact form has
+  // been showing message sent and discarding every message.
   if (name === "sendContactEmail") {
-    return { data: { success: true } };
+    return notImplemented(name);
   }
 
   if (name === "searchProductPrices") {
     return { data: { results: [] } };
   }
 
-  if (name === "saveNotificationSettings") {
-    return { data: { success: true } };
-  }
+  // (A second saveNotificationSettings branch used to sit here returning
+  // success:true. It was unreachable -- the real implementation above wins --
+  // but it would have become the live answer the moment anyone reordered this
+  // chain. Removed rather than left as a trap.)
 
   if (name === "getBillingHistory") {
     // Must match what Settings.jsx reads -- it renders .invoices and
@@ -472,16 +509,21 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { success: true } };
   }
 
+  // sendTestAnalyticsEmail is a real edge function and never reaches here; it
+  // stays in the condition only so removing that mapping cannot silently turn
+  // it back into a lie. No welcome email has ever been sent.
   if (
     name === "sendWelcomeEmail" ||
     name === "sendWeeklyAnalytics" ||
     name === "sendTestAnalyticsEmail"
   ) {
-    return { data: { success: true } };
+    return notImplemented(name);
   }
 
+  // fixSubscriptionLimits backs a Settings repair button that repairs nothing;
+  // getTransactionAllowance() already takes max(plan, stored).
   if (name === "purchaseInvoicePack" || name === "fixSubscriptionLimits") {
-    return { data: { success: true } };
+    return notImplemented(name);
   }
 
   if (name === "getStripeCustomerLocation") {
@@ -505,8 +547,11 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { success: true } };
   }
 
+  // No SMS is ever sent, and verifyPhoneCode returned success for ANY code --
+  // the two lies propped each other up. Mitigated only because phone_verified
+  // is enforced nowhere in src/, so the screen gates nothing today.
   if (name === "sendPhoneVerification" || name === "verifyPhoneCode") {
-    return { data: { success: true } };
+    return notImplemented(name);
   }
 
   if (name === "assignAppointment") {
@@ -517,49 +562,27 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { success: true, payment_link: "#" } };
   }
 
+  // Shown to a client immediately after a real payment. The fake row rendered
+  // a receipt reading INV-000, $0.00 at the exact moment money moved.
   if (name === "getInvoiceBySession") {
-    return {
-      data: {
-        success: true,
-        invoice_number: "INV-000",
-        total: 0,
-        pdf_url: null,
-      },
-    };
+    return notImplemented(name);
   }
 
   // ---------------------------------------------------------------------
   // Catch-all for a name with NO handling at all.
   //
   // This used to `return { data: { success: true } }` -- it fabricated success
-  // for any function nobody had implemented. That is how quote approval broke:
-  // ApproveQuote.jsx calls invoke("approveQuote"), no such edge function was
-  // ever written and no stub matched, so this line answered "success" and the
-  // page rendered a green "Quote Approved!" to the client while the quote's
-  // status was never touched. Silent data loss, presented to the customer as
-  // confirmation.
+  // for every unimplemented function, not just the ones without a stub branch.
+  // That is how quote approval shipped a green "Quote Approved!" for a quote
+  // nobody approved, and how the public Contact form told people their message
+  // had been sent while discarding it.
   //
-  // A missing function is a programming error, so it now fails loudly and
-  // returns success:false. Returning rather than throwing keeps the contract
-  // every caller here already relies on ("this never throws, check .success"),
-  // so the failure surfaces as a normal error path instead of a new crash.
+  // Same contract as the explicit stubs above, so a caller handles "not built"
+  // identically whether or not someone wrote a branch for it.
   //
-  // The build-time guard is check-functions.cjs, which catches this class
-  // before it ships. This is only the runtime backstop.
+  // The build-time guard is check-functions.cjs; this is the runtime backstop.
   // ---------------------------------------------------------------------
-  console.error(
-    `[sdk] No implementation for function "${name}". It is not in ` +
-      `realEdgeFunctions and matches no stub. Add an edge function and map it, ` +
-      `or add an explicit stub. Returning failure rather than a fake success.`,
-    payload,
-  );
-  return {
-    data: {
-      success: false,
-      error: `${name} is not implemented`,
-      not_implemented: true,
-    },
-  };
+  return notImplemented(name);
 }
 
 async function invokeLLM({ prompt, response_json_schema }) {

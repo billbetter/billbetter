@@ -35,11 +35,15 @@ export default function InvoicePaymentSuccess() {
         session_id: sid,
       });
 
-      if (response.data && !response.data.error) {
+      if (response.data && response.data.success && !response.data.error) {
         setInvoice(response.data);
         console.log("✅ Invoice found and payment verified");
       } else {
-        console.warn("⚠️ Invoice not found for session ID");
+        // The stub returned a fabricated invoice (INV-000, total 0) and this
+        // branch rendered it as a receipt -- to someone who had just paid.
+        // Leaving `invoice` null shows the generic thank-you instead, which is
+        // true: the payment succeeded, we just cannot show the detail yet.
+        console.warn("Invoice lookup unavailable for session", sid);
       }
     } catch (error) {
       console.error("❌ Error verifying payment:", error);
