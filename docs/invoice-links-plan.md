@@ -830,6 +830,24 @@ Pay button that 500s is worse than one that was never shown.
 
 ---
 
+## 8a. The feature audit lives in its own document
+
+`docs/feature-audit.md` — every plan bullet and feature flag traced to code and
+marked WORKS / PARTIAL / ABSENT.
+
+Put there rather than inline here on purpose: it is what the pricing page gets
+rebuilt from, and nobody looking for "what does this product actually do" would
+think to open a plan about invoice links. This document links to it; that one
+stands alone.
+
+Headline: **AI is a hardcoded stub** returning the same two line items to every
+caller, **recurring invoices have never generated an invoice**, **24 of 35
+feature flags gate nothing**, and **Enterprise's three software differentiators
+are all absent**. `STRIPE_PRICES_UPDATED` stays false until that table is
+settled.
+
+---
+
 ## 8b. Two rules this work produced
 
 ### A check must be able to pass AND fail — and you must prove both
