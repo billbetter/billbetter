@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef } from "react";
 import { InvokeLLM } from "@/integrations/Core";
 import { VOICE_COMMAND } from "@/lib/ai/schemas";
-import { aiFailureMessage } from "@/lib/ai/failure";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
