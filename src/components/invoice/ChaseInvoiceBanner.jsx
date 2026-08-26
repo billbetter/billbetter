@@ -28,7 +28,7 @@ export default function ChaseInvoiceBanner({
     variant === "urgent"
       ? {
           eyebrow: `${overdueCount} OVERDUE INVOICE${overdueCount === 1 ? "" : "S"}`,
-          title: "Recover Overdue Cash Automatically",
+          title: "Recover Overdue Cash Faster",
           body:
             outstandingAmount > 0
               ? `You have ${formattedAmount} sitting in unpaid invoices. Invoicium AI sends polite, effective reminders so you don't have to.`
@@ -52,7 +52,7 @@ export default function ChaseInvoiceBanner({
           : {
               eyebrow: "NEW / AI POWERED",
               title: "Get Paid Faster with Chase Invoice",
-              body: "Invoicium AI writes polite follow-ups, schedules reminder sequences, and sends them by email + SMS automatically.",
+              body: "Invoicium writes the follow-up for you — friendly, professional or firm — ready to send by email or SMS in one tap.",
               cta: "Try It Now",
             };
 

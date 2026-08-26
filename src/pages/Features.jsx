@@ -10,7 +10,6 @@ import {
   FileText,
   Zap,
   DollarSign,
-  RefreshCw,
   Download,
   BarChart3,
   Users,
@@ -67,18 +66,6 @@ export default function Features() {
         "One-click payments",
         "Secure processing",
         "Automatic receipts",
-      ],
-    },
-    {
-      icon: RefreshCw,
-      title: "Recurring Invoices",
-      description:
-        "Set up automatic invoices for regular maintenance contracts and subscription services. Schedule weekly, monthly, or custom intervals and never miss a billing cycle.",
-      color: "bg-brand-600",
-      benefits: [
-        "Automated billing",
-        "Flexible schedules",
-        "Revenue consistency",
       ],
     },
     {
@@ -286,7 +273,7 @@ export default function Features() {
               </h2>
               <p className="text-xl text-content-body max-w-3xl mx-auto">
                 Every feature you need to streamline your contracting business,
-                from AI-powered invoice creation to automated recurring billing
+                from AI-powered invoice creation to instant online payments
                 and professional quote management.
               </p>
             </div>
@@ -395,7 +382,7 @@ export default function Features() {
                   </li>
                   <li className="flex items-center gap-2 text-ink-700">
                     <CheckCircle className="w-5 h-5 text-success-600" />
-                    Automated recurring billing
+                    Instant payment links
                   </li>
                   <li className="flex items-center gap-2 text-ink-700">
                     <CheckCircle className="w-5 h-5 text-success-600" />
@@ -409,7 +396,7 @@ export default function Features() {
                   Get Paid Faster
                 </h3>
                 <p className="text-content-body mb-4">
-                  Instant payment links and automated reminders mean you get
+                  Instant payment links and one-tap reminders mean you get
                   paid in days, not weeks.
                 </p>
                 <ul className="space-y-2">
@@ -419,7 +406,7 @@ export default function Features() {
                   </li>
                   <li className="flex items-center gap-2 text-ink-700">
                     <CheckCircle className="w-5 h-5 text-success-600" />
-                    Automatic overdue reminders
+                    One-tap overdue reminders
                   </li>
                   <li className="flex items-center gap-2 text-ink-700">
                     <CheckCircle className="w-5 h-5 text-success-600" />

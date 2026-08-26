@@ -53,7 +53,6 @@ export default function NotificationSettings() {
   const [analyticsDay, setAnalyticsDay] = useState(1);
   const [analyticsTime, setAnalyticsTime] = useState("09:00");
   const [sendingTest, setSendingTest] = useState(false);
-  const [sendReviewRequests, setSendReviewRequests] = useState(false);
 
   useEffect(() => {
     loadSettings();
@@ -98,9 +97,9 @@ export default function NotificationSettings() {
             : 1,
         );
         setAnalyticsTime(businessSettings[0].analytics_email_time || "09:00");
-        setSendReviewRequests(
-          businessSettings[0].send_review_requests === true,
-        );
+        // send_review_requests is no longer loaded into state: its toggle was
+        // removed because nothing sends review requests, and saveSettings now
+        // writes false unconditionally.
       }
     } catch (error) {
       console.error("Error loading notification settings:", error);
@@ -115,7 +114,10 @@ export default function NotificationSettings() {
         analytics_email_frequency: analyticsFrequency,
         analytics_email_day: analyticsDay,
         analytics_email_time: analyticsTime,
-        send_review_requests: sendReviewRequests,
+        // Hard false: the toggle was removed because no review-request
+        // sender exists. Written explicitly so a row that had it true stops
+        // claiming a preference nothing can honour.
+        send_review_requests: false,
       });
       alert("Settings saved successfully!");
     } catch (error) {
@@ -542,26 +544,20 @@ export default function NotificationSettings() {
 
           {/* Contractor Review Requests */}
           <div className="pt-2 border-t border-line dark:border-ink-700">
-            <div className="flex items-center justify-between p-3 rounded-lg hover:bg-surface-sunken dark:hover:bg-ink-800 transition-colors">
-              <div className="flex-1">
-                <Label className="font-medium text-content dark:text-content-inverted cursor-pointer">
-                  Contractor Review Requests
-                </Label>
-                <p className="text-sm text-content-body dark:text-content-subtle">
-                  Automatically send review request SMS/email to clients 12
-                  hours after invoice is paid
-                </p>
-              </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  checked={sendReviewRequests}
-                  onChange={() => setSendReviewRequests(!sendReviewRequests)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-ink-200 dark:bg-ink-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-success-300 dark:peer-focus:ring-success-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-content-inverted after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-line-strong dark:after:border-ink-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success-600 dark:peer-checked:bg-success-600 dark:after:bg-surface-inverted"></div>
-              </label>
-            </div>
+            {/*
+              The "Contractor Review Requests" toggle stood here, offering to
+              "automatically send review request SMS/email to clients 12 hours
+              after invoice is paid".
+
+              Removed rather than reworded. There is no review-request sender
+              anywhere in supabase/functions, and no scheduler to run one, so
+              the switch stored a preference that nothing ever read. A control
+              a user deliberately turns ON, which then does nothing, is the
+              lying-stub bug with a nicer interface -- and worse, because they
+              had to choose it.
+
+              Restore it when a sender and the scheduler exist, not before.
+            */}
           </div>
 
           <div className="pt-4">

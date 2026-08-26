@@ -368,7 +368,7 @@ export function getUpgradeMessage(featureName) {
     sms_sending: "SMS Notifications",
     client_reviews: "Client Reviews",
     public_booking: "Public Booking Page",
-    automations: "Automated Follow-ups",
+    automations: "Follow-up Drafting",
   };
   return featureMessages[featureName] || "This feature";
 }

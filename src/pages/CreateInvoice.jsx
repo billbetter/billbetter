@@ -1019,7 +1019,7 @@ Provide line items in this format.`,
         setSaving(false);
         localStorage.removeItem(STORAGE_KEY);
         alert(
-          "Recurring invoice created successfully! Invoices will be generated automatically.",
+          "Recurring template saved. Automatic generation isn't running yet — you'll need to create each invoice from the template for now.",
         );
         navigate(createPageUrl("RecurringInvoices"));
         return;

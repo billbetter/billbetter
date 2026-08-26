@@ -124,7 +124,7 @@ export default function BookDemo() {
                   "AI-powered quote & invoice generation",
                   "Online payment setup with Stripe",
                   "Job tracking & photo documentation",
-                  "Recurring invoices & automations",
+                  "Quotes, jobs & job photos",
                   "Crew management & permissions",
                   "Analytics & business insights",
                   "Your specific questions & use case",

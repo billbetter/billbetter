@@ -17,8 +17,8 @@ const HERO_CARDS = [
   },
   {
     icon: Zap,
-    name: "Chase overdue automatically",
-    text: "Polite follow-ups go out on schedule so you never have to send them.",
+    name: "Chase overdue in one tap",
+    text: "Friendly, professional or firm — the follow-up is written for you.",
   },
   {
     icon: ShieldCheck,

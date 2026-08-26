@@ -51,11 +51,12 @@
 // ever give existing subscribers more, never less.
 //
 // TO GO LIVE:
-//   1. In the Stripe dashboard create these recurring CAD Prices:
+//   1. In the Stripe dashboard create these FOUR recurring CAD Prices:
 //        Essential     $49/mo    $490/yr
 //        Professional  $99/mo    $990/yr
-//      (Core is unchanged at $24/$240. Yearly is 10x monthly = the "Save 17%"
-//      the Pricing page advertises.)
+//      Was six: retiring Enterprise dropped its $199/$1990 pair, and Core is
+//      unchanged at $24/$240, so only these four are new. Yearly is 10x
+//      monthly = the "Save 17%" the Pricing page advertises.
 //   2. Paste each id into `monthlyPriceId` / `yearlyPriceId` below.
 //   3. Flip this to true.
 //   4. Existing subscribers are untouched -- Stripe keeps billing them at the
@@ -97,10 +98,9 @@ export const PLANS = {
       "Online card payments via Stripe",
       "Job tracking with before/after photos",
       "Email & SMS delivery",
-      "Automated overdue reminders",
+      "One-tap overdue reminders (friendly → firm)",
     ],
     notIncluded: [
-      "Recurring invoices",
       "Expense tracking",
       "Analytics",
       "Time tracking",
@@ -129,7 +129,6 @@ export const PLANS = {
     popular: true,
     features: [
       "100 invoices or quotes/month",
-      "Recurring invoices",
       "Expense tracking + AI receipt scanner",
       "Time tracking & job costing",
       "Analytics dashboard & profit per job",

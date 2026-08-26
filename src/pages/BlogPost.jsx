@@ -80,7 +80,7 @@ export default function BlogPost() {
  <ul>
  <li>Send invoices immediately after completing the job</li>
  <li>Include online payment links for one-click checkout</li>
- <li>Follow up with automated reminders for overdue invoices</li>
+ <li>Follow up on overdue invoices with one-tap reminders</li>
  <li>Offer early payment discounts (2% off if paid within 7 days)</li>
  <li>Use clear, professional language and itemize all charges</li>
  </ul>
@@ -106,7 +106,7 @@ export default function BlogPost() {
  <li>Custom pricing for electrical services and materials</li>
  <li>Instant PDF generation with your branding</li>
  <li>One-click payment links for faster collections</li>
- <li>Automated payment reminders and follow-ups</li>
+ <li>One-tap payment reminders and follow-ups</li>
  <li>Mobile app for invoicing from job sites</li>
  </ul>
  `,
@@ -226,7 +226,7 @@ export default function BlogPost() {
  <li>Import your existing client database</li>
  <li>Create templates for your most common plumbing services</li>
  <li>Train your team on mobile invoicing from job sites</li>
- <li>Set up automatic payment reminders</li>
+ <li>Send payment reminders in one tap</li>
  <li>Enable online payment links to get paid faster</li>
  </ol>
 

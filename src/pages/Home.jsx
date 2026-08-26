@@ -171,7 +171,7 @@ export default function Home() {
       accent: "violet",
       subtitle: "The system follows up so you don't have to",
       title: "Auto-Reminders. Zero Chasing.",
-      desc: "Haven't been paid by day 3, 7, or 14? Invoicium sends a polite reminder automatically. You stay professional. You get paid.",
+      desc: "Not paid? Invoicium writes the follow-up — friendly, professional, or firm — and you send it in one tap. You stay professional. You get paid.",
       steps: [
         "Set your reminder schedule",
         "System sends at the right time",
@@ -302,9 +302,9 @@ export default function Home() {
                     <span className="text-content font-black">
                       no app needed.
                     </span>{" "}
-                    Reminders go out{" "}
+                    Follow-ups are{" "}
                     <span className="text-content font-black">
-                      automatically.
+                      written for you.
                     </span>
                   </p>
                 </FadeIn>

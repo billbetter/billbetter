@@ -14,9 +14,36 @@ Three states:
 Written for one purpose: **the pricing page gets rebuilt from this table.**
 `STRIPE_PRICES_UPDATED` stays `false` until it is settled.
 
+
 ---
 
-## 1. The single worst finding: AI is a hardcoded stub
+## 0. LAUNCH GATE — the AI claim is unproven
+
+The copy sweep made the marketing honest **except for AI**, which is
+honest-*pending-key*. `invoke-llm` exists, is deployed, and currently returns
+`not_configured` on every call. So "AI invoice & quote generation" is still a
+false claim on the pricing page today.
+
+This was deliberately NOT reworded — the decision was build, not describe away —
+but the code existing is not the same as the claim being true. Four boxes, and
+the claim is unproven until all four are ticked:
+
+- [ ] **`LLM_API_KEY` set** in Supabase secrets
+      (`npx supabase secrets set LLM_API_KEY=... --project-ref rcymevdxsizstnopqeow`)
+- [ ] **A real generation verified end to end** — describe a job in
+      CreateInvoice, get line items that reflect what was typed
+- [ ] **The retry path verified** — currently unrun. `complete()` retries once
+      with the validation errors fed back; that branch has never executed
+      against a live provider
+- [ ] **The default model id confirmed callable by that key** — `_shared/llm.ts`
+      defaults to `claude-sonnet-5`; a key without access to it fails at the
+      provider, not here
+
+Until then, treat every AI bullet on the pricing page as PARTIAL, not WORKS.
+
+---
+
+## 1. AI was a hardcoded stub — now built, not yet proven
 
 `src/api/sdk.js:589`
 
@@ -59,20 +86,20 @@ Core for that reason. It does not exist.
 | Claim | State | Evidence |
 |---|---|---|
 | 30 invoices or quotes/month | **PARTIAL** | Enforced, but client-side only and from a stale column — see §4 |
-| AI invoice & quote generation | **ABSENT** | Hardcoded stub (§1) |
-| Voice-to-invoice dictation | **PARTIAL** | Web Speech transcription is real (`GlobalVoiceAssistant.jsx:25`); the result is then parsed by the stub, so it hears you and returns Labor/Materials |
+| AI invoice & quote generation | **BUILT, UNPROVEN** | Real `invoke-llm`. Blocked on §0's launch gate — do not treat as WORKS until all four boxes are ticked |
+| Voice-to-invoice dictation | **BUILT, UNPROVEN** | Transcription was always real (`GlobalVoiceAssistant.jsx:25`); the parse now goes to `invoke-llm`. Same §0 gate |
 | Online card payments via Stripe | **WORKS** | `create-invoice-payment-link` + `stripe-webhook`, Connect wired |
 | Job tracking with before/after photos | **WORKS** | Since the `uploads` bucket and real `uploadFile()` landed. Was ABSENT before that — the old stub returned a `blob:` URL that died on reload |
 | Email & SMS delivery | **WORKS** | `send-invoice-email` / `send-invoice-sms`, real Resend + Twilio |
-| Automated overdue reminders | **PARTIAL** | Manual chase is real and good. Nothing automatic exists — no scheduler (§3) |
+| ~~Automated overdue reminders~~ → **One-tap overdue reminders (friendly → firm)** | **WORKS** as now worded | Reworded, not removed: the manual chase is real — escalating copy from `chaseFollowUp.js`, sent through Resend/Twilio. Only the word "automated" was false |
 
 ### Essential — $49
 
 | Claim | State | Evidence |
 |---|---|---|
 | 100 invoices or quotes/month | **PARTIAL** | Webhook writes **75**, not 100 (§4) |
-| Recurring invoices | **ABSENT** | `RecurringInvoice` rows are created, listed, updated, deleted. **Nothing converts one into an `Invoice`** — no function, no cron, no client path. `CreateInvoice.jsx:1021` toasts "Invoices will be generated automatically" |
-| Expense tracking + AI receipt scanner | **PARTIAL** | Expense tracking is real; the scanner is the stub (§1) |
+| ~~Recurring invoices~~ | **REMOVED from the bullet list** | No honest rewording existed — a saved schedule that nothing ever acts on is not a feature under any name, and there was no manual "generate now" either. The templates remain (they hold client, line items and cadence, so they become real when the scheduler lands), and the page now says automatic billing is not running. Returns to the pricing page when it does |
+| Expense tracking + AI receipt scanner | **PARTIAL → BUILT, UNPROVEN** | Expense tracking was always real; the scanner now goes to `invoke-llm` with the RECEIPT_SCAN schema. Same §0 gate |
 | Time tracking & job costing | **WORKS**, dormant | Built and working; switched off by request |
 | Analytics dashboard & profit per job | **WORKS** | Real aggregation over real rows |
 | Full job tracking | **WORKS** | |
@@ -228,10 +255,28 @@ works and simply is not gated. But it means **the plan ladder is largely
 unenforced**: a Core subscriber who reaches a Professional screen is usually
 stopped by nothing.
 
-### The rule
+### Two categories worth naming
 
 > **A feature flag is not enforcement until a call site reads it — verify the
 > read, not the declaration.**
+
+> **Correctness by accident.** Code that produces the right answer for a reason
+> nobody chose, and stops the moment the surrounding conditions shift.
+>
+> The example: `getTransactionAllowance()` returned `-1` for unlimited, and
+> `limit + additionalInvoices` on an unlimited plan therefore evaluated to
+> `-1 + 5 = 4` — a *smaller* allowance than the tier below it. It never bit
+> because every call site happened to guard with `limit > 0` first. Nobody
+> designed that protection; it was incidental, and one new call site written
+> without the guard would have silently capped an unlimited customer at four
+> invoices. Fixed by returning `Infinity`, so the arithmetic is right with no
+> guard at all.
+>
+> Related: the inline `response_json_schema` objects declared `properties` and
+> no `required`, so `{}` validated. The validation looked like protection and
+> asserted nothing. Same theme as the flags above, and as the two checkers that
+> could never fail or always failed — **the thing that looked like protection
+> wasn't.**
 
 `permissions.jsx` was rewritten *because* of this exact failure. Its docblock
 says Enterprise's flags "were sold on the pricing page and enforced nowhere."
@@ -259,12 +304,16 @@ three software differentiators are all absent.
 
 Honest count of what is genuinely delivered per tier:
 
-| Tier | WORKS | PARTIAL | ABSENT |
-|---|---|---|---|
-| Core | 3 | 3 | 1 |
-| Essential | 4 | 3 | 1 |
-| Professional | 2 (+2 dormant) | 2 | 2 |
-| Enterprise | 0 (+1 dormant) | 2 | 3 |
+| Tier | WORKS | BUILT, UNPROVEN (§0) | PARTIAL | ABSENT |
+|---|---|---|---|---|
+| Core | 4 | 2 | 1 | 0 |
+| Essential | 5 | 1 | 0 | 0 |
+| Professional | 2 (+2 dormant) | 0 | 1 | 2 |
+
+Enterprise is gone. Every remaining ABSENT is on Professional: material pricing
+and public booking. Both are honest candidates for the same treatment as
+recurring — remove the bullet until the feature exists — and that is the next
+pricing decision to take, not one I have made.
 
 ---
 

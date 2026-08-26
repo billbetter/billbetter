@@ -1551,7 +1551,7 @@ export default function Analytics() {
                     ? `Excellent collection rate at ${collectionRate}%. Your invoicing process is working well.`
                     : collectionRate >= 50
                       ? `Collection rate is ${collectionRate}%. ${pendingInvoices.length} invoices are still pending — consider sending reminders.`
-                      : `Collection rate is ${collectionRate}%. ${pendingInvoices.length + overdueInvoices.length} invoices need attention. Set up automated payment reminders.`}
+                      : `Collection rate is ${collectionRate}%. ${pendingInvoices.length + overdueInvoices.length} invoices need attention. Send a reminder from Get Paid.`}
                 </p>
                 {overdueAmount > 0 && (
                   <div className="mt-3 flex items-center gap-1.5">
