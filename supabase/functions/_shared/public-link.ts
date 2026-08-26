@@ -77,6 +77,41 @@ export interface PublicDoc {
 
 export type LookupFailure = 'invalid' | 'not_found' | 'revoked';
 
+/**
+ * The single answer for every credential that does not resolve to a live
+ * document -- malformed, unknown, or revoked.
+ *
+ * -- Why one answer, byte for byte ----------------------------------------
+ *
+ * Answering revoked and unknown differently makes the endpoint an oracle. A
+ * caller feeding it candidate tokens could tell "this was a real link once"
+ * apart from "this never existed", which is information about the contractor's
+ * business that no anonymous caller is owed. uuid4 makes guessing infeasible,
+ * so the oracle is not the likeliest attack -- but the cost of closing it is a
+ * shared constant, and a difference that exists for no reason is a difference
+ * somebody eventually depends on.
+ *
+ * 410 rather than 404 because the friendly state is the correct one to show: a
+ * client with a link that stopped working needs to be told what to do next, and
+ * "not found" reads as a broken product. The copy is deliberately true for BOTH
+ * cases -- it does not assert that the sender turned the link off, because for
+ * a mistyped address that would be a lie.
+ *
+ * Exported as one object so the two functions cannot drift apart; a test
+ * asserts the two responses are identical byte for byte.
+ */
+export const LINK_UNAVAILABLE = {
+  status: 410,
+  body: {
+    success: false,
+    reason: 'unavailable',
+    error:
+      'This link is no longer active. It may have been turned off by the sender, ' +
+      'or the address may be incorrect. Please contact them directly for an ' +
+      'up-to-date copy.',
+  },
+} as const;
+
 /** Constant-time string compare.
  *
  * The token is the whole credential, so a plain === would leak its prefix

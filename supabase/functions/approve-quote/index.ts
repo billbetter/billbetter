@@ -34,8 +34,8 @@ import { renderEmailLayout, formatCurrency, escapeHtml } from '../_shared/email-
 
 /** Approve/expire outcomes the page distinguishes. */
 type Outcome =
-  | { ok: true; client_name: string; business_name: string; quote_number: string; total: number }
-  | { ok: false; already_approved?: true; expired?: true; error?: string };
+  | { ok: true; client_name: string; business_name: string; quote_number: string; total: number; approved_by: string }
+  | { ok: false; already_approved?: true; expired?: true; needs_confirmation?: true; error?: string };
 
 /**
  * Constant-time string compare.
@@ -76,10 +76,10 @@ Deno.serve(async (req) => {
     // credentials are delivered to the same inbox, so accepting public_id here
     // grants nothing that forwarding the email did not already grant.
     //
-    // The tradeoff, stated rather than hidden: someone who forwards the VIEW
-    // link now also passes on the ability to approve. Previously the two were
-    // separable in principle. If that separation is wanted, the fix is a
-    // confirmation step on the page, not a second token in the payload.
+    // The tradeoff that creates: the view link is MEANT to be forwarded -- a
+    // client sending "here's the quote" to their spouse or business partner is
+    // normal -- and that forward would otherwise carry the power to commit to
+    // the job. Hence the confirmation below.
     const credential = typeof token === 'string' && token.length >= 16
       ? { column: 'approval_token', value: token }
       : typeof publicId === 'string' && publicId.length >= 8
@@ -88,6 +88,25 @@ Deno.serve(async (req) => {
 
     if (!credential) {
       return respond({ ok: false, error: 'This approval link is not valid.' }, 400);
+    }
+
+    // -- The confirmation is server-side, not a client-side dialog ---------
+    //
+    // A confirm step that lives only in the page is decoration: the endpoint is
+    // reachable directly, so anything that matters has to be required HERE.
+    // Requiring a typed name makes approval a deliberate act rather than a
+    // consequence of opening a URL, and gives the contractor a record that
+    // survives a scope dispute three months later.
+    //
+    // This also removes a GET-triggered state change. ApproveQuote.jsx used to
+    // approve on mount, so merely loading the emailed link committed the
+    // client -- and anything that pre-fetches or pre-renders a URL could do it
+    // for them. Approval now takes a second, explicit call carrying a name.
+    const approverName = typeof payload?.approver_name === 'string'
+      ? payload.approver_name.trim().slice(0, 120)
+      : '';
+    if (approverName.length < 2) {
+      return respond({ ok: false, needs_confirmation: true }, 400);
     }
 
     // PostgREST filter, then a constant-time confirm. The filter is what makes
@@ -126,9 +145,15 @@ Deno.serve(async (req) => {
     // The write. Everything above is a read, so a failure here is the only one
     // that can leave the client believing something untrue -- hence it happens
     // BEFORE the notification, and a notification failure never fails the call.
+    const approvedAt = new Date().toISOString();
     await db.update('Quote', quote.id, {
       status: 'approved',
-      updated_at: new Date().toISOString(),
+      // Who and when, stored so an approval is a record rather than a state
+      // flag. approved_at is separate from updated_at because updated_at moves
+      // on any edit and cannot answer "when did the client agree".
+      approved_by_name: approverName,
+      approved_at: approvedAt,
+      updated_at: approvedAt,
     });
 
     // Tell the contractor. Best-effort by design: the approval is already
@@ -140,12 +165,20 @@ Deno.serve(async (req) => {
         const total = formatCurrency(Number(quote.total) || 0);
         await sendEmail({
           to: contact.email,
-          subject: `Quote ${quote.quote_number} approved by ${quote.client_name || 'your client'}`,
+          subject: `Quote ${quote.quote_number} approved by ${approverName}`,
           html: renderEmailLayout({
             heading: 'Quote approved',
+            // The typed name, not the client_name on the record -- they can
+            // differ, and the one that matters in a dispute is what the person
+            // approving actually asserted about themselves.
             intro:
-              `<strong>${escapeHtml(quote.client_name || 'Your client')}</strong> has approved quote ` +
-              `<strong>${escapeHtml(quote.quote_number || '')}</strong> for <strong>${total}</strong>.`,
+              `<strong>${escapeHtml(approverName)}</strong> approved quote ` +
+              `<strong>${escapeHtml(quote.quote_number || '')}</strong> for <strong>${total}</strong>` +
+              `${quote.client_name ? ` on behalf of ${escapeHtml(String(quote.client_name))}` : ''}.`,
+            detailsRows: [
+              { label: 'Approved by', value: approverName },
+              { label: 'Approved on', value: new Date(approvedAt).toUTCString() },
+            ],
             footerMessage: 'You can convert it to an invoice whenever you are ready.',
             // This email goes to the CONTRACTOR, so it is branded as their own
             // business writing to them -- the same settings row the client-
@@ -171,6 +204,7 @@ Deno.serve(async (req) => {
       business_name: businessName,
       quote_number: quote.quote_number || '',
       total: Number(quote.total) || 0,
+      approved_by: approverName,
     });
   } catch (err) {
     console.error('approve-quote failed:', err);

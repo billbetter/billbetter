@@ -1,6 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db } from '../_shared/supabase-admin.ts';
-import { docByToken, dedupeHash, isBotRequest, isRateLimited, recordHit, advanceViewCounters } from '../_shared/public-link.ts';
+import { docByToken, dedupeHash, isBotRequest, isRateLimited, recordHit, advanceViewCounters, LINK_UNAVAILABLE } from '../_shared/public-link.ts';
 
 /**
  * Serve one invoice to somebody who has no account, addressed only by its
@@ -98,14 +98,14 @@ Deno.serve(async (req) => {
     });
 
     if (!found.ok) {
-      if (found.reason === 'revoked') {
-        // Deliberately returns NO payload -- not even the amount. A revoked
-        // link must not be able to render stale figures.
-        return fail('revoked', 'This invoice link has been turned off by the sender.', 410);
-      }
-      // 'invalid' and 'not_found' are answered identically. Distinguishing them
-      // would turn this endpoint into an oracle for probing valid tokens.
-      return fail('not_found', 'This invoice link is not valid.', 404);
+      // ONE answer for malformed, unknown and revoked -- byte for byte, from a
+      // shared constant. Returns NO payload of any kind, so a revoked link
+      // cannot render stale figures and an unknown one confirms nothing. See
+      // LINK_UNAVAILABLE for why the three are not distinguished.
+      return new Response(JSON.stringify(LINK_UNAVAILABLE.body), {
+        status: LINK_UNAVAILABLE.status,
+        headers,
+      });
     }
 
     const invoice = found.row;

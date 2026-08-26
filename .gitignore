@@ -42,3 +42,4 @@ dist-ssr
 # Python
 __pycache__/
 *.pyc
+scripts/.session.tmp.json

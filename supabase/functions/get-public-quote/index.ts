@@ -1,6 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db } from '../_shared/supabase-admin.ts';
-import { docByToken, dedupeHash, isBotRequest, isRateLimited, recordHit, advanceViewCounters } from '../_shared/public-link.ts';
+import { docByToken, dedupeHash, isBotRequest, isRateLimited, recordHit, advanceViewCounters, LINK_UNAVAILABLE } from '../_shared/public-link.ts';
 
 /**
  * Serve one quote to somebody with no account, addressed only by its public_id.
@@ -97,10 +97,11 @@ Deno.serve(async (req) => {
     });
 
     if (!found.ok) {
-      if (found.reason === 'revoked') {
-        return fail('revoked', 'This quote link has been turned off by the sender.', 410);
-      }
-      return fail('not_found', 'This quote link is not valid.', 404);
+      // Identical to the invoice answer, from the same shared constant.
+      return new Response(JSON.stringify(LINK_UNAVAILABLE.body), {
+        status: LINK_UNAVAILABLE.status,
+        headers,
+      });
     }
 
     const quote = found.row;

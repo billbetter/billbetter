@@ -45,10 +45,8 @@ const FUNCTIONS_DIR = "supabase/functions";
  * this list is a decision; forgetting to is what this guard prevents.
  */
 const KNOWN_STUBS = new Set([
-  "createBooking",
   "createCheckoutSession",
   "exportQuotesToExcel",
-  "getAvailableSlots",
   "getBillingHistory",
   "getInvoiceBySession",
   "notifyInvoiceCreated",

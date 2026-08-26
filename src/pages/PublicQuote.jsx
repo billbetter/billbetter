@@ -73,6 +73,13 @@ export default function PublicQuote() {
   const [loading, setLoading] = useState(true);
   const [approving, setApproving] = useState(false);
   const [approved, setApproved] = useState(null);
+  // The confirmation step. The public quote link is MEANT to be forwarded -- a
+  // client passing it to their spouse or business partner is normal -- so
+  // approval must be a deliberate act by a named person rather than a
+  // consequence of opening a URL. The name is also what makes the approval
+  // defensible if the scope is disputed later.
+  const [confirming, setConfirming] = useState(false);
+  const [approverName, setApproverName] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -120,9 +127,12 @@ export default function PublicQuote() {
     setApproving(true);
     setActionError("");
     // approve-quote accepts public_id as well as the emailed approval_token, so
-    // this page never has to hold the approval credential.
+    // this page never has to hold the approval credential. The name is required
+    // by the FUNCTION, not just by this form -- a confirmation that lives only
+    // in the page is decoration, since the endpoint is reachable directly.
     const { data: res } = await sdk.functions.invoke("approveQuote", {
       public_id: publicId,
+      approver_name: approverName.trim(),
     });
     if (res?.success) {
       setApproved(res);
@@ -175,11 +185,13 @@ export default function PublicQuote() {
   }
 
   if (failure) {
-    if (failure.reason === "revoked") {
+    // One state for revoked, unknown and malformed -- the server answers all
+    // three identically so it cannot be used to probe which links were once
+    // real, and the copy is true for every case.
+    if (failure.reason === "unavailable") {
       return (
-        <Notice icon={Lock} tone="text-caution-500" title="This link has been turned off">
-          The sender turned off this quote link. Please contact them directly for
-          an up-to-date copy.
+        <Notice icon={Lock} tone="text-caution-500" title="This link is no longer active">
+          {failure.message}
         </Notice>
       );
     }
@@ -241,6 +253,11 @@ export default function PublicQuote() {
             <p className="font-semibold text-lg text-success-800">
               Quote approved. Thank you!
             </p>
+            {approved?.approved_by && (
+              <p className="text-sm text-success-800 mt-1">
+                Approved by <strong>{approved.approved_by}</strong>.
+              </p>
+            )}
             <p className="text-sm text-success-800 mt-1">
               {business.name || "Your contractor"} has been notified and will be
               in touch.
@@ -333,20 +350,15 @@ export default function PublicQuote() {
             </div>
           )}
 
-          {((capabilities.can_approve && !isApproved) ||
+          {((capabilities.can_approve && !isApproved && !confirming) ||
             capabilities.can_download_pdf) && (
             <div className="mt-8 pt-6 border-t border-line flex flex-col sm:flex-row gap-3">
-              {capabilities.can_approve && !isApproved && (
+              {capabilities.can_approve && !isApproved && !confirming && (
                 <Button
-                  onClick={handleApprove}
-                  disabled={approving}
+                  onClick={() => setConfirming(true)}
                   className="flex-1 h-12 text-base"
                 >
-                  {approving ? (
-                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-                  ) : (
-                    <ThumbsUp className="w-5 h-5 mr-2" />
-                  )}
+                  <ThumbsUp className="w-5 h-5 mr-2" />
                   Approve this quote
                 </Button>
               )}
@@ -366,6 +378,73 @@ export default function PublicQuote() {
                 </Button>
               )}
             </div>
+          )}
+
+          {/*
+            The confirmation. Approving a quote commits to the job, and this
+            link is one a client may legitimately forward -- so the person
+            approving states who they are, deliberately, before it lands.
+            The name is stored with the approval so the contractor has a record
+            that survives a scope dispute months later.
+          */}
+          {confirming && !isApproved && (
+            <form
+              className="mt-6 pt-6 border-t border-line"
+              onSubmit={(e) => {
+                e.preventDefault();
+                handleApprove();
+              }}
+            >
+              <h3 className="font-black text-ink-800 mb-1">
+                Approve {money(quote.total, quote.currency)} of work
+              </h3>
+              <p className="text-sm text-content-body mb-4">
+                By approving you accept this quote from{" "}
+                {business.name || "this business"}. Please enter your full name
+                to confirm.
+              </p>
+              <label
+                htmlFor="approver-name"
+                className="block text-sm font-medium text-ink-800 mb-1"
+              >
+                Your full name
+              </label>
+              <input
+                id="approver-name"
+                type="text"
+                autoComplete="name"
+                value={approverName}
+                onChange={(e) => setApproverName(e.target.value)}
+                placeholder="e.g. Dana Marchetti"
+                className="w-full rounded border border-line bg-surface px-3 py-2 text-content mb-4"
+              />
+              <div className="flex flex-col sm:flex-row gap-3">
+                <Button
+                  type="submit"
+                  disabled={approving || approverName.trim().length < 2}
+                  className="flex-1 h-12 text-base"
+                >
+                  {approving ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <ThumbsUp className="w-5 h-5 mr-2" />
+                  )}
+                  Confirm approval
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  className="h-12"
+                  onClick={() => {
+                    setConfirming(false);
+                    setActionError("");
+                  }}
+                  disabled={approving}
+                >
+                  Cancel
+                </Button>
+              </div>
+            </form>
           )}
 
           {actionError && (

@@ -195,6 +195,39 @@ export default function Invoices() {
     setSendingNotification(null);
   };
 
+  /**
+   * Fetch one invoice's PDF and hand it to the browser.
+   *
+   * List queries deliberately no longer select pdf_url: that column stores the
+   * whole PDF inline as a base64 data: URL, so `select("*")` on the list meant
+   * downloading every invoice's PDF on every visit to this page. Fetching by id
+   * keeps every column, so the document is complete here.
+   */
+  const downloadInvoicePdf = async (invoiceId) => {
+    try {
+      const inv = await sdk.entities.Invoice.get(invoiceId);
+      const pdf = inv?.pdf_url || "";
+      if (!pdf.startsWith("data:application/pdf")) {
+        alert("No PDF is available for this invoice yet.");
+        return;
+      }
+      // Chrome blocks top-level navigation to data: URLs, so it has to become a
+      // blob before a download link will take it.
+      const blob = await (await fetch(pdf)).blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Invoice-${inv.invoice_number || invoiceId}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error("PDF download failed:", err);
+      alert("Could not download the PDF. Please try again.");
+    }
+  };
+
   const handleExportInvoices = () => {
     if (filteredInvoices.length === 0) {
       alert("No invoices to export.");
@@ -208,7 +241,6 @@ export default function Invoices() {
       "Due Date",
       "Total Amount",
       "Status",
-      "PDF URL",
     ];
 
     const csvRows = [
@@ -224,8 +256,10 @@ export default function Invoices() {
           : "";
         const total = invoice.total?.toFixed(2) || "0.00";
         const status = invoice.status || "";
-        const pdfUrl = invoice.pdf_url || "";
 
+        // The PDF column is gone on purpose. It wrote the entire PDF into a
+        // cell as a base64 data: URL -- 22 kB per row, which no spreadsheet
+        // can open and which is no longer fetched by list queries anyway.
         return [
           invoiceNumber,
           clientName,
@@ -233,7 +267,6 @@ export default function Invoices() {
           dueDate,
           total,
           status,
-          pdfUrl,
         ].join(",");
       }),
     ];
@@ -1128,16 +1161,19 @@ export default function Invoices() {
                       </button>
                     )}
 
-                    {filteredInvoices.find((inv) => inv.id === mobileMenuOpen)
-                      ?.pdf_url && (
+                    {/*
+                      Fetches the document on click. The list query no longer
+                      asks for pdf_url, because that column holds the entire PDF
+                      inline as base64 and selecting it meant downloading every
+                      invoice's PDF just to render this menu.
+                    */}
+                    {mobileMenuOpen && (
                       <a
-                        href={
-                          filteredInvoices.find(
-                            (inv) => inv.id === mobileMenuOpen,
-                          )?.pdf_url
-                        }
-                        target="_blank"
-                        rel="noopener noreferrer"
+                        href="#"
+                        onClick={(e) => {
+                          e.preventDefault();
+                          downloadInvoicePdf(mobileMenuOpen);
+                        }}
                         className="block w-full"
                       >
                         <button className="w-full flex items-center gap-4 px-4 py-4 text-base font-semibold text-ink-700 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-700 rounded-2xl transition-all active:scale-[0.98]">

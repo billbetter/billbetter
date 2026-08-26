@@ -478,17 +478,13 @@ async function handleFunctionInvoke(name, payload = {}) {
     return { data: { success: true } };
   }
 
-  // Returned { slots: [] } while PublicBooking reads available_slots, so even
-  // the empty answer never landed.
-  if (name === "getAvailableSlots" || name === "suggestOptimalTime") {
-    return notImplemented(name);
-  }
-
-  // The worst of the remaining stubs: it invented a booking_id and
-  // PublicBooking rendered a confirmation for a booking that does not exist.
-  // Unreachable today only because that page dies earlier on an anon RLS read --
-  // fixing the page without fixing this would ship the bug to clients.
-  if (name === "createBooking") {
+  // getAvailableSlots and createBooking are gone, along with the booking UI that
+  // called them. Online booking was never built -- booking_slug and
+  // available_hours are not even columns -- and createBooking used to invent a
+  // booking_id so PublicBooking could render a confirmation for an appointment
+  // that did not exist. The page now says so plainly instead.
+  // See docs/feature-audit.md section 9.3.
+  if (name === "suggestOptimalTime") {
     return notImplemented(name);
   }
 

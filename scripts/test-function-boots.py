@@ -26,10 +26,15 @@ ANON = require('VITE_SUPABASE_ANON_KEY')
 # The public three are reachable anonymously and answer 404 for a bogus token.
 # The rest are behind requireAppAccess and must answer 401/403, never 500.
 CASES = [
-    ('get-public-invoice', {'token': '00000000-0000-4000-8000-000000000000'}, {404}),
-    ('pay-public-invoice', {'token': '00000000-0000-4000-8000-000000000000'}, {404}),
-    ('get-public-quote', {'public_id': '00000000-0000-4000-8000-000000000000'}, {404}),
-    ('approve-quote', {'token': 'x' * 32}, {404}),
+    # 410 is the shared LINK_UNAVAILABLE answer: revoked, unknown and malformed
+    # credentials are all answered identically so the endpoint cannot be used to
+    # probe which tokens were once real.
+    ('get-public-invoice', {'token': '00000000-0000-4000-8000-000000000000'}, {410}),
+    ('pay-public-invoice', {'token': '00000000-0000-4000-8000-000000000000'}, {410}),
+    ('get-public-quote', {'public_id': '00000000-0000-4000-8000-000000000000'}, {410}),
+    # 400 needs_confirmation: approval requires a typed name, checked before the
+    # credential is even looked up, so this reveals nothing about the token.
+    ('approve-quote', {'token': 'x' * 32}, {400}),
     ('send-invoice-email', {'to': 'nobody@example.com'}, {401, 402, 403}),
     ('send-invoice-sms', {'to': '+15550000000'}, {401, 402, 403}),
     ('create-invoice-payment-link', {'invoice_id': 'x'}, {401, 402, 403}),

@@ -145,18 +145,22 @@ def main():
         # --- Rejections ---------------------------------------------------
         print('\nrejections:')
         status, body2 = call('get-public-quote', {'public_id': 'no'})
-        check('too-short id -> 404', status == 404, f'{status} {body2}')
+        check('too-short id -> 410 unavailable',
+              status == 410 and body2.get('reason') == 'unavailable', f'{status} {body2}')
         status, body2 = call('get-public-quote', {'public_id': '11111111-2222-4333-8444-555555555555'})
-        check('unknown id -> 404', status == 404, f'{status} {body2}')
+        check('unknown id -> 410 unavailable',
+              status == 410 and body2.get('reason') == 'unavailable', f'{status} {body2}')
         check('unknown id leaks nothing', 'quote' not in body2)
 
         # --- Revocation ---------------------------------------------------
         print('\nrevocation:')
         sql(f"""update public."Quote" set public_link_revoked_at = now() where id = '{quote_id}'""")
         status, body2 = call('get-public-quote', {'public_id': public_id})
-        check('revoked -> 410', status == 410 and body2.get('reason') == 'revoked', f'{status} {body2}')
+        check('revoked -> 410 unavailable',
+              status == 410 and body2.get('reason') == 'unavailable', f'{status} {body2}')
         check('revoked returns NO payload', 'quote' not in body2 and 'business' not in body2)
-        status, body2 = call('approve-quote', {'public_id': public_id})
+        status, body2 = call('approve-quote',
+                             {'public_id': public_id, 'approver_name': 'Test Approver'})
         check('approve on a revoked link is refused', not body2.get('success'), str(body2))
         after = sql(f"""select status from public."Quote" where id = '{quote_id}'""")[0]
         check('revoked approve did NOT change status', after['status'] == 'sent', str(after))
@@ -180,13 +184,36 @@ def main():
 
         # --- Approval via the page's credential ---------------------------
         print('\napproval (button wired to approve-quote, via public_id):')
+        # The confirmation is enforced by the FUNCTION, not just the page: a
+        # confirm step that lives only in the UI is decoration, because the
+        # endpoint is reachable directly.
         status, body2 = call('approve-quote', {'public_id': public_id})
-        check('approve succeeds', body2.get('success') is True, f'{status} {body2}')
-        approved = sql(f"""select status from public."Quote" where id = '{quote_id}'""")[0]
+        check('approval WITHOUT a typed name is refused',
+              status == 400 and body2.get('needs_confirmation') is True, f'{status} {body2}')
+        still = sql(f"""select status from public."Quote" where id = '{quote_id}'""")[0]
+        check('the nameless attempt changed nothing', still['status'] == 'sent', str(still))
+        status, body2 = call('approve-quote', {'public_id': public_id, 'approver_name': 'A'})
+        check('a one-character name is refused too',
+              body2.get('needs_confirmation') is True, str(body2))
+
+        status, body2 = call('approve-quote',
+                             {'public_id': public_id, 'approver_name': 'Dana Marchetti'})
+        check('approve succeeds with a name', body2.get('success') is True, f'{status} {body2}')
+        approved = sql(f"""select status, approved_by_name, approved_at from public."Quote"
+                            where id = '{quote_id}'""")[0]
         check('status is now approved in the DATABASE', approved['status'] == 'approved', str(approved))
-        status, body2 = call('approve-quote', {'public_id': public_id})
+        check('the approver name is recorded',
+              approved['approved_by_name'] == 'Dana Marchetti', str(approved))
+        check('approved_at is recorded', approved['approved_at'] is not None, str(approved))
+
+        # Replay must be idempotent AND must not rewrite the record.
+        status, body2 = call('approve-quote',
+                             {'public_id': public_id, 'approver_name': 'Someone Else'})
         check('second approve reports already_approved',
               body2.get('already_approved') is True, str(body2))
+        again = sql(f"""select approved_by_name from public."Quote" where id = '{quote_id}'""")[0]
+        check('a replayed approval does NOT overwrite the original approver',
+              again['approved_by_name'] == 'Dana Marchetti', str(again))
         status, body2 = call('get-public-quote', {'public_id': public_id})
         check('page now says can_approve false',
               body2.get('capabilities', {}).get('can_approve') is False,

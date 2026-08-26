@@ -603,3 +603,54 @@ Two candidate fixes, and they are not equivalent:
   failure has occurred.
 
 Not fixed here, because it is not step 6.
+
+---
+
+## 10. OPEN — what cannot be proven from this session
+
+The public document surface is not "done" while any of these is unticked. They
+are listed separately from the rest of this document because none of them is a
+code problem: each needs an account, a credential or a device that only the
+owner has.
+
+- [ ] **A successful payment.** Never executed, not once. `STRIPE_SECRET_KEY` is
+      a LIVE key and the only connected account reads `restricted`, so the only
+      reachable branch is the refusal — which IS asserted (409 `not_connected`,
+      and the page correctly hides its Pay button). Proving the success branch
+      needs a test-mode key or an active connected account.
+      **Needs: a working Stripe account.**
+- [ ] **The rendered email body.** `send-invoice-email` sits behind
+      `requireAppAccess`. What is proven: it boots, it resolves the public token
+      server-side rather than trusting the request body, and it builds the right
+      URL. The message a client actually receives has not been looked at.
+      **Needs: sending a real invoice.**
+- [ ] **The page on a real phone.** Every assertion here is headless Chrome at a
+      desktop viewport. Nothing has been seen on an actual handset, which is
+      where most clients will open these links.
+      **Needs: a phone.**
+- [ ] **Email landing in an inbox.** Deliverability is untested and Phase B of
+      the plan (SPF / DKIM / DMARC, Resend domain verification) is a
+      dashboard-and-DNS check that cannot be done from the repo. Until it is
+      done, "the client got the link" is an assumption.
+      **Needs: Resend domain auth.**
+
+Two others, already recorded above, that also stay open:
+
+- §0's four AI launch-gate boxes — unchanged, still all unticked.
+- §8.3 `pdf_url` — the cheap half is done (list queries no longer select it, so
+  the per-page-load download of every stored PDF is gone). The real fix, moving
+  the bytes to Supabase Storage, is untouched. Cheapest before there is data.
+
+### 10.1 Found while proving the above, not chased
+
+Driving the real CreateQuote page surfaced two console errors that have nothing
+to do with this work:
+
+```
+Error fetching suggestions: TypeError: Cannot read properties of undefined (reading 'toLowerCase')
+Edge function sendQuoteSMS failed: Authenticate
+```
+
+The first is a live client-side crash in the line-item suggestion lookup. The
+second is a Twilio auth failure on quote SMS — the same class as the A2P
+registration gap noted in the invoice-links plan. Neither was investigated.

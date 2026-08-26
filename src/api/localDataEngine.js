@@ -1,5 +1,6 @@
 import { supabase } from "./supabaseClient";
 import { getOwnerId } from "@/lib/crew";
+import { ENTITY_COLUMNS } from "./entityColumns";
 
 const STORAGE_PREFIX = "invoicium_";
 
@@ -83,6 +84,102 @@ function stripLegacyDates(payload) {
   if (!payload || typeof payload !== "object") return payload;
   const out = { ...payload };
   for (const legacy of Object.keys(REMOTE_BY_LEGACY)) delete out[legacy];
+  return out;
+}
+
+/**
+ * Drop keys that are not real columns on the target table, before a write.
+ *
+ * PostgREST does not ignore an unknown key -- it rejects the ENTIRE request
+ * with `42703 column X does not exist`. So one stray field in a form's state
+ * stops every other field on that page from saving, and the only feedback the
+ * user gets is a generic failure message.
+ *
+ * That is not hypothetical. Settings.jsx builds its payload as `{ ...formData }`
+ * and CalendarSettings binds inputs to `booking_slug` and `available_hours`,
+ * neither of which is a column. Typing in the booking URL field broke saving
+ * for every unrelated setting on the page. It is also the second time this
+ * class of bug has bitten, which is why the fix is here rather than at the call
+ * site.
+ *
+ * -- Why it warns instead of stripping silently ---------------------------
+ *
+ * A silent strip turns a typo'd column name into a setting that never saves and
+ * never complains. That is the same class of bug as the one being fixed, just
+ * quieter -- and quieter is worse, because nothing surfaces it. So in
+ * development every dropped key is named, loudly. In production it stays quiet:
+ * a user cannot act on it, and the alternative is failing their save.
+ *
+ * A table missing from ENTITY_COLUMNS is left alone, so a stale generated file
+ * degrades to the old behaviour rather than silently discarding real data.
+ */
+/**
+ * Columns excluded from LIST queries, per table.
+ *
+ * `pdf_url` does not hold a URL. It holds the entire PDF inline as a
+ * `data:application/pdf;base64,...` string -- measured on the live table at
+ * 22 kB for one invoice. Because list() asks for `select("*")`, every visit to
+ * the Invoices or Quotes page downloaded every stored PDF: invisible at three
+ * invoices, roughly 6.6 MB per page load at the 300/month Professional
+ * allowance after a single month, growing linearly and forever.
+ *
+ * This is the cheap half of the fix and it is deliberately not the whole one.
+ * Excluding one column from list views removes the landmine with no migration
+ * and no storage rewrite. Moving the bytes to Supabase Storage and making this
+ * a real URL is the actual fix and stays open in docs/feature-audit.md 8.3.
+ *
+ * get() still returns every column, so the detail page and the PDF download
+ * are unaffected -- which is the point: the blob moves when somebody asks for
+ * that one document, not when they glance at a list.
+ */
+const LIST_EXCLUDED_COLUMNS = {
+  Invoice: ["pdf_url"],
+  Quote: ["pdf_url"],
+};
+
+/**
+ * The explicit column list for a table's list query, or "*" when we have no
+ * schema for it. Built from the generated column map so a newly added column
+ * appears in lists automatically once the map is regenerated.
+ *
+ * A query filtered by `id` is NOT a list -- it is this codebase's usual way of
+ * fetching one document (InvoiceDetail and QuoteDetail both do
+ * `filter({ id })`). Asking for one specific document returns all of it,
+ * including the PDF; only genuine multi-row reads are narrowed. Without that
+ * exception, excluding pdf_url would strip the attachment from the detail page
+ * and from the send flow, which is a far worse bug than the one being fixed.
+ */
+function listSelect(entityName, filters) {
+  const known = ENTITY_COLUMNS[entityName];
+  const excluded = LIST_EXCLUDED_COLUMNS[entityName];
+  if (!known || !excluded) return "*";
+  if (filters && filters.id) return "*";
+  return known.filter((c) => !excluded.includes(c)).join(",");
+}
+
+function stripUnknownColumns(entityName, payload) {
+  if (!payload || typeof payload !== "object") return payload;
+  const known = ENTITY_COLUMNS[entityName];
+  if (!known) return payload;
+
+  const allowed = new Set(known);
+  const out = {};
+  const dropped = [];
+  for (const [key, value] of Object.entries(payload)) {
+    if (allowed.has(key)) out[key] = value;
+    else dropped.push(key);
+  }
+
+  if (dropped.length > 0 && import.meta.env.DEV) {
+    console.error(
+      `[localDataEngine] Dropped ${dropped.length} key(s) not present on "${entityName}": ` +
+        `${dropped.join(", ")}.
+` +
+        `These were NOT saved. Either the column is missing (add a migration and ` +
+        `re-run scripts/gen-entity-columns.py) or the key is a typo. Sending them ` +
+        `would have made PostgREST reject the whole write.`,
+    );
+  }
   return out;
 }
 
@@ -262,7 +359,7 @@ export const localDataEngine = {
       const row = await withOwner(entityName, payload);
       const { data, error } = await supabase
         .from(entityName)
-        .insert([stripLegacyDates(row)])
+        .insert([stripUnknownColumns(entityName, stripLegacyDates(row))])
         .select()
         .single();
       if (error) throw error;
@@ -279,7 +376,7 @@ export const localDataEngine = {
   async list(entityName, filters, sort, limit) {
     try {
       const scoped = await withOwnerFilters(entityName, filters);
-      let query = supabase.from(entityName).select("*");
+      let query = supabase.from(entityName).select(listSelect(entityName, filters));
       if (scoped) {
         Object.entries(scoped).forEach(([key, value]) => {
           query = query.eq(key, value);
@@ -327,7 +424,7 @@ export const localDataEngine = {
     try {
       const { data, error } = await supabase
         .from(entityName)
-        .update(stripLegacyDates(payload))
+        .update(stripUnknownColumns(entityName, stripLegacyDates(payload)))
         .eq("id", id)
         .select()
         .single();

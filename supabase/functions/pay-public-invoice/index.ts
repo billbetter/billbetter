@@ -1,5 +1,5 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
-import { docByToken, dedupeHash, isRateLimited, isBotRequest, recordHit } from '../_shared/public-link.ts';
+import { docByToken, dedupeHash, isRateLimited, isBotRequest, recordHit, LINK_UNAVAILABLE } from '../_shared/public-link.ts';
 import { buildInvoiceCheckoutSession } from '../_shared/stripe-session.ts';
 
 /**
@@ -65,12 +65,12 @@ Deno.serve(async (req) => {
     });
 
     if (!found.ok) {
-      if (found.reason === 'revoked') {
-        return fail('revoked', 'This invoice link has been turned off by the sender.', 410);
-      }
-      // Same answer for invalid and unknown: this endpoint must not become an
-      // oracle for probing tokens.
-      return fail('not_found', 'This invoice link is not valid.', 404);
+      // Same shared answer as get-public-invoice, so paying reveals nothing
+      // that viewing would not.
+      return new Response(JSON.stringify(LINK_UNAVAILABLE.body), {
+        status: LINK_UNAVAILABLE.status,
+        headers,
+      });
     }
 
     const result = await buildInvoiceCheckoutSession(found.row);

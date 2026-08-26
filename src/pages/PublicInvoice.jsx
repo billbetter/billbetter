@@ -183,11 +183,14 @@ export default function PublicInvoice() {
   }
 
   if (failure) {
-    if (failure.reason === "revoked") {
+    // One state for revoked, unknown and malformed. The server answers all
+    // three identically so it cannot be used to probe which tokens were once
+    // real, and the copy has to be true for every case -- it must not claim the
+    // sender turned the link off, because for a mistyped address that is false.
+    if (failure.reason === "unavailable") {
       return (
-        <Notice icon={Lock} tone="text-caution-500" title="This link has been turned off">
-          The sender turned off this invoice link. Please contact them directly
-          for an up-to-date copy.
+        <Notice icon={Lock} tone="text-caution-500" title="This link is no longer active">
+          {failure.message}
         </Notice>
       );
     }

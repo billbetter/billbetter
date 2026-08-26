@@ -100,21 +100,22 @@ def main():
     # --- Rejections -------------------------------------------------------
     print('\nrejections:')
     status, body = call('get-public-invoice', {'token': 'not-a-uuid'})
-    ok &= check('malformed token -> 404 not_found', status == 404 and body.get('reason') == 'not_found',
-                f'{status} {body}')
+    ok &= check('malformed token -> 410 unavailable',
+                status == 410 and body.get('reason') == 'unavailable', f'{status} {body}')
     status, body = call('get-public-invoice', {'token': '00000000-0000-4000-8000-000000000000'})
-    ok &= check('unknown token -> 404 not_found', status == 404 and body.get('reason') == 'not_found',
-                f'{status} {body}')
+    ok &= check('unknown token -> 410 unavailable',
+                status == 410 and body.get('reason') == 'unavailable', f'{status} {body}')
     ok &= check('unknown token leaks no data', 'invoice' not in body)
     status, body = call('get-public-invoice', {})
-    ok &= check('no token -> 404', status == 404, f'{status} {body}')
+    ok &= check('no token -> 410', status == 410, f'{status} {body}')
 
     # --- Revocation -------------------------------------------------------
     print('\nrevocation:')
     sql(f"""update public."Invoice" set public_link_revoked_at = now()
              where id = '{inv['id']}'""")
     status, body = call('get-public-invoice', {'token': token})
-    ok &= check('revoked -> 410', status == 410 and body.get('reason') == 'revoked', f'{status} {body}')
+    ok &= check('revoked -> 410 unavailable',
+                status == 410 and body.get('reason') == 'unavailable', f'{status} {body}')
     ok &= check('revoked returns NO payload', 'invoice' not in body and 'business' not in body)
     status, body = call('pay-public-invoice', {'token': token})
     ok &= check('pay on revoked -> 410', status == 410, f'{status} {body}')
