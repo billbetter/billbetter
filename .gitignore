@@ -43,3 +43,4 @@ dist-ssr
 __pycache__/
 *.pyc
 scripts/.session.tmp.json
+scripts/.last-email.html

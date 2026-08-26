@@ -619,11 +619,9 @@ owner has.
       and the page correctly hides its Pay button). Proving the success branch
       needs a test-mode key or an active connected account.
       **Needs: a working Stripe account.**
-- [ ] **The rendered email body.** `send-invoice-email` sits behind
-      `requireAppAccess`. What is proven: it boots, it resolves the public token
-      server-side rather than trusting the request body, and it builds the right
-      URL. The message a client actually receives has not been looked at.
-      **Needs: sending a real invoice.**
+- [x] **The rendered email body.** DONE -- one real invoice was sent and the
+      delivered HTML read back from Resend by id. See section 11. One finding
+      came out of it (11.1: the email invites a reply it cannot receive).
 - [ ] **The page on a real phone.** Every assertion here is headless Chrome at a
       desktop viewport. Nothing has been seen on an actual handset, which is
       where most clients will open these links.
@@ -654,3 +652,100 @@ Edge function sendQuoteSMS failed: Authenticate
 The first is a live client-side crash in the line-item suggestion lookup. The
 second is a Twilio auth failure on quote SMS — the same class as the A2P
 registration gap noted in the invoice-links plan. Neither was investigated.
+
+---
+
+## 11. The email was sent, and what it showed
+
+One real invoice email was sent through `send-invoice-email` and then read back
+from Resend's API by id, so what follows is the HTML that actually left the
+building rather than what the source suggests it would be.
+
+`scripts/test-send-invoice-email.py` sends it;
+`scripts/inspect-sent-email.py <id>` reads any sent message back.
+
+| | |
+|---|---|
+| From | `noreply@invoicium.ca` — a real verified domain, not `onboarding@resend.dev` |
+| Subject | `Invoice #INV-505305 from That Guy — $580.00 due` |
+| Resend status | `delivered` |
+| Links in the body | exactly one |
+
+**§10's "rendered email body" box is ticked.** The rest of §10 is unchanged.
+
+### What is right
+
+- **One link, and it is the hosted page.** `View your invoice` →
+  `https://invoicium.ca/i/<token>`. No `checkout.stripe.com` URL anywhere, so
+  the 24-hour-expiring Checkout link is genuinely out of the email.
+- **A non-clicker has the facts.** Invoice number, billed-to, issue date, due
+  date, status, every line item with qty and rate, subtotal, tax and amount due
+  are all in the body text.
+- **The Phase A sentence is true.** "A PDF copy is attached for your records,
+  and you can view it online using the link below."
+- **The conditional CTA works.** It reads "View your invoice" rather than
+  "View & pay invoice" because the connected Stripe account is `restricted`, so
+  `canPayOnline` is false. That is the branch behaving correctly — and it is
+  also the visible cost of §8.4: the client currently has no way to pay from
+  the email.
+
+### 11.1 OPEN — the email asks for a reply it cannot receive
+
+The body says:
+
+> Questions about this invoice? Just reply to this email and we'll get back to
+> you.
+
+The message is sent **from `noreply@invoicium.ca` with no `Reply-To` header** —
+confirmed on the delivered message, `reply_to: null`. `_shared/resend.ts` does
+not accept or set one; its `sendEmail` takes only `to`, `subject`, `html` and
+`attachments`.
+
+So a client who does the thing the email tells them to do is writing to a
+noreply mailbox. Depending on how that address is configured they get a bounce
+or silence, and the contractor never learns the client had a question about an
+unpaid invoice.
+
+The contractor's own address is already in the payload as `sender_email` and is
+already rendered in the footer, so the fix is small: thread it through
+`sendEmail` as `reply_to`. Not done here — it was outside the two things asked
+for.
+
+---
+
+## 12. `sendQuoteSMS failed: Authenticate` — it is the credentials
+
+Diagnosed with `scripts/diagnose-twilio.py`. No SMS was sent; both checks are
+reads.
+
+`Authenticate` is Twilio's own message for HTTP 401 (`code 20003`), so the
+string means the credentials were rejected rather than that anything in our
+code misbehaved.
+
+Three possibilities, separated:
+
+| Check | Result |
+|---|---|
+| Do the DEPLOYED secrets match `.env`? | **Yes** — all three match |
+| Are the `.env` credentials valid at Twilio? | **No** — `HTTP 401 Authenticate`, code 20003 |
+| Does the account own the From number? | Not reachable; the account lookup fails first |
+
+The first check works without either side revealing a secret: the Supabase
+Management API returns each secret as a SHA-256 digest, so hashing the local
+value and comparing digests answers "same string?" exactly.
+
+The credentials are *well-formed* — SID is `AC` + 32 hex (34 chars), token is 32
+hex — so this is not a truncated paste or a wrong variable. A well-formed pair
+that Twilio rejects means the token was rotated, or the account is
+closed/suspended, or the SID and token do not belong to each other.
+
+**The code is not at fault.** `_shared/twilio.ts` builds
+`Basic base64(SID:TOKEN)` against
+`https://api.twilio.com/2010-04-01/Accounts/<SID>/Messages.json` with a
+form-encoded body — which is correct, and is the same helper the invoice SMS
+path uses, so **invoice SMS is dead for the same reason**.
+
+**This is a secret to replace, not a bug to fix.** Nothing further was done.
+Note that even once the credentials work, A2P 10DLC is still unregistered, so US
+carriers will filter link-bearing messages aggressively — SMS remains a
+convenience channel behind email, and nothing may depend on one arriving.
