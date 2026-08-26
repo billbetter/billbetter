@@ -92,7 +92,21 @@ Core for that reason. It does not exist.
 | Public booking page for clients | **ABSENT** | Page dies on an anon RLS read, and `createBooking` was a stub that invented a `booking_id` |
 | Priority support | n/a | Not software |
 
-### Enterprise — $199
+### Enterprise — $199 — RETIRED
+
+This tier no longer exists. The audit below is why it was cut: all three of its
+software differentiators were unimplemented, so what $199 bought over $99 was a
+transaction cap that was being written wrong and a fee that was not being
+applied.
+
+Existing rows alias to Professional and keep their stored allowance. The four
+flags it declared (`white_label`, `advanced_permissions`, `dedicated_support`,
+`api_access`) were deleted rather than left declared — per the rule below, a
+flag nothing reads is worse than no flag, because it reads as enforcement.
+
+**Recorded as unbuilt**, in case any of it is ever wanted: white-label branding,
+granular per-role permissions, and a public API with key issuance. None was ever
+started; there is no partial work to resume.
 
 | Claim | State | Evidence |
 |---|---|---|

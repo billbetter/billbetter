@@ -51,15 +51,29 @@ export const PLAN_LIMITS: Record<string, PlanLimits> = {
   core: { transactions: 30, fee: 1 },
   essential: { transactions: 100, fee: 1 },
   professional: { transactions: 300, fee: 0.75 },
-  enterprise: { transactions: 750, fee: 0.5 },
   // Negotiated per contract. The row carries the real values; these are only
   // what gets written if a custom subscription arrives with nothing set.
   custom: { transactions: -1, fee: 0.5 },
 };
 
-/** Legacy plan_name still present on old rows. */
+/**
+ * Legacy plan_name values still present on old rows.
+ *
+ * `enterprise` is here because that tier was retired -- its three software
+ * differentiators were all unimplemented. Aliasing rather than keeping a dead
+ * entry in PLAN_LIMITS is deliberate: check-plan-parity.cjs fails if this table
+ * knows about a tier the pricing ladder does not, and a stale tier sitting in
+ * here is exactly the drift that check exists to catch.
+ *
+ * An existing Enterprise row is not downgraded by this. stripe-webhook resolves
+ * a plan from the Stripe product name against PLAN_LIMITS keys, so an
+ * "Invoicium Enterprise" subscription now resolves to null, planChanged stays
+ * false, and nothing overwrites their stored allowance. On the client,
+ * getTransactionAllowance() takes max(plan, stored), so their 500 survives.
+ */
 const PLAN_ALIASES: Record<string, string> = {
   starter: "core",
+  enterprise: "professional",
 };
 
 /**

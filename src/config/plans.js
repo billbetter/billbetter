@@ -16,14 +16,27 @@
 //   Core          $24      30    $0.80   1%      One person, get paid online
 //   Essential     $49     100    $0.49   1%      Stop doing admin
 //   Professional  $99     300    $0.33   0.75%   Run a crew
-//   Enterprise    $199    750    $0.27   0.5%    Scale it, on your own brand
 //   Custom        --       --      --    0.5%-   Negotiated
 //
-// Price roughly doubles each step (2.04x / 2.02x / 2.01x) while the cost per
-// transaction falls monotonically, so upgrading always gets cheaper per unit
-// of work -- the upgrade argues for itself. The old ladder did not do this:
-// Professional -> Enterprise was +25% price for 2x transactions plus
-// white-label plus dedicated support, which made Professional unbuyable.
+// Price roughly doubles each step while the cost per transaction falls
+// monotonically, so upgrading always gets cheaper per unit of work -- the
+// upgrade argues for itself.
+//
+// -- Why Enterprise was retired -------------------------------------------
+//
+// It sold three software differentiators -- white-label, granular permissions
+// and API access -- and an audit found all three unimplemented (see
+// docs/feature-audit.md). What $199 actually bought over $99 was a higher
+// transaction cap, which was being written wrong, and a lower platform fee,
+// which was not being applied. There was nothing left to sell.
+//
+// Removed rather than fixed because a tier justified entirely by unbuilt
+// features is a tier we had no evidence anyone wanted, and there were zero
+// paying subscribers on it -- the cheapest this decision will ever be. Anyone
+// who genuinely needs white-label goes through Custom and talks to a human,
+// which is what we would want at that deal size anyway.
+//
+// Existing rows are aliased to Professional and keep their stored allowance.
 //
 // Price IDs belong to the Invoicium Stripe account (acct_1TdLSn...).
 
@@ -41,7 +54,6 @@
 //   1. In the Stripe dashboard create these recurring CAD Prices:
 //        Essential     $49/mo    $490/yr
 //        Professional  $99/mo    $990/yr
-//        Enterprise    $199/mo   $1990/yr
 //      (Core is unchanged at $24/$240. Yearly is 10x monthly = the "Save 17%"
 //      the Pricing page advertises.)
 //   2. Paste each id into `monthlyPriceId` / `yearlyPriceId` below.
@@ -57,7 +69,7 @@ import {
 } from "@/config/dormantFeatures";
 
 /** Order matters: it drives the hierarchy, the upgrade path and the card order. */
-export const PLAN_ORDER = ["core", "essential", "professional", "enterprise"];
+export const PLAN_ORDER = ["core", "essential", "professional"];
 
 export const PLANS = {
   core: {
@@ -113,7 +125,8 @@ export const PLANS = {
     transactions: 100,
     processingFee: 1,
     seats: 1,
-    popular: false,
+    // With three tiers you highlight the middle one.
+    popular: true,
     features: [
       "100 invoices or quotes/month",
       "Recurring invoices",
@@ -145,7 +158,7 @@ export const PLANS = {
     transactions: 300,
     processingFee: 0.75,
     seats: 5, // owner + 4 crew
-    popular: true,
+    popular: false,
     features: [
       "300 invoices or quotes/month",
       "0.75% platform fee (down from 1%)",
@@ -158,37 +171,8 @@ export const PLANS = {
       "Priority support",
       "Everything in Essential",
     ],
-    notIncluded: ["White-label", "Dedicated account manager"],
-  },
-
-  enterprise: {
-    id: "enterprise",
-    name: "Enterprise",
-    icon: "Crown",
-    description: "For multi-crew operations",
-    valueLine: "Your brand, your rules, our engine",
-    monthlyPrice: 199,
-    yearlyPrice: 1990,
-    monthlyPriceId: null, // TODO: create the $199/mo CAD Price, paste its id here
-    yearlyPriceId: null, // TODO: create the $1990/yr CAD Price, paste its id here
-    legacyMonthlyPrice: 99,
-    legacyYearlyPrice: 990,
-    legacyMonthlyPriceId: "price_1U60o6LvDc7eLOdrgUBd793l",
-    legacyYearlyPriceId: "price_1U60o7LvDc7eLOdrlrzvmXhb",
-    transactions: 750,
-    processingFee: 0.5,
-    seats: 20,
-    popular: false,
-    features: [
-      "750 invoices or quotes/month",
-      "0.5% platform fee (half of Core)",
-      "White-label - no Invoicium branding anywhere",
-      "Up to 19 crew members on your account",
-      "Advanced granular permissions",
-      "API access",
-      "Dedicated account manager",
-      "Everything in Professional",
-    ],
+    // Nothing above Professional but Custom, which is negotiated rather than
+    // listed, so there is no "you do not get" to show here.
     notIncluded: [],
   },
 
@@ -281,6 +265,15 @@ const norm = (planId) => String(planId || "").toLowerCase();
 /** Legacy plan_name values still present on old subscription rows. */
 const PLAN_ALIASES = {
   starter: "core",
+  // Enterprise was retired: its three software differentiators (white-label,
+  // granular permissions, API access) were all unimplemented, so the tier sold
+  // nothing over Professional but a transaction cap and a lower fee. Anyone
+  // genuinely needing white-label goes through Custom and talks to a human.
+  //
+  // Existing rows keep working. getTransactionAllowance() takes
+  // max(plan, stored), so a row storing 500 keeps 500 rather than dropping to
+  // Professional's 300 -- capacity already granted is never taken away.
+  enterprise: "professional",
   basic: "core",
   pro: "professional",
   business: "professional",

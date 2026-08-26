@@ -7,19 +7,24 @@
 // that actually decides, because it is the one holding the service role.
 //
 // Keep the two in step. If they ever drift, this file wins.
+//
+// That is no longer left to goodwill: check-plan-parity.cjs compares this table
+// against config/plans.js and fails the build if they disagree. Two other
+// copies of plan data drifted while carrying a comment just like this one, and
+// the result was live accounts charged double the advertised fee.
 
 const SEATS: Record<string, number> = {
   core: 1,
   starter: 1, // legacy alias
   essential: 1,
   professional: 5,
-  enterprise: 20,
   custom: -1, // negotiated; -1 means unlimited
   trial: 3, // enough to demo the feature, not to run a business on
 };
 
 const ALIASES: Record<string, string> = {
   starter: 'core',
+  enterprise: 'professional', // tier retired; see config/plans.js
   basic: 'core',
   pro: 'professional',
   business: 'professional',

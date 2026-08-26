@@ -924,8 +924,9 @@ export default function Home() {
               </div>
             </FadeIn>
 
-            {/* Desktop 5-col */}
-            <div className="hidden lg:grid lg:grid-cols-5 gap-4 items-start">
+            {/* Desktop: one column per plan. listPlans() is PLAN_ORDER + custom,
+                so this tracks the ladder -- it was 5 when Enterprise existed. */}
+            <div className="hidden lg:grid lg:grid-cols-4 gap-4 items-start">
               {pricingPlans.map((plan, i) => (
                 <FadeIn key={i} delay={i * 60}>
                   <div

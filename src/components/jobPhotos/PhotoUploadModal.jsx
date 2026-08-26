@@ -26,7 +26,6 @@ import {
   MapPin,
   Check,
   AlertCircle,
-  Crown,
 } from "lucide-react";
 
 export default function PhotoUploadModal({
@@ -97,7 +96,12 @@ export default function PhotoUploadModal({
     }
   };
 
-  const isEnterprise = subscription?.plan_name === "enterprise";
+  // Camera and GPS used to be gated behind `plan_name === "enterprise"` -- a
+  // hardcoded plan name, which the whole point of FEATURE_MINIMUM_PLAN is to
+  // avoid, and wrong on its own terms: taking before/after photos is the base
+  // job-tracking use case and `jobs` sits on Core. With Enterprise retired the
+  // comparison is now false for every user alive, so it would have blocked the
+  // camera for everyone. Removed rather than repointed.
 
   const handleFileSelect = (e) => {
     const selectedFiles = Array.from(e.target.files);
@@ -225,17 +229,6 @@ export default function PhotoUploadModal({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Enterprise Feature Badge */}
-          {!isEnterprise && (
-            <Alert className="border-warning-200 bg-warning-50 dark:border-warning-800/50 dark:bg-warning-900/20">
-              <Crown className="w-4 h-4 text-warning-600" />
-              <AlertDescription className="text-warning-800 text-sm">
-                Camera and GPS features require an Enterprise plan. Upload
-                photos from your gallery instead.
-              </AlertDescription>
-            </Alert>
-          )}
-
           {/* File Selection */}
           <div>
             <Label>Select Photos</Label>
@@ -244,24 +237,16 @@ export default function PhotoUploadModal({
                 type="button"
                 variant="outline"
                 onClick={() => {
-                  if (isEnterprise) {
-                    if (cameraPermission === "granted") {
-                      cameraInputRef.current?.click();
-                    } else {
-                      requestCameraPermission();
-                    }
+                  if (cameraPermission === "granted") {
+                    cameraInputRef.current?.click();
                   } else {
-                    alert("Camera access requires Enterprise plan");
+                    requestCameraPermission();
                   }
                 }}
                 className="w-full"
-                disabled={!isEnterprise}
               >
                 <Camera className="w-4 h-4 mr-2" />
                 Take Photo
-                {!isEnterprise && (
-                  <Crown className="w-3 h-3 ml-1 text-warning-500" />
-                )}
               </Button>
               <Button
                 type="button"
@@ -281,7 +266,6 @@ export default function PhotoUploadModal({
               multiple
               onChange={handleFileSelect}
               className="hidden"
-              disabled={!isEnterprise}
             />
             <input
               ref={fileInputRef}
@@ -294,8 +278,7 @@ export default function PhotoUploadModal({
           </div>
 
           {/* Permission Status */}
-          {isEnterprise &&
-            (cameraPermission === "denied" ||
+          {(cameraPermission === "denied" ||
               locationPermission === "denied") && (
               <Alert className="border-danger-200 bg-danger-50 dark:border-danger-800/50 dark:bg-danger-900/20">
                 <AlertCircle className="w-4 h-4 text-danger-600" />
@@ -376,19 +359,14 @@ export default function PhotoUploadModal({
           <div>
             <Label className="flex items-center gap-2">
               Location (GPS)
-              {!isEnterprise && <Crown className="w-3 h-3 text-warning-500" />}
             </Label>
             <Button
               type="button"
               variant="outline"
-              onClick={() => {
-                if (isEnterprise) {
-                  requestLocationPermission();
-                } else {
-                  alert("GPS location tracking requires Enterprise plan");
-                }
-              }}
-              disabled={!isEnterprise || locationLoading || location}
+              onClick={requestLocationPermission}
+              // `location` is an object, so passing it raw made this
+              // permanently disabled once set rather than after one capture.
+              disabled={locationLoading || Boolean(location)}
               className="w-full"
             >
               {locationLoading ? (
@@ -404,7 +382,7 @@ export default function PhotoUploadModal({
               ) : (
                 <>
                   <MapPin className="w-4 h-4 mr-2" />
-                  Add GPS Location {!isEnterprise && "(Enterprise)"}
+                  Add GPS Location
                 </>
               )}
             </Button>

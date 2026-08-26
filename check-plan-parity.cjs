@@ -31,8 +31,9 @@ const fs = require("fs");
 
 const PLANS_JS = "src/config/plans.js";
 const LIMITS_TS = "supabase/functions/_shared/plan-limits.ts";
+const SEATS_TS = "supabase/functions/_shared/seats.ts";
 
-/** Every plan id -> { transactions, fee } from src/config/plans.js. */
+/** Every plan id -> { transactions, fee, seats } from src/config/plans.js. */
 function readPlansJs() {
   const src = fs.readFileSync(PLANS_JS, "utf8");
   const start = src.indexOf("export const PLANS = {");
@@ -48,8 +49,13 @@ function readPlansJs() {
     const block = src.slice(from, to);
     const txn = block.match(/\btransactions:\s*(-?\d+)/);
     const fee = block.match(/\bprocessingFee:\s*([\d.]+)/);
+    const seat = block.match(/\bseats:\s*(-?\d+)/);
     if (txn && fee) {
-      out[ids[i][1]] = { transactions: Number(txn[1]), fee: Number(fee[1]) };
+      out[ids[i][1]] = {
+        transactions: Number(txn[1]),
+        fee: Number(fee[1]),
+        seats: seat ? Number(seat[1]) : undefined,
+      };
     }
   }
   return out;
@@ -70,8 +76,20 @@ function readLimitsTs() {
   return out;
 }
 
+/** Every plan id -> seat count from the Deno seats table. */
+function readSeatsTs() {
+  const src = fs.readFileSync(SEATS_TS, "utf8");
+  const start = src.indexOf("const SEATS");
+  if (start === -1) throw new Error(`Could not find SEATS in ${SEATS_TS}`);
+  const body = src.slice(start, src.indexOf("};", start));
+  const out = {};
+  for (const m of body.matchAll(/(\w+):\s*(-?\d+)/g)) out[m[1]] = Number(m[2]);
+  return out;
+}
+
 const plans = readPlansJs();
 const limits = readLimitsTs();
+const seats = readSeatsTs();
 
 const problems = [];
 
@@ -104,6 +122,26 @@ for (const id of Object.keys(limits)) {
   }
 }
 
+// Seats are a third copy of plan data, in _shared/seats.ts, and it carried the
+// same "keep them in step" comment the drifted tables did.
+for (const [id, p] of Object.entries(plans)) {
+  if (seats[id] === undefined) {
+    problems.push(`"${id}" is in ${PLANS_JS} but missing from ${SEATS_TS}`);
+  } else if (seats[id] !== p.seats) {
+    problems.push(
+      `"${id}" seats disagree: ${PLANS_JS} says ${p.seats}, ` +
+        `${SEATS_TS} says ${seats[id]}`,
+    );
+  }
+}
+// `trial` and the legacy aliases live only on the Deno side by design.
+const SEATS_ONLY = new Set(["trial", "starter", "free"]);
+for (const id of Object.keys(seats)) {
+  if (!plans[id] && !SEATS_ONLY.has(id)) {
+    problems.push(`"${id}" is in ${SEATS_TS} but not in ${PLANS_JS}`);
+  }
+}
+
 const count = Object.keys(plans).length;
 if (problems.length) {
   console.error(`Plan tables disagree (${count} plans checked):\n`);
@@ -115,5 +153,5 @@ if (problems.length) {
   process.exit(1);
 }
 console.log(
-  `Plan parity OK: ${count} plans agree between plans.js and plan-limits.ts.`,
+  `Plan parity OK: ${count} plans agree across plans.js, plan-limits.ts and seats.ts.`,
 );

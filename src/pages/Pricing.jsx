@@ -308,7 +308,9 @@ export default function Pricing() {
           </div>
 
           {/* Pricing Cards */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 sm:gap-6 pt-3">
+          {/* 4 cards (3 tiers + Custom). Three columns would leave Custom
+              stranded alone on a second row. */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5 sm:gap-6 pt-3">
             {plans.map((plan) => {
               const isCurrentPlan =
                 currentSubscription?.plan_name === plan.id &&
@@ -554,7 +556,7 @@ export default function Pricing() {
                 },
                 {
                   q: "How do I know which plan I need?",
-                  a: "Count the invoices and quotes you send in a typical month. Core covers 30, Essential 100, Professional 300, Enterprise 750. If you're on the boundary, start lower — upgrading takes effect immediately and the cost per transaction drops every time you move up.",
+                  a: "Count the invoices and quotes you send in a typical month. Core covers 30, Essential 100, Professional 300. If you're on the boundary, start lower — upgrading takes effect immediately and the cost per transaction drops every time you move up.",
                 },
                 {
                   q: "Can I change plans at any time?",
@@ -566,7 +568,7 @@ export default function Pricing() {
                 },
                 {
                   q: "What's the platform fee?",
-                  a: `When a client pays you through Stripe we take a small platform fee on top of Stripe's own processing (${STRIPE_PROCESSING} per transaction). That fee is 1% on Core and Essential, 0.75% on Professional and 0.5% on Enterprise — so the more you process, the less we take.`,
+                  a: `When a client pays you through Stripe we take a small platform fee on top of Stripe's own processing (${STRIPE_PROCESSING} per transaction). That fee is 1% on Core and Essential and 0.75% on Professional — so the more you process, the less we take.`,
                 },
                 {
                   q: "Is there a setup fee or hidden costs?",

@@ -1,8 +1,9 @@
 /**
  * Plan-based feature access control.
  *
- * 4-tier model: core -> essential -> professional -> enterprise, plus a
- * negotiated `custom` tier above and a `trial` pseudo-plan alongside.
+ * 3-tier model: core -> essential -> professional, plus a negotiated `custom`
+ * tier above and a `trial` pseudo-plan alongside. Enterprise was retired --
+ * see config/plans.js for why.
  *
  * There is no free tier. Reaching any of this already requires a live
  * subscription (RLS + the Layout gate), so these functions differentiate
@@ -22,6 +23,13 @@
  * and the per-plan tables are generated from that. A feature cannot be on at
  * one tier and off at a higher one, and getMinimumPlanForFeature is exact by
  * construction rather than by a hopeful scan.
+ *
+ * A LATER AUDIT FOUND THAT REWRITE INCOMPLETE, and the lesson is worth keeping:
+ * it corrected the table's VALUES and never checked whether anything READ them.
+ * 24 of 35 keys turned out to be referenced nowhere, Enterprise's four
+ * included -- so the tier whose bug prompted this rewrite was still entirely
+ * unenforced afterwards. A correct declaration is not enforcement. Verify the
+ * read, not the declaration.
  *
  * Prices, transaction limits and processing fees come from config/plans.js.
  * That file must never import this one.
@@ -46,8 +54,8 @@ import { isFeatureDormant } from "@/config/dormantFeatures";
  *                                     and your own logo on the PDF.
  *   professional "Run a crew."        People, permissions, custom templates,
  *                                     material pricing, AI insights.
- *   enterprise   "Scale it."          White-label, API, granular permissions,
- *                                     a human who knows your name.
+ *
+ * Enterprise was retired -- see config/plans.js.
  */
 export const FEATURE_MINIMUM_PLAN = {
   // -- Core: the things that make it worth paying for at all ---------------
@@ -104,11 +112,18 @@ export const FEATURE_MINIMUM_PLAN = {
   material_assistant: "professional",
   price_comparison: "professional",
 
-  // -- Enterprise: the tier that finally means something --------------------
-  white_label: "enterprise",
-  advanced_permissions: "enterprise",
-  dedicated_support: "enterprise",
-  api_access: "enterprise",
+  // -- Enterprise was retired ----------------------------------------------
+  //
+  // white_label, advanced_permissions, dedicated_support and api_access were
+  // declared here and read by NOTHING -- not one call site in src/. They
+  // described the tier's entire value proposition and none of them existed.
+  //
+  // Deleted rather than left declared, because a flag nothing reads is worse
+  // than no flag: it reads as enforcement. This file's own docblock above
+  // describes fixing exactly that bug for Enterprise, and the fix corrected the
+  // VALUES without ever checking whether anything consumed them. See
+  // docs/feature-audit.md -- a feature flag is not enforcement until a call
+  // site reads it.
 };
 
 /** The lowest plan that may touch each entity. */
@@ -324,19 +339,23 @@ export function getUpgradeMessage(featureName) {
     sms_sending: "SMS Notifications",
     client_reviews: "Client Reviews",
     public_booking: "Public Booking Page",
-    white_label: "White-label Branding",
-    advanced_permissions: "Advanced Permissions",
-    dedicated_support: "Dedicated Support",
-    api_access: "API Access",
     automations: "Automated Follow-ups",
   };
   return featureMessages[featureName] || "This feature";
 }
 
-/** The cheapest plan that includes a feature, by display name. */
+/**
+ * The cheapest plan that includes a feature, by display name.
+ *
+ * Falls back to the TOP named tier rather than a hardcoded string. It used to
+ * return "Enterprise", which quietly became a lie the moment that tier was
+ * retired -- an unknown feature key would have sent someone to a plan that no
+ * longer exists.
+ */
 export function getMinimumPlanForFeature(featureName) {
   const planId = FEATURE_MINIMUM_PLAN[featureName];
-  return PLANS[planId]?.name || "Enterprise";
+  const topTier = PLAN_ORDER[PLAN_ORDER.length - 1];
+  return PLANS[planId]?.name || PLANS[topTier]?.name || "Custom";
 }
 
 /** The next plan up from the user's current one, by display name. */

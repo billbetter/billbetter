@@ -236,8 +236,9 @@ Deno.serve(async (req) => {
     // -1 means UNLIMITED (custom), so it sorts highest, not lowest -- otherwise
     // a move onto a negotiated Custom plan is announced as a downgrade.
     const rank = (id?: string | null) => {
-      if (!id || !PLAN_LIMITS[id]) return -1;
-      const t = PLAN_LIMITS[id].transactions;
+      if (!id) return -1;
+      // limitsForPlan, not a raw lookup -- see the note in stripe-webhook.
+      const t = limitsForPlan(id).transactions;
       return t === -1 ? Number.POSITIVE_INFINITY : t;
     };
 

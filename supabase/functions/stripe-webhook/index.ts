@@ -321,8 +321,11 @@ Deno.serve(async (req) => {
           // lowest -- otherwise moving a customer onto a negotiated Custom plan
           // would be announced to them as a downgrade.
           const rank = (id?: string | null) => {
-            if (!id || !PLAN_LIMITS[id]) return -1;
-            const t = PLAN_LIMITS[id].transactions;
+            if (!id) return -1;
+            // limitsForPlan, not a raw lookup: a legacy name like `enterprise`
+            // must rank as what it aliases to, or a retired tier ranks as
+            // unknown and every move off it is announced as an upgrade.
+            const t = limitsForPlan(id).transactions;
             return t === -1 ? Number.POSITIVE_INFINITY : t;
           };
           const contact = row.user_id ? await getUserContact(row.user_id) : null;
