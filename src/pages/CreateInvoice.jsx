@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { InvokeLLM } from "@/integrations/Core";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { getTransactionAllowance } from "@/components/utils/permissions";
 import { sdk } from "@/api/sdk";
 import { markTimeEntriesInvoiced } from "@/lib/timeTracking";
 import { generateInvoicePDF } from "@/functions/generateInvoicePDF";
@@ -902,7 +903,13 @@ Provide line items in this format.`,
     if (!subscription || !user) return true;
 
     const transactionsUsed = subscription.transactions_used_this_month || 0;
-    const limit = subscription.monthly_transaction_limit || 0;
+    // NOT subscription.monthly_transaction_limit. That column is written by the
+    // Stripe webhook at checkout and goes stale whenever the ladder is
+    // rebalanced -- it currently reads 500 on Enterprise rows that are sold 750,
+    // so reading it raw caps paying users below what they bought.
+    // getTransactionAllowance() resolves from plan_name and never returns less
+    // than the stored value.
+    const limit = getTransactionAllowance(subscription);
 
     if (limit === -1) return true;
 
@@ -933,7 +940,7 @@ Provide line items in this format.`,
         delivery_method: "download",
       });
 
-      if (subscription && subscription.monthly_transaction_limit !== -1) {
+      if (subscription && getTransactionAllowance(subscription) !== -1) {
         const currentUsed = subscription.transactions_used_this_month || 0;
         const newTransactionsUsed = currentUsed + 0.5;
         const newInvoicesUsed =
@@ -1089,7 +1096,7 @@ Provide line items in this format.`,
       if (
         !editId &&
         subscription &&
-        subscription.monthly_transaction_limit !== -1
+        getTransactionAllowance(subscription) !== -1
       ) {
         const currentUsed = subscription.transactions_used_this_month || 0;
         const newTransactionsUsed = currentUsed + 1;
@@ -1382,7 +1389,7 @@ Provide line items in this format.`,
                   </strong>{" "}
                   of{" "}
                   <strong className="text-content dark:text-ink-50">
-                    {subscription?.monthly_transaction_limit || 0}
+                    {getTransactionAllowance(subscription)}
                   </strong>{" "}
                   transactions this month.
                 </p>

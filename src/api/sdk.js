@@ -521,9 +521,10 @@ async function handleFunctionInvoke(name, payload = {}) {
     return notImplemented(name);
   }
 
-  // fixSubscriptionLimits backs a Settings repair button that repairs nothing;
-  // getTransactionAllowance() already takes max(plan, stored).
-  if (name === "purchaseInvoicePack" || name === "fixSubscriptionLimits") {
+  // fixSubscriptionLimits was removed with its Settings button -- the limits
+  // were wrong at the source (stripe-webhook's stale table), not missing, so
+  // there was nothing for it to repair.
+  if (name === "purchaseInvoicePack") {
     return notImplemented(name);
   }
 

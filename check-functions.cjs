@@ -48,7 +48,6 @@ const KNOWN_STUBS = new Set([
   "createBooking",
   "createCheckoutSession",
   "exportQuotesToExcel",
-  "fixSubscriptionLimits",
   "getAvailableSlots",
   "getBillingHistory",
   "getInvoiceBySession",

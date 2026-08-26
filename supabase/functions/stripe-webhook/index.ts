@@ -2,20 +2,18 @@ import { getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserContact } from '../_shared/supabase-admin.ts';
 import { notify } from '../_shared/notify.ts';
 import { connectAccountStatus, stripeGet } from '../_shared/stripe.ts';
+import { PLAN_LIMITS, limitsForPlan } from '../_shared/plan-limits.ts';
 
-// Mirrors PLAN_LIMITS in confirm-and-activate. A cancelled subscription drops
-// the user back to the free tier rather than leaving paid limits in place.
-const FREE_TIER = { plan_name: 'free', monthly_transaction_limit: 10, payment_processing_fee: 0 };
-
-// Mirrors PLAN_LIMITS in confirm-and-activate; ordered by transaction
-// allowance, which is the only ranking the plans carry.
-const PLAN_LIMITS: Record<string, { transactions: number; fee: number }> = {
-  free:         { transactions: 10,  fee: 0 },
-  core:         { transactions: 30,  fee: 1 },
-  essential:    { transactions: 75,  fee: 1 },
-  professional: { transactions: 250, fee: 1 },
-  enterprise:   { transactions: 500, fee: 1 },
+// A cancelled subscription drops the user back to the free tier rather than
+// leaving paid limits in place. Derived from the shared table rather than
+// restating the numbers -- restating them is what put this file out of step
+// with the pricing page in the first place.
+const FREE_TIER = {
+  plan_name: 'free',
+  monthly_transaction_limit: PLAN_LIMITS.free.transactions,
+  payment_processing_fee: PLAN_LIMITS.free.fee,
 };
+
 
 /**
  * Which plan a Stripe subscription is now on.
@@ -310,7 +308,7 @@ Deno.serve(async (req) => {
           !!newPlan && !!row.plan_name && newPlan !== row.plan_name && stripeStatus === 'active';
 
         if (planChanged) {
-          const limits = PLAN_LIMITS[newPlan] || PLAN_LIMITS.free;
+          const limits = limitsForPlan(newPlan);
           await db.update('Subscription', row.id, {
             plan_name: newPlan,
             monthly_transaction_limit: limits.transactions,
@@ -318,8 +316,15 @@ Deno.serve(async (req) => {
           });
 
           const pretty = (id: string) => id.charAt(0).toUpperCase() + id.slice(1);
-          const rank = (id?: string | null) =>
-            id && PLAN_LIMITS[id] ? PLAN_LIMITS[id].transactions : -1;
+          // Ranked by transaction allowance, the only ordering the plans carry.
+          // -1 means UNLIMITED (custom), so it has to sort highest rather than
+          // lowest -- otherwise moving a customer onto a negotiated Custom plan
+          // would be announced to them as a downgrade.
+          const rank = (id?: string | null) => {
+            if (!id || !PLAN_LIMITS[id]) return -1;
+            const t = PLAN_LIMITS[id].transactions;
+            return t === -1 ? Number.POSITIVE_INFINITY : t;
+          };
           const contact = row.user_id ? await getUserContact(row.user_id) : null;
 
           await notify.subscriptionChanged({

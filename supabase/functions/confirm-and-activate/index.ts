@@ -2,14 +2,8 @@ import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 import { notify } from '../_shared/notify.ts';
 import { stripeGet, stripePost, stripeDelete } from '../_shared/stripe.ts';
+import { PLAN_LIMITS, limitsForPlan } from '../_shared/plan-limits.ts';
 
-const PLAN_LIMITS: Record<string, { transactions: number; fee: number }> = {
-  free:         { transactions: 10,  fee: 0 },
-  core:         { transactions: 30,  fee: 1 },
-  essential:    { transactions: 75,  fee: 1 },
-  professional: { transactions: 250, fee: 1 },
-  enterprise:   { transactions: 500, fee: 1 },
-};
 
 // The paid invoice behind a subscription, whichever API shape it arrives in.
 //
@@ -184,7 +178,7 @@ Deno.serve(async (req) => {
     const planName = session.metadata?.plan_name || 'core';
     const billingCycle = session.metadata?.billing_cycle || 'monthly';
     const isTrial = subscription.status === 'trialing' || session.metadata?.is_trial === 'true';
-    const limits = PLAN_LIMITS[planName] || PLAN_LIMITS.core;
+    const limits = limitsForPlan(planName);
 
     const now = new Date().toISOString();
     // Prefer Stripe's own trial_end; the +7d fallback only covers the hosted
@@ -239,8 +233,13 @@ Deno.serve(async (req) => {
 
     // Upgrade vs downgrade is decided by the transaction allowance, which is
     // the only ordering the plans actually carry.
-    const rank = (id?: string | null) =>
-      id && PLAN_LIMITS[id] ? PLAN_LIMITS[id].transactions : -1;
+    // -1 means UNLIMITED (custom), so it sorts highest, not lowest -- otherwise
+    // a move onto a negotiated Custom plan is announced as a downgrade.
+    const rank = (id?: string | null) => {
+      if (!id || !PLAN_LIMITS[id]) return -1;
+      const t = PLAN_LIMITS[id].transactions;
+      return t === -1 ? Number.POSITIVE_INFINITY : t;
+    };
 
     // Awaited but never throws (see notify.ts), so it cannot fail activation.
     //

@@ -213,11 +213,20 @@ works and simply is not gated. But it means **the plan ladder is largely
 unenforced**: a Core subscriber who reaches a Professional screen is usually
 stopped by nothing.
 
-The irony worth recording: `permissions.jsx` was rewritten *because* of this
-exact failure. Its docblock says Enterprise's flags "were sold on the pricing
-page and enforced nowhere." The table is now correct — and all four Enterprise
-keys are still read by nothing. The bug moved from wrong values to correct values
-nobody consults.
+### The rule
+
+> **A feature flag is not enforcement until a call site reads it — verify the
+> read, not the declaration.**
+
+`permissions.jsx` was rewritten *because* of this exact failure. Its docblock
+says Enterprise's flags "were sold on the pricing page and enforced nowhere."
+The values were corrected; nothing was checked for whether anything read the new
+table. All four Enterprise keys are still read by nothing.
+
+The rewrite made an unenforced table tidier and called it a fix. That is a
+sharper trap than the original bug, because the table now *looks* authoritative
+— it is well-organised, single-source, and documented, and it still governs
+nothing. A correct declaration reads as done.
 
 ---
 

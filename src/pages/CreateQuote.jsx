@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { getTransactionAllowance } from "@/components/utils/permissions";
 import { sdk } from "@/api/sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -510,7 +511,10 @@ export default function CreateQuote() {
     if (!subscription || !user) return true;
 
     const transactionsUsed = subscription.transactions_used_this_month || 0;
-    const limit = subscription.monthly_transaction_limit || 0;
+    // NOT the stored monthly_transaction_limit column -- it is written at
+    // checkout and goes stale when the ladder is rebalanced, capping paying
+    // users below what they bought. See CreateInvoice for the same note.
+    const limit = getTransactionAllowance(subscription);
     const additionalAvailable = subscription.additional_invoices_remaining || 0;
     const totalAvailable = limit + additionalAvailable;
 
@@ -704,9 +708,9 @@ Provide line items in this format.`,
       if (
         !editMode &&
         subscription &&
-        subscription.monthly_transaction_limit !== -1
+        getTransactionAllowance(subscription) !== -1
       ) {
-        const baseLimit = subscription.monthly_transaction_limit || 0;
+        const baseLimit = getTransactionAllowance(subscription);
         const additionalRemaining =
           subscription.additional_invoices_remaining || 0;
         const currentUsed = subscription.transactions_used_this_month || 0;

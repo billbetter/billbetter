@@ -9,7 +9,8 @@
     "lint": "eslint . --quiet",
     "check:functions": "node check-functions.cjs",
     "check:imports": "node check-imports.cjs",
-    "check": "npm run check:functions && npm run check:imports && npm run lint",
+    "check:plans": "node check-plan-parity.cjs",
+    "check": "npm run check:functions && npm run check:imports && npm run check:plans",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"

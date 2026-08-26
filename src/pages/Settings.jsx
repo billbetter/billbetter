@@ -1226,74 +1226,28 @@ export default function Settings() {
                           </CardContent>
                         </Card>
 
-                        {/* Warning if limits not set */}
-                        {(subscription.monthly_transaction_limit ===
-                          undefined ||
-                          subscription.monthly_transaction_limit === null) && (
-                          <Card className="border-2 border-danger-300 dark:border-danger-800 bg-danger-50 dark:bg-danger-900/20">
-                            <CardContent className="p-4 flex items-center gap-3">
-                              <Info className="w-5 h-5 text-danger-600 dark:text-danger-400 flex-shrink-0" />
-                              <div className="flex-1">
-                                <p className="text-sm font-semibold text-danger-900 dark:text-danger-200">
-                                  Subscription Limits Not Configured
-                                </p>
-                                <p className="text-xs text-danger-800 dark:text-danger-300">
-                                  Your subscription is missing important
-                                  configuration data. Click the button below to
-                                  automatically fix this.
-                                </p>
-                              </div>
-                              <Button
-                                onClick={async () => {
-                                  try {
-                                    setLoading(true);
-                                    const response = await sdk.functions.invoke(
-                                      "fixSubscriptionLimits",
-                                    );
-                                    console.log("Fix response:", response);
+                        {/*
+                          The "Subscription Limits Not Configured / Auto-Fix Now"
+                          card lived here. Removed, not repaired.
 
-                                    if (response.data?.success) {
-                                      setSaveMessage(
-                                        `Fixed ${response.data.fixed} subscription(s) successfully!`,
-                                      );
-                                      setTimeout(
-                                        () => setSaveMessage(null),
-                                        3000,
-                                      );
-                                      await loadSettings(); // Reload to show updated data
-                                    } else {
-                                      throw new Error(
-                                        response.data?.error || "Fix failed",
-                                      );
-                                    }
-                                  } catch (error) {
-                                    console.error("Fix error:", error);
-                                    setSaveMessage(
-                                      "Failed to fix subscription. Please try switching plans instead.",
-                                    );
-                                    setTimeout(
-                                      () => setSaveMessage(null),
-                                      5000,
-                                    );
-                                  } finally {
-                                    setLoading(false);
-                                  }
-                                }}
-                                className="bg-danger-600 hover:bg-danger-700 dark:bg-danger-700 dark:hover:bg-danger-600 whitespace-nowrap"
-                                disabled={loading}
-                              >
-                                {loading ? (
-                                  <>
-                                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                                    Fixing...
-                                  </>
-                                ) : (
-                                  "Auto-Fix Now"
-                                )}
-                              </Button>
-                            </CardContent>
-                          </Card>
-                        )}
+                          It called fixSubscriptionLimits, which was a
+                          client-side stub returning success:true -- so the
+                          button reported "Fixed 1 subscription(s) successfully!"
+                          having done nothing.
+
+                          It was also aimed at the wrong problem. The limits are
+                          not missing; they are WRONG, because stripe-webhook and
+                          confirm-and-activate wrote a stale table (essential 75
+                          vs 100, professional 250/1%% vs 300/0.75%%, enterprise
+                          500/1%% vs 750/0.5%%). Both now derive from
+                          _shared/plan-limits.ts, and check-plan-parity.cjs fails
+                          the build if that drifts from config/plans.js.
+
+                          Reads go through getTransactionAllowance(), which
+                          resolves from plan_name and never returns less than the
+                          stored value, so a stale row cannot cap a paying user.
+                          There is nothing left for a repair button to repair.
+                        */}
 
                         {/* Change Plan Button */}
                         <div className="flex justify-center">
