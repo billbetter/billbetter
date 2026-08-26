@@ -1,4 +1,5 @@
 import json
+import sys
 import urllib.request
 import urllib.error
 import os
@@ -41,6 +42,18 @@ FUNCTIONS = [
     ('stripe-connect-onboard', True),
     ('stripe-connect-status', True),
     ('confirm-and-activate', True),
+    ('accept-crew-invite', True),
+    ('invoke-llm', True),
+
+    # Public document surface. verify_jwt stays True and is NOT the access
+    # control here: sdk.functions.invoke sends the anon key, which is itself a
+    # valid JWT, so every anonymous visitor passes it. The public_token is the
+    # only real credential -- see supabase/functions/_shared/public-link.ts.
+    # verify_jwt is kept on anyway because it costs nothing and turns away
+    # traffic that is not even pretending to be our app.
+    ('approve-quote', True),
+    ('get-public-invoice', True),
+    ('pay-public-invoice', True),
 
     # Called by an external service, so no user JWT is available.
     ('stripe-customer-portal', True),
@@ -164,12 +177,52 @@ def deploy_function(slug, verify_jwt):
         return False
 
 
+def check_for_drift():
+    """Fail if a function directory exists but is not listed above.
+
+    This list had silently drifted: approve-quote, invoke-llm and
+    accept-crew-invite all had source on disk and were live on the project, but
+    none was in FUNCTIONS -- so running this script would not have redeployed
+    them, and a change to _shared/ would have been picked up by every other
+    function and not by those three. Nothing would have failed; the three would
+    just have quietly stayed on an older bundle.
+    """
+    on_disk = {
+        d for d in os.listdir(FUNCTIONS_DIR)
+        if d != '_shared' and os.path.isfile(os.path.join(FUNCTIONS_DIR, d, 'index.ts'))
+    }
+    listed = {slug for slug, _ in FUNCTIONS}
+    missing = sorted(on_disk - listed)
+    if missing:
+        print('ERROR: function source exists but is not in FUNCTIONS, so it would')
+        print('       never be deployed by this script:')
+        for slug in missing:
+            print(f'         {slug}')
+        sys.exit(1)
+    stale = sorted(listed - on_disk)
+    if stale:
+        print('ERROR: FUNCTIONS lists slugs with no source on disk:')
+        for slug in stale:
+            print(f'         {slug}')
+        sys.exit(1)
+
+
 def main():
-    print(f'Deploying Edge Functions to project {PROJECT_REF}...')
-    for slug, verify_jwt in FUNCTIONS:
+    check_for_drift()
+    only = [a for a in sys.argv[1:] if not a.startswith('-')]
+    targets = [(s, v) for s, v in FUNCTIONS if not only or s in only]
+    if only and not targets:
+        sys.exit(f'No such function: {", ".join(only)}')
+    print(f'Deploying {len(targets)} Edge Function(s) to project {PROJECT_REF}...')
+    ok = True
+    for slug, verify_jwt in targets:
         print(f'Deploying {slug}...')
-        deploy_function(slug, verify_jwt)
+        if not deploy_function(slug, verify_jwt):
+            ok = False
     print('Done.')
+    # A failed upload used to print FAILED and exit 0, so a broken deploy looked
+    # like a successful one to anything scripting this.
+    sys.exit(0 if ok else 1)
 
 
 if __name__ == '__main__':

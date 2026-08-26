@@ -354,3 +354,138 @@ Stated so the gaps are visible rather than implied:
   inherits §1
 - Transaction-limit enforcement is client-side only; a determined user could
   bypass it via the anon key. Not audited as a security matter here
+
+---
+
+## 8. Found while building the public document surface
+
+Recorded here rather than acted on, per the rule that a bug found mid-task gets
+written down and does not reprioritise the task. Two of these were fixed in
+passing because the work could not proceed around them; the rest are open.
+
+### 8.1 FIXED — a bundle that fails to boot deploys as "OK"
+
+The worst of the batch, because it is silent.
+
+`scripts/deploy-functions.py` does not bundle with a module system. It
+CONCATENATES each `_shared` file into the entry file's top-level scope and
+strips the import lines. So two files that each declare `const APP_URL` produce
+two `const APP_URL` declarations in one scope — a SyntaxError, and the function
+never starts.
+
+That is exactly what happened when `send-invoice-email` and `send-invoice-sms`
+began importing `_shared/stripe-session.ts`. Both went to 503 `BOOT_ERROR` in
+production. **The deploy script printed `OK` for both**, because the upload
+succeeded and nothing in the pipeline distinguishes a function that deployed
+from one that runs.
+
+Fixed two ways: the value now lives once in `_shared/app-url.ts`, which makes
+the collision impossible rather than merely absent; and
+`scripts/test-function-boots.py` now calls every function and asserts it answers
+with its OWN response (a 404 for a bogus token, a 401/403 from the paywall)
+rather than a boot error. That probe is what caught it, after the deploy had
+already claimed success.
+
+> **A deploy that reports success is not evidence the code runs.** Anything that
+> only checks the upload is checking the wrong end of the pipe.
+
+### 8.2 FIXED — the deploy list had silently drifted from the source tree
+
+`approve-quote`, `invoke-llm` and `accept-crew-invite` all had source on disk
+and were live on the project, and **none of them was in `FUNCTIONS`**. Running
+the deploy script would not have redeployed them, so any change to `_shared/`
+would have reached every other function and not those three. Nothing would have
+failed; they would just have stayed quietly on an older bundle.
+
+The same script also exited 0 after printing `FAILED` for an upload, so a broken
+deploy looked like a clean one to anything scripting it.
+
+Both fixed, plus `check_for_drift()`, which refuses to run if a function
+directory exists that the list does not know about — or vice versa.
+
+### 8.3 OPEN — every invoice row carries its PDF as base64, and lists select `*`
+
+`Invoice.pdf_url` does not hold a URL. It holds the whole PDF inline as a
+`data:application/pdf;base64,…` string. Measured on the live table: 22 kB for
+one invoice, 27 kB across three.
+
+`src/api/localDataEngine.js:282` issues `select("*")`, so **every list read
+downloads every stored PDF**. At the current three invoices this is invisible.
+At the 300/month Professional allowance it is roughly 6.6 MB pulled on each
+visit to the Invoices page after a single month, growing linearly and forever —
+nothing prunes it.
+
+Worked around rather than fixed: `get-public-invoice` never puts `pdf_url` in
+its payload, and serves it only through a separate `download_pdf` action, so the
+blob crosses the wire when somebody clicks and not before. The underlying
+storage decision is untouched, and the fix is Supabase Storage plus a real URL
+column.
+
+### 8.4 OPEN — the live Stripe connected account is `restricted`
+
+`BusinessSettings.stripe_account_status` reads `restricted`, not `active`, on
+the only account in the database — with a LIVE `sk_live_…` key.
+
+Consequences today: the public invoice page correctly hides its Pay button,
+`pay-public-invoice` correctly refuses with 409 `not_connected`, and
+`create-invoice-payment-link` refuses too. Everything behaves properly; there is
+simply no account able to take money.
+
+This also means the **successful payment branch is unproven end to end**. It
+cannot be proven without a test-mode key or an active connected account, and a
+live key plus a restricted account is the one combination where neither is
+possible. Stated rather than glossed: `scripts/test-public-invoice.py` asserts
+the refusal, and the success path has never executed.
+
+### 8.5 CORRECTED — the planned migration could not have run
+
+`docs/invoice-links-plan.md` §4 writes the backfill as a `DO` block with
+`COMMIT` between batches. Probed directly against this project:
+
+```
+do $$ begin insert into _probe values (1); commit; end $$;
+ERROR: 2D000: invalid transaction termination
+```
+
+The Management API's `/database/query` endpoint wraps whatever SQL it is sent in
+a transaction, so nothing inside it can commit — a `CALL` to a procedure fails
+for the same reason. Per-batch commits are therefore impossible from inside the
+SQL, and every batch would have held its locks until the last one finished,
+which is the precise thing batching exists to prevent.
+
+Corrected to three migration files plus `scripts/backfill-public-tokens.py`,
+which drives one batch per HTTP request — so each batch really is its own
+transaction. The three-step form was kept at 3 rows deliberately, because this
+migration is the one somebody copies onto a large table later.
+
+### 8.6 CORRECTED — the rate limiter counted nothing
+
+`_shared/public-link.ts` exposes `isRateLimited()`, `get-public-invoice` called
+it on every request, and it never once returned true. `PublicLinkHit` was only
+written on a FAILED lookup, so the happy path fed the limiter nothing and the
+count was always zero. Thirty-eight consecutive requests all returned 200.
+
+It existed, it was wired in, and it limited nothing — the same shape as the two
+checkers, the ungated feature flags and the schemas with no `required`.
+
+Fixed by recording every request before any branch.
+`scripts/test-public-rate-limit.py` now asserts a 429 actually arrives (it fires
+at request 32 against a limit of 30) and also that it does not fire absurdly
+early, since a limiter that rejected the second request would pass a naive
+"does it 429?" test while breaking every real page load.
+
+### 8.7 CORRECTED — `PublicLinkHit.invoice_id NOT NULL` broke the limiter's only real use
+
+The plan made `PublicLinkHit` the rate-limit store AND gave `invoice_id` a
+`NOT NULL` foreign key. Those requirements conflict: a request carrying an
+unknown token has no invoice to reference, so it could not be recorded, so it
+could not be counted — and the caller a rate limit is actually FOR is the one
+hammering the endpoint with tokens that do not resolve. As specified, it would
+have throttled only legitimate viewers.
+
+The rejected alternative was an in-memory counter for the unknown case. Deno
+edge functions run per-isolate with no shared memory, so that limits nothing
+across invocations while looking exactly like a rate limit in the source.
+
+`invoice_id` is now nullable; a null means "token matched nothing". Every read
+that reports views filters on it.

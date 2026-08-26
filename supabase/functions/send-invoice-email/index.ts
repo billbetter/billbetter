@@ -2,8 +2,10 @@ import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
 import { sendEmail } from '../_shared/resend.ts';
 import { notify } from '../_shared/notify.ts';
-import { getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
+import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 import { renderEmailLayout, formatCurrency, formatDate, escapeHtml, LineItem } from '../_shared/email-templates.ts';
+import { stampFeePercentOnSend } from '../_shared/stripe-session.ts';
+import { APP_URL } from '../_shared/app-url.ts';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -37,9 +39,50 @@ Deno.serve(async (req) => {
       issue_date,
       created_date,
       status,
+      invoice_id,
     } = await req.json();
 
     if (!to) throw new Error('Recipient email (to) is required');
+
+    // -- Phase A of the deliverability plan (docs/invoice-links-plan.md s.6) --
+    //
+    // The email gains a link to the hosted invoice page and KEEPS the PDF
+    // attachment. Zero deliverability delta: the message has exactly the
+    // attachment profile it had yesterday, so we get the hosted page, the pay
+    // flow and the view signal with nothing at risk. Dropping the attachment is
+    // Phase D, behind its own flag, and only after A-C are measured.
+    //
+    // The token is resolved HERE rather than accepted from the request body.
+    // The body is client-supplied, and a wrong or stale token would send a
+    // client a link to nothing -- with no error, because a send that reaches
+    // Resend is a successful send.
+    let publicUrl: string | null = null;
+    let canPayOnline = false;
+    if (invoice_id) {
+      const invoice = await db.getOne('Invoice', invoice_id);
+      if (invoice) {
+        // Decision 4: lock the fee rate to the plan they are on right now.
+        await stampFeePercentOnSend(invoice);
+        if (invoice.public_token && !invoice.public_link_revoked_at) {
+          publicUrl = `${APP_URL}/i/${invoice.public_token}`;
+        }
+        const settings = await db.findOne('BusinessSettings', { user_id: String(invoice.user_id) });
+        canPayOnline =
+          Boolean(settings?.stripe_account_id) && settings?.stripe_account_status === 'active';
+      }
+    }
+
+    // The pre-generated Stripe Checkout URL is the fallback, and it is the
+    // thing this change exists to stop sending: a Checkout session expires
+    // after 24 hours, so an emailed one works for a day and then silently fails
+    // for an invoice a client may open a fortnight later. The hosted page never
+    // expires and mints the session at click time.
+    const ctaUrl = publicUrl || payment_link || undefined;
+    const ctaLabel = ctaUrl
+      ? (publicUrl && canPayOnline) || (!publicUrl && payment_link)
+        ? 'View & pay invoice'
+        : 'View your invoice'
+      : undefined;
 
     let attachments: { filename: string; content: string }[] | undefined;
     if (pdf_url && pdf_url.startsWith('data:application/pdf;base64,')) {
@@ -68,9 +111,16 @@ Deno.serve(async (req) => {
     ];
     if (status) detailsRows.push({ label: 'Status', value: String(status).toUpperCase() });
 
-    const intro = `Hi ${escapeHtml(client_name || 'there')},<br><br>Thanks for your business. Your invoice from <strong>${escapeHtml(biz)}</strong> is ready. A PDF copy is attached for your records${payment_link ? ', and you can settle it online using the secure link below' : ''}.`;
+    // "A PDF copy is attached" stays TRUE throughout Phase A. It becomes a lie
+    // in Phase D, when the attachment is dropped, and must be rewritten there.
+    const onlineClause = ctaUrl
+      ? canPayOnline || !publicUrl
+        ? ', and you can view and settle it online using the secure link below'
+        : ', and you can view it online using the link below'
+      : '';
+    const intro = `Hi ${escapeHtml(client_name || 'there')},<br><br>Thanks for your business. Your invoice from <strong>${escapeHtml(biz)}</strong> is ready. A PDF copy is attached for your records${onlineClause}.`;
 
-    const footerMessage = payment_link
+    const footerMessage = ctaUrl
       ? `Questions about this invoice? Just reply to this email and we'll get back to you.`
       : `Questions about this invoice? Just reply to this email${sender_phone ? ` or call ${escapeHtml(sender_phone)}` : ''} and we'll get back to you.`;
 
@@ -83,8 +133,8 @@ Deno.serve(async (req) => {
       detailsRows,
       items: lineItems,
       summary,
-      ctaLabel: payment_link ? 'Pay invoice securely' : undefined,
-      ctaUrl: payment_link,
+      ctaLabel,
+      ctaUrl,
       notes,
       footerMessage,
       branding: {

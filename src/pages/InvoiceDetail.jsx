@@ -27,6 +27,7 @@ import {
   User,
 } from "lucide-react";
 import { format } from "date-fns";
+import PublicLinkControls from "@/components/invoice/PublicLinkControls";
 import {
   Dialog,
   DialogContent,
@@ -654,10 +655,15 @@ export default function InvoiceDetail() {
           )}
         </div>
 
-        {/* This div was empty in the outline, assuming it's for future sidebar or no dedicated sidebar. */}
         <div className="lg:col-span-1 space-y-6">
-          {/* No explicit sidebar actions were defined in the outline's JSX,
- actions are kept in the header as per original code */}
+          {/*
+            The hosted invoice page a client actually opens. Distinct from the
+            Payment Link card above: that one is a Stripe Checkout URL, which
+            expires after 24 hours and does nothing but take money. This link
+            never expires, shows the invoice itself, and mints the Checkout
+            session at the moment the client clicks Pay.
+          */}
+          <PublicLinkControls invoice={invoice} onChange={loadInvoiceData} />
         </div>
       </div>
 

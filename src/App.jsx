@@ -1,6 +1,7 @@
 import "./App.css";
 import BookDemo from "./pages/BookDemo";
 import PrivacyPolicy from "./pages/PrivacyPolicy";
+import PublicInvoice from "./pages/PublicInvoice";
 import Login from "./pages/Login";
 import Register from "./pages/Register";
 import { Toaster } from "@/components/ui/toaster";
@@ -106,6 +107,19 @@ const AuthenticatedApp = () => {
             </LayoutWrapper>
           }
         />
+        {/*
+          The public invoice link. Deliberately OUTSIDE LayoutWrapper, like
+          /Login and /PrivacyPolicy: Layout gates on auth using two separate
+          allowlists (publicPages and publicPaths), and missing either bounces
+          the visitor to a login screen no client can ever pass. Not being
+          inside Layout means there is no gate to get wrong -- and no sidebar or
+          marketing header wrapped around a document meant to look like a bill.
+
+          The path is short on purpose. An SMS is 160 GSM-7 characters per
+          segment, and each extra segment is another chance for a carrier to
+          drop the message; /i/<uuid> keeps a full link inside one.
+        */}
+        <Route path="/i/:token" element={<PublicInvoice />} />
         <Route path="/PrivacyPolicy" element={<PrivacyPolicy />} />
         <Route path="*" element={<PageNotFound />} />
       </Routes>

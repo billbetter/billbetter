@@ -36,6 +36,20 @@ export const db = {
     const rows = await restFetch(qs ? `${table}?${qs}` : table);
     return Array.isArray(rows) ? rows : [];
   },
+  /**
+   * Escape hatch for queries `list` cannot express.
+   *
+   * `list` only builds `eq` filters, which is enough for almost everything here
+   * but cannot do a range -- and the public-link rate limiter needs
+   * `hit_at=gte.<iso>`. The query string is passed through verbatim, so callers
+   * own their own encoding; it exists so that one range query does not become a
+   * reason to hand-roll another fetch with its own copy of the service-role
+   * headers.
+   */
+  async select(table: string, query: string) {
+    const rows = await restFetch(`${table}?${query}`);
+    return Array.isArray(rows) ? rows : [];
+  },
   async update(table: string, id: string, patch: Record<string, unknown>) {
     return restFetch(`${table}?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) });
   },

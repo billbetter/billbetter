@@ -302,6 +302,12 @@ async function handleFunctionInvoke(name, payload = {}) {
     acceptCrewInvite: "accept-crew-invite",
     approveQuote: "approve-quote",
     invokeLLM: "invoke-llm",
+    // The public document surface. These are the only functions here reachable
+    // without a signed-in user: the public_token in the URL is the credential,
+    // and the service role behind them is what makes an anonymous read possible
+    // without loosening a single RLS policy.
+    getPublicInvoice: "get-public-invoice",
+    payPublicInvoice: "pay-public-invoice",
   };
 
   // Only invoice/quote send functions need the client-contact normalizer. Crew

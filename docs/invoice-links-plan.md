@@ -1004,3 +1004,99 @@ Nothing. All eight decisions are settled.
 - SMS segment count — render a real message and count it; do not pre-optimise
   the column type
 - `viewed` as a status value — rejected; `first_viewed_at` composes instead
+
+---
+
+## 10. Shipped — the public invoice link (steps 1–5)
+
+Steps 1 to 5 of the agreed order are done, deployed and proven against the live
+project as an anonymous caller. Step 6 (porting the pattern to PublicQuote and
+PublicBooking) is deliberately not started.
+
+| # | Step | Status |
+|---|---|---|
+| 1 | Migration: `public_token`, `public_link_revoked_at`, view columns, `PublicLinkHit` | Applied |
+| 2 | `get-public-invoice` | Deployed |
+| 3 | `/i/:token` page + revoke/copy controls on InvoiceDetail | Built |
+| 4 | `pay-public-invoice`, wired to the page's Pay button | Deployed |
+| 5 | Link in `send-invoice-email` and `send-invoice-sms` (Phase A) | Deployed |
+| 6 | Port to PublicQuote and PublicBooking | **Not started, by instruction** |
+
+### Where the design was changed, and why
+
+Three deviations, each forced by something that did not survive contact with the
+runtime. All three are written up in `docs/feature-audit.md` §8.
+
+1. **The migration is three files, not one.** The planned `DO … COMMIT` backfill
+   cannot execute through the Management API — probed, it answers
+   `2D000: invalid transaction termination`. The batch loop is driven from
+   `scripts/backfill-public-tokens.py` instead, one HTTP request per batch, so
+   each batch genuinely is its own transaction.
+
+2. **`PublicLinkHit.invoice_id` is nullable.** The plan made it both the
+   rate-limit store and a `NOT NULL` FK, which are incompatible: an unknown
+   token has no invoice to reference, so the one caller a limiter exists for
+   could never be counted.
+
+3. **The page is routed outside `Layout`, not added to its two allowlists.** The
+   plan's advice was to add it to `publicPages` AND `publicPaths` and warned
+   that missing either bounces the client to login. Routing it like `/Login` —
+   straight in `App.jsx`, no Layout — means there is no gate to get wrong at
+   all, and no sidebar or marketing header around a document meant to look like
+   a bill.
+
+`Invoice.public_token` kept its planned name rather than the `public_id` in the
+order of work, for the reasons in §4: `uuid` is self-validating and 16 bytes,
+and a malformed token fails at the type boundary before it reaches a query.
+
+### What is proven, and how
+
+`scripts/test-public-invoice.py` runs every assertion below with the **anon
+key** — the same credential a browser has — so a pass means a real client can
+load the page, not merely that the service role can.
+
+- The narrowed payload contains no id of any kind, no `client_email`,
+  `client_phone`, `pdf_url`, `payment_link`, `stripe_*` or `platform_fee`; the
+  top level is exactly four sections, and the invoice, client and item keys are
+  each the enumerated set and nothing more
+- A malformed token and an unknown token are answered identically (404), and
+  neither leaks a field
+- A revoked link returns 410 with **no payload at all**, so it cannot render
+  stale figures; un-revoking restores it
+- `record_view` advances `view_count` and `first_viewed_at`; an immediate
+  re-view is debounced — it moves `last_viewed_at` and does **not** increment
+  the counter; `preview=1` advances nothing
+- No stored `dedupe_hash` looks like an IP address
+- Paying refuses with 409 `not_connected` and tells the client nothing about our
+  fee
+
+`scripts/test-public-rate-limit.py` proves the limiter fires (429 at request 32
+against a limit of 30) and that it does not fire absurdly early.
+
+`scripts/test-function-boots.py` proves every deployed function actually starts.
+
+### What is NOT proven
+
+Stated plainly rather than left to be assumed:
+
+- **The successful payment branch has never executed.** `STRIPE_SECRET_KEY` is a
+  LIVE key and the only connected account is `restricted`, so the sole path
+  available is the refusal — which is asserted. Proving the success branch needs
+  a test-mode key or an active connected account.
+- **The rendered email has not been sent.** `send-invoice-email` sits behind
+  `requireAppAccess` and there is no user JWT available here. What is proven is
+  that it boots, that the token is resolved server-side rather than trusted from
+  the request body, and that the link format is correct. The message body itself
+  is unverified.
+- **The `record_view` scanner defence is unmeasured.** Layer 1 (recording from
+  JS after mount) is the one that matters and is in place; how much corporate
+  pre-fetching it actually removes is a Phase C question, and `is_bot` rows are
+  kept so it can be measured rather than assumed.
+
+### Follow-ups this created
+
+- Nothing prunes `PublicLinkHit`. The 180-day retention is a decision with no
+  enforcement, because there is no scheduler. Rows with a null `invoice_id` are
+  pure rate-limit exhaust and can go sooner than views.
+- `Invoice.pdf_url` holds base64 PDFs inline and lists `select("*")` — see
+  `docs/feature-audit.md` §8.3.
