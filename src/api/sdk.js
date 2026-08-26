@@ -301,6 +301,7 @@ async function handleFunctionInvoke(name, payload = {}) {
     sendCrewInvite: "send-crew-invite",
     acceptCrewInvite: "accept-crew-invite",
     approveQuote: "approve-quote",
+    invokeLLM: "invoke-llm",
   };
 
   // Only invoice/quote send functions need the client-contact normalizer. Crew
@@ -587,13 +588,44 @@ async function handleFunctionInvoke(name, payload = {}) {
   return notImplemented(name);
 }
 
-async function invokeLLM({ prompt, response_json_schema }) {
-  console.log("[LLM Stub] Prompt received, returning generic line items");
-  const items = [
-    { description: "Labor", quantity: 4, rate: 85 },
-    { description: "Materials", quantity: 1, rate: 240 },
-  ];
-  return { items };
+/**
+ * Ask the model for something, shaped.
+ *
+ * THIS USED TO BE A STUB. It ignored the prompt and returned the same two line
+ * items -- Labor x4 @ $85, Materials x1 @ $240 -- to all six call sites, every
+ * time, for every input. AI invoicing, AI quotes from a photo, voice dictation
+ * and the receipt scanner were all that function. It is the product's stated
+ * differentiator and it did not exist.
+ *
+ * Now a real edge function. The key lives in Supabase secrets and never reaches
+ * this bundle: a key shipped in client JS is a public key.
+ *
+ * Throws rather than returning a fallback. Every caller must handle failure by
+ * telling the contractor to write it manually -- there is no canned draft to
+ * fall back to, deliberately, because a plausible wrong answer is worse than an
+ * honest missing one.
+ *
+ * @throws {Error} with `.notConfigured` true when no provider key is set.
+ */
+async function invokeLLM({ prompt, response_json_schema, file_urls }) {
+  const { data } = await handleFunctionInvoke("invokeLLM", {
+    prompt,
+    response_json_schema,
+    file_urls,
+  });
+
+  if (!data || data.success === false) {
+    const err = new Error(
+      data?.error || "The AI request failed. Please write this manually.",
+    );
+    err.notConfigured = Boolean(data?.not_configured || data?.not_implemented);
+    err.rateLimited = Boolean(data?.rate_limited);
+    throw err;
+  }
+
+  // `success` is transport-level, not part of any caller's schema.
+  const { success, ...result } = data;
+  return result;
 }
 
 export const sdk = {

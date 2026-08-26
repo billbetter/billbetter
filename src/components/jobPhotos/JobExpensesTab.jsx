@@ -1,4 +1,6 @@
 import React, { useState, useEffect } from "react";
+import { RECEIPT_SCAN } from "@/lib/ai/schemas";
+import { aiFailureMessage } from "@/lib/ai/failure";
 import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -193,7 +195,7 @@ export default function JobExpensesTab({ job, user }) {
       setForm((prev) => ({ ...prev, receipt_url: file_url }));
     } catch (err) {
       console.error("Receipt upload failed:", err);
-      alert("Failed to upload receipt. Please try again.");
+      alert(aiFailureMessage(err, "this receipt"));
     } finally {
       setUploadingReceipt(false);
     }
@@ -236,27 +238,7 @@ Also extract:
 
 Be accurate with prices. If a price is ambiguous, use your best reading.`,
         file_urls: [scanImageUrl],
-        response_json_schema: {
-          type: "object",
-          properties: {
-            vendor_name: { type: "string" },
-            receipt_date: { type: "string" },
-            total: { type: "number" },
-            items: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  description: { type: "string" },
-                  quantity: { type: "number" },
-                  unit_cost: { type: "number" },
-                  amount: { type: "number" },
-                  category: { type: "string" },
-                },
-              },
-            },
-          },
-        },
+        response_json_schema: RECEIPT_SCAN,
       });
 
       if (result.items && result.items.length > 0) {

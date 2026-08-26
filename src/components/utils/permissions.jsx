@@ -259,7 +259,19 @@ export function canAccessFeature(subscription, featureName) {
 }
 
 /**
- * This month's transaction allowance. -1 means unlimited.
+ * This month's transaction allowance. **Infinity** means unlimited.
+ *
+ * NOT -1. The database stores -1 as its unlimited sentinel, and that value
+ * leaked into every caller, where it met `<`, `>` and `+` and silently produced
+ * nonsense: `limit + additionalInvoices` on an unlimited plan evaluated to
+ * `-1 + 5 = 4`, i.e. a smaller allowance than the plan below it. Nothing broke
+ * only because each call site happened to guard with `limit > 0` first, which
+ * is correctness by accident.
+ *
+ * Infinity is the honest value: every comparison and every sum involving it
+ * gives the right answer with no guard at all. -1 now exists only at the two
+ * edges that genuinely speak the database's dialect -- toStoredLimit() below,
+ * and the Deno plan table.
  *
  * The subscription row carries `monthly_transaction_limit`, written by the
  * Stripe webhook at checkout. When the ladder is rebalanced those stored
@@ -277,14 +289,31 @@ export function getTransactionAllowance(subscription) {
   const planId = resolvePlanId(subscription.plan_name);
 
   if (planId === "custom" || !PLAN_FEATURES[planId]) {
-    if (stored === -1 || stored === null || stored === undefined) return -1;
+    if (stored === -1 || stored === null || stored === undefined) {
+      return Number.POSITIVE_INFINITY;
+    }
     return Number(stored);
   }
 
   const fromPlan = PLAN_FEATURES[planId].transaction_limit;
-  if (fromPlan === -1 || stored === -1) return -1;
+  if (fromPlan === -1 || stored === -1) return Number.POSITIVE_INFINITY;
   // Never take capacity away from someone who was already granted more.
   return Math.max(Number(fromPlan) || 0, Number(stored) || 0);
+}
+
+/** Whether a subscription has no transaction cap. */
+export function isUnlimited(subscription) {
+  return !Number.isFinite(getTransactionAllowance(subscription));
+}
+
+/**
+ * The allowance in the database's dialect, for writing back to a row.
+ *
+ * The ONLY place -1 should be produced. Everything in the app works in
+ * Infinity; this converts at the boundary.
+ */
+export function toStoredLimit(allowance) {
+  return Number.isFinite(allowance) ? allowance : -1;
 }
 
 /** Our platform fee on a payment, as a percentage. */

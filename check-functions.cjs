@@ -92,8 +92,11 @@ const stubbed = new Set(
 const invoked = new Map();
 for (const file of walk("src")) {
   const text = fs.readFileSync(file, "utf8");
+  // Both spellings count as an invocation: pages call
+  // sdk.functions.invoke("x"), and sdk.js itself calls handleFunctionInvoke("x")
+  // directly for the wrappers it exposes under other names (invokeLLM).
   for (const m of text.matchAll(
-    /sdk\.functions\.invoke\s*\(\s*["'`]([^"'`]+)["'`]/g,
+    /(?:sdk\.functions\.invoke|handleFunctionInvoke)\s*\(\s*["'`]([^"'`]+)["'`]/g,
   )) {
     if (!invoked.has(m[1])) invoked.set(m[1], []);
     invoked.get(m[1]).push(path.relative(".", file));

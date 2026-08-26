@@ -77,6 +77,7 @@ import { Badge } from "@/components/ui/badge"; // Assuming Badge component exist
 import { format } from "date-fns"; // Import date-fns for date formatting
 import {
   getTransactionAllowance,
+  isUnlimited,
   getProcessingFeePercent,
 } from "@/components/utils/permissions";
 
@@ -1178,7 +1179,7 @@ export default function Settings() {
                                   Invoice Limit
                                 </p>
                                 <p className="text-lg font-semibold text-content dark:text-content-inverted">
-                                  {getTransactionAllowance(subscription) === -1
+                                  {isUnlimited(subscription)
                                     ? "Unlimited"
                                     : `${getTransactionAllowance(subscription)} / month`}
                                 </p>

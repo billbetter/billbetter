@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { PHOTO_ESTIMATE } from "@/lib/ai/schemas";
+import { aiFailureMessage } from "@/lib/ai/failure";
 import { sdk } from "@/api/sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -73,30 +75,7 @@ Provide a detailed materials list with specific names, quantities, units and cur
       const aiResponse = await sdk.integrations.Core.InvokeLLM({
         prompt: promptText,
         ...(photoUrl && { file_urls: [photoUrl] }),
-        response_json_schema: {
-          type: "object",
-          properties: {
-            materials: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  name: { type: "string" },
-                  quantity: { type: "number" },
-                  unit: { type: "string" },
-                  price_per_unit: { type: "number" },
-                  total_cost: { type: "number" },
-                },
-              },
-            },
-            labor_hours: { type: "number" },
-            labor_rate: { type: "number" },
-            labor_total: { type: "number" },
-            materials_subtotal: { type: "number" },
-            estimated_total: { type: "number" },
-            notes: { type: "string" },
-          },
-        },
+        response_json_schema: PHOTO_ESTIMATE,
       });
 
       setAiResults(aiResponse);
@@ -104,7 +83,7 @@ Provide a detailed materials list with specific names, quantities, units and cur
       setEditedLaborHours(aiResponse.labor_hours || 0);
     } catch (error) {
       console.error("Analysis error:", error);
-      alert("Failed to analyze photo. Please try again.");
+      alert(aiFailureMessage(error, "an estimate from this photo"));
     }
     setAnalyzing(false);
   };

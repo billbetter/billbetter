@@ -3,6 +3,8 @@ import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { sdk } from "@/api/sdk";
 import { InvokeLLM } from "@/integrations/Core";
+import { LINE_ITEMS } from "@/lib/ai/schemas";
+import { aiFailureMessage } from "@/lib/ai/failure";
 import { format, addDays } from "date-fns";
 import {
   ArrowLeft,
@@ -214,23 +216,7 @@ Return JSON only.`;
       const response = await InvokeLLM({
         prompt: promptText,
         ...(uploadedUrl && { file_urls: [uploadedUrl] }),
-        response_json_schema: {
-          type: "object",
-          properties: {
-            items: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  description: { type: "string" },
-                  quantity: { type: "number" },
-                  rate: { type: "number" },
-                },
-              },
-            },
-            notes: { type: "string" },
-          },
-        },
+        response_json_schema: LINE_ITEMS,
       });
 
       const items = (response?.items || [])
@@ -257,7 +243,7 @@ Return JSON only.`;
       }
     } catch (e) {
       console.error("AI generate error:", e);
-      setAiError("Something went wrong. Please try again.");
+      setAiError(aiFailureMessage(e, "this bill"));
     }
     setAiLoading(false);
   };

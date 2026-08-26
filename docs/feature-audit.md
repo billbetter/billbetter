@@ -40,7 +40,8 @@ Six call sites depend on it:
 | Call site | Feature sold as |
 |---|---|
 | `CreateInvoice.jsx:791` | AI invoice generation (**Core**) |
-| `CreateQuote.jsx` / `CameraAnalyzer.jsx:73` | AI quote from a photo (**Core**) |
+| `CreateQuote.jsx:623` | AI quote line items (**Core**) |
+| `CameraAnalyzer.jsx:73` | AI estimate from a photo (**Core**) |
 | `GlobalVoiceAssistant.jsx:106` | Voice-to-invoice dictation (**Core**) |
 | `QuickBillFlow.jsx:214` | Quick bill |
 | `JobExpensesTab.jsx:223` | AI receipt scanner (**Essential**) |

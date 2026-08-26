@@ -1,8 +1,13 @@
 import React, { useState, useEffect } from "react";
 import { InvokeLLM } from "@/integrations/Core";
+import { LINE_ITEMS } from "@/lib/ai/schemas";
+import { aiFailureMessage } from "@/lib/ai/failure";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { getTransactionAllowance } from "@/components/utils/permissions";
+import {
+  getTransactionAllowance,
+  isUnlimited,
+} from "@/components/utils/permissions";
 import { sdk } from "@/api/sdk";
 import { markTimeEntriesInvoiced } from "@/lib/timeTracking";
 import { generateInvoicePDF } from "@/functions/generateInvoicePDF";
@@ -827,22 +832,7 @@ FORMATTING REQUIREMENTS:
 - Rates should reflect ${currency} pricing
 
 Provide line items in this format.`,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            items: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  description: { type: "string" },
-                  quantity: { type: "number" },
-                  rate: { type: "number" },
-                },
-              },
-            },
-          },
-        },
+        response_json_schema: LINE_ITEMS,
       });
 
       if (response.items && response.items.length > 0) {
@@ -854,7 +844,11 @@ Provide line items in this format.`,
         setFormData({ ...formData, items: itemsWithAmounts, ...totals });
       }
     } catch (error) {
+      // Was console.error alone, so a failure looked like the button doing
+      // nothing. It could not fail before -- the stub always "succeeded" -- so
+      // making it real makes this path reachable for the first time.
       console.error("Error getting AI suggestions:", error);
+      alert(aiFailureMessage(error, "line items for this job"));
     }
     setAiLoading(false);
   };
@@ -940,7 +934,7 @@ Provide line items in this format.`,
         delivery_method: "download",
       });
 
-      if (subscription && getTransactionAllowance(subscription) !== -1) {
+      if (subscription && !isUnlimited(subscription)) {
         const currentUsed = subscription.transactions_used_this_month || 0;
         const newTransactionsUsed = currentUsed + 0.5;
         const newInvoicesUsed =
@@ -1096,7 +1090,7 @@ Provide line items in this format.`,
       if (
         !editId &&
         subscription &&
-        getTransactionAllowance(subscription) !== -1
+        !isUnlimited(subscription)
       ) {
         const currentUsed = subscription.transactions_used_this_month || 0;
         const newTransactionsUsed = currentUsed + 1;
@@ -1389,7 +1383,9 @@ Provide line items in this format.`,
                   </strong>{" "}
                   of{" "}
                   <strong className="text-content dark:text-ink-50">
-                    {getTransactionAllowance(subscription)}
+                    {isUnlimited(subscription)
+                      ? "unlimited"
+                      : getTransactionAllowance(subscription)}
                   </strong>{" "}
                   transactions this month.
                 </p>

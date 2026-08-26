@@ -1,5 +1,7 @@
 import React, { useState, useEffect, useRef } from "react";
 import { InvokeLLM } from "@/integrations/Core";
+import { VOICE_COMMAND } from "@/lib/ai/schemas";
+import { aiFailureMessage } from "@/lib/ai/failure";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
@@ -116,15 +118,7 @@ Analyze this command and respond in this JSON format:
 
 Current page: ${location.pathname}
 Be conversational and helpful.`,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            intent: { type: "string" },
-            confirmation: { type: "string" },
-            action: { type: "string" },
-            data: { type: "object" },
-          },
-        },
+        response_json_schema: VOICE_COMMAND,
       });
 
       setAiResponse(response.confirmation);
@@ -136,8 +130,13 @@ Be conversational and helpful.`,
       }, 1000);
     } catch (error) {
       console.error("Error processing command:", error);
-      const errorMsg =
-        "I'm sorry, I had trouble understanding that. Could you try again?";
+      // Was always "I had trouble understanding that", which blames the
+      // speaker for what may be our missing API key. Say which it is.
+      const errorMsg = error?.notConfigured
+        ? "Voice commands aren't set up on this deployment yet."
+        : error?.rateLimited
+          ? "That's a lot of requests. Give me a minute and try again."
+          : "I'm sorry, I had trouble understanding that. Could you try again?";
       setAiResponse(errorMsg);
       speak(errorMsg);
       isProcessingRef.current = false;

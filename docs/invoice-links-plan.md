@@ -830,6 +830,17 @@ Pay button that 500s is worse than one that was never shown.
 
 ---
 
+## 8-0. Open tasks
+
+| Task | Why it is here |
+|---|---|
+| **Put `lint` back into `npm run check`** | Dropped so the Vercel build gate could go green on its first deploy. Right for day one, wrong if it is still out in a month. There are 106 pre-existing lint errors, all unused imports/vars, so this is a cleanup pass then a one-line change to `package.json`. |
+| Set the Vercel Build Command to `npm run check && vite build` | The root-cause fix for "a check nobody runs". Needs the dashboard. |
+| Verify the LLM retry path once a key exists | `complete()` retries once with the validation errors fed back. The no-key branch is verified; the retry is not, because it needs a provider. |
+| A shared rate-limit counter for `invoke-llm` | Current limiter is per-isolate, so it is a brake not a wall. Belongs with the scheduler, which will have a job registry to put it in. |
+
+---
+
 ## 8a. The feature audit lives in its own document
 
 `docs/feature-audit.md` — every plan bullet and feature flag traced to code and

@@ -1,7 +1,12 @@
 import React, { useState, useEffect } from "react";
+import { LINE_ITEMS } from "@/lib/ai/schemas";
+import { aiFailureMessage } from "@/lib/ai/failure";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { getTransactionAllowance } from "@/components/utils/permissions";
+import {
+  getTransactionAllowance,
+  isUnlimited,
+} from "@/components/utils/permissions";
 import { sdk } from "@/api/sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -620,22 +625,7 @@ Requirements:
 - CRITICAL: If the user mentions a specific total amount (e.g. "for $20,000", "budget is 500", "total 1000"), adjust the rates and quantities so the total sum of all items equals that exact amount.
 
 Provide line items in this format.`,
-        response_json_schema: {
-          type: "object",
-          properties: {
-            items: {
-              type: "array",
-              items: {
-                type: "object",
-                properties: {
-                  description: { type: "string" },
-                  quantity: { type: "number" },
-                  rate: { type: "number" },
-                },
-              },
-            },
-          },
-        },
+        response_json_schema: LINE_ITEMS,
       });
 
       if (response.items && response.items.length > 0) {
@@ -647,7 +637,9 @@ Provide line items in this format.`,
         setFormData({ ...formData, items: itemsWithAmounts, ...totals });
       }
     } catch (error) {
+      // See CreateInvoice: silently swallowed until the AI could actually fail.
       console.error("Error getting AI suggestions:", error);
+      alert(aiFailureMessage(error, "line items for this quote"));
     }
     setAiLoading(false);
   };
@@ -708,7 +700,7 @@ Provide line items in this format.`,
       if (
         !editMode &&
         subscription &&
-        getTransactionAllowance(subscription) !== -1
+        !isUnlimited(subscription)
       ) {
         const baseLimit = getTransactionAllowance(subscription);
         const additionalRemaining =
