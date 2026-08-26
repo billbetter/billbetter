@@ -837,7 +837,7 @@ Pay button that 500s is worse than one that was never shown.
 | **Put `lint` back into `npm run check`** | Dropped so the Vercel build gate could go green on its first deploy. Right for day one, wrong if it is still out in a month. There are 106 pre-existing lint errors, all unused imports/vars, so this is a cleanup pass then a one-line change to `package.json`. |
 | Set the Vercel Build Command to `npm run check && vite build` | The root-cause fix for "a check nobody runs". Needs the dashboard. |
 | Verify the LLM retry path once a key exists | `complete()` retries once with the validation errors fed back. The no-key branch is verified; the retry is not, because it needs a provider. |
-| A shared rate-limit counter for `invoke-llm` | Current limiter is per-isolate, so it is a brake not a wall. Belongs with the scheduler, which will have a job registry to put it in. |
+| A shared rate-limit counter for `invoke-llm` | Current limiter is per-isolate, so it is a brake not a wall. **Trigger: before the first paying user** — not "with the scheduler", which may land later, and this endpoint spends money. A global spend cap is deliberately NOT being built: funding the key small is the cheaper control, and that is a decision rather than code. |
 
 ---
 

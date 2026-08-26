@@ -165,8 +165,6 @@ export const PLANS = {
       "Up to 4 crew members on your account",
       "Smart Insights (AI analytics)",
       "Custom PDF templates",
-      "Material pricing & supplier comparison",
-      "Public booking page for clients",
       "Priority support",
       "Everything in Essential",
     ],

@@ -236,24 +236,40 @@ You were right that the fix belongs in the webhook, not a button.
 
 ---
 
-## 5. Feature flags: 24 of 35 are never read
+## 5. Feature flags: 4 of 35 gate anything, and 2 of those are dormant
 
-`FEATURE_MINIMUM_PLAN` declares 35 keys. **24 are not referenced anywhere
-outside `permissions.jsx`**, so they gate nothing:
+An earlier pass of this document said "24 of 35 are never read". **That
+understated it.** It matched the key as a quoted string anywhere in a file,
+which is not the same as the key being used as a gate. Three of the eleven
+"read" keys were coincidences:
 
-```
-pdf_export, email_sending, sms_sending, online_payments, client_approvals,
-client_reviews, ai_assistance, automations, receipt_checker, job_costing,
-branding, employee_profiles, task_management, multi_user, custom_templates,
-smart_insights, priority_support, public_booking, material_assistant,
-price_comparison, white_label, advanced_permissions, dedicated_support,
-api_access
-```
+| Key | Where it "appeared" | What it actually was |
+|---|---|---|
+| `expenses` | `JobDetailView.jsx` | a tab name — `setActiveTab("expenses")` |
+| `google_calendar` | `Calendar.jsx` | an event type — `type: "google_calendar"` |
+| `jobs` | `JobHeatmap.jsx` | a chart data source — `useState("jobs")` |
 
-A dead key is not automatically a bug — `pdf_export` describes something that
-works and simply is not gated. But it means **the plan ladder is largely
-unenforced**: a Core subscriber who reaches a Professional screen is usually
-stopped by nothing.
+The honest count: **exactly four keys gate functionality anywhere in the app.**
+
+| Key | Where it gates | Live? |
+|---|---|---|
+| `crew_management` | Layout nav + `Team.jsx` FeatureGate | **No — dormant** |
+| `time_tracking` | Layout nav + `Timesheet.jsx` FeatureGate | **No — dormant** |
+| `recurring_invoices` | `RecurringInvoices.jsx` | Yes, but gates a feature that does not generate anything |
+| `excel_export` | `Dashboard.jsx:370` | **Yes** |
+
+Six more (`basic_invoicing`, `quotes`, `client_management`, `analytics_dashboard`,
+plus the two dormant ones) decide which chapters of the onboarding tour appear.
+That is content, not entitlement — skipping a tour slide is not a paywall.
+
+**Only three pages in the entire product call `FeatureGate`**, and two of them
+are the dormant ones.
+
+So the plan ladder is very close to unenforced. Analytics, Smart Insights, the
+PDF theme editor, custom templates, expenses, Google Calendar and job costing
+are all reachable on Core today. What actually differentiates a paid tier right
+now is the **transaction allowance** (checked in CreateInvoice/CreateQuote via
+`getTransactionAllowance`), the **platform fee**, and **Excel export**.
 
 ### Two categories worth naming
 
@@ -310,10 +326,18 @@ Honest count of what is genuinely delivered per tier:
 | Essential | 5 | 1 | 0 | 0 |
 | Professional | 2 (+2 dormant) | 0 | 1 | 2 |
 
-Enterprise is gone. Every remaining ABSENT is on Professional: material pricing
-and public booking. Both are honest candidates for the same treatment as
-recurring — remove the bullet until the feature exists — and that is the next
-pricing decision to take, not one I have made.
+Both remaining ABSENT bullets — material pricing and public booking — were
+pulled from Professional. A bullet goes on the page when a feature is PROVEN,
+not when it is planned; "we'll fix it soon" is how most of the claims in this
+document came to be written.
+
+**Material pricing is a candidate to cut permanently, not defer.** It needs a
+SerpAPI key and carries a per-search cost forever — a second paid vendor, for a
+capability nobody buys invoicing software to get. It should need a reason to
+build, not a reason to skip.
+
+**Public booking** stays in the fix queue behind the same dead-public-surface
+pattern as PublicQuote, and earns its bullet back when it demonstrably works.
 
 ---
 
