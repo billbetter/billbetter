@@ -1100,3 +1100,48 @@ Stated plainly rather than left to be assumed:
   pure rate-limit exhaust and can go sooner than views.
 - `Invoice.pdf_url` holds base64 PDFs inline and lists `select("*")` — see
   `docs/feature-audit.md` §8.3.
+
+---
+
+## 11. Step 6 — quotes ported; booking deliberately not
+
+| # | Step | Status |
+|---|---|---|
+| 6a | `get-public-quote`, `PublicQuote.jsx`, approve button, `QuoteDetail` link controls | Done, deployed, proven |
+| 6b | PublicBooking | **Not ported — it is an unbuilt feature, not a dead page.** See `docs/feature-audit.md` §9.3 |
+
+### What quotes needed beyond the invoice pattern
+
+Two things the plan did not anticipate, both in `docs/feature-audit.md` §9:
+
+1. **No quote has ever had a `public_id` or an `approval_token.`** Nothing in
+   the app writes either; only `seedData.js` has them hardcoded. So the share
+   link was never rendered and `approve-quote` could never match a row. Fixed
+   with column defaults rather than client code, because a credential that
+   depends on one code path remembering it is one that goes missing.
+2. **The `BusinessSettings.list()[0]` trap** — dormant under RLS, and moving the
+   read behind the service role is exactly what would have woken it into a
+   cross-tenant branding leak. Settings are resolved by `quote.user_id`.
+
+### Credentials kept separate
+
+`get-public-quote` does NOT return `approval_token`. Instead `approve-quote`
+now accepts `public_id` as an alternative credential, so the page only ever
+holds the one it was opened with — keeping the approval token out of browser
+history, screenshots and devtools.
+
+The tradeoff, stated rather than buried: forwarding the VIEW link now also
+passes on the ability to approve. Both credentials arrive in the same inbox, so
+this grants nothing that forwarding the email did not already grant — but if
+that separation is wanted, the fix is a confirmation step on the page, not a
+second token in the payload.
+
+### Also proven
+
+- The database now generates both credentials on insert
+- A revoked quote link returns 410 with no payload, and **approving through a
+  revoked link is refused and does not change status**
+- Approving twice reports `already_approved` rather than re-approving
+- After approval the page reports `can_approve: false`
+- `items` jsonb extras are dropped — a planted `secret` field does not survive
+  into the payload

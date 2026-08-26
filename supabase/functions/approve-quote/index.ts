@@ -60,19 +60,50 @@ Deno.serve(async (req) => {
     new Response(JSON.stringify({ success: body.ok, ...body }), { status, headers });
 
   try {
-    const { token } = await req.json().catch(() => ({ token: null }));
+    const payload = await req.json().catch(() => ({}));
+    const token = payload?.token;
+    const publicId = payload?.public_id;
 
-    if (!token || typeof token !== 'string' || token.length < 16) {
+    // -- Two credentials, one action --------------------------------------
+    //
+    // `token` is the approval_token from the one-click link in the email, and
+    // is the original path. `public_id` is the credential the public quote page
+    // was opened with, added so that page can carry an Approve button.
+    //
+    // The alternative was to put approval_token into get-public-quote's
+    // payload. That was rejected: it would place a second credential into the
+    // browser's memory, history and any screenshot, for no gain -- both
+    // credentials are delivered to the same inbox, so accepting public_id here
+    // grants nothing that forwarding the email did not already grant.
+    //
+    // The tradeoff, stated rather than hidden: someone who forwards the VIEW
+    // link now also passes on the ability to approve. Previously the two were
+    // separable in principle. If that separation is wanted, the fix is a
+    // confirmation step on the page, not a second token in the payload.
+    const credential = typeof token === 'string' && token.length >= 16
+      ? { column: 'approval_token', value: token }
+      : typeof publicId === 'string' && publicId.length >= 8
+        ? { column: 'public_id', value: publicId }
+        : null;
+
+    if (!credential) {
       return respond({ ok: false, error: 'This approval link is not valid.' }, 400);
     }
 
     // PostgREST filter, then a constant-time confirm. The filter is what makes
     // the lookup indexed; the compare is what makes it safe to have used a
     // string equality to get here.
-    const quote = await db.findOne('Quote', { approval_token: token });
-    if (!quote || !tokensMatch(String(quote.approval_token), token)) {
+    const quote = await db.findOne('Quote', { [credential.column]: credential.value });
+    if (!quote || !tokensMatch(String(quote[credential.column]), credential.value)) {
       // Deliberately the same answer as an expired quote: distinguishing them
       // would turn this endpoint into an oracle for guessing valid tokens.
+      return respond({ ok: false, error: 'This approval link is no longer valid.' }, 404);
+    }
+
+    // A revoked link must not be approvable. Answered like an unknown token,
+    // because a contractor who turned the link off does not want it confirming
+    // that the quote exists.
+    if (quote.public_link_revoked_at) {
       return respond({ ok: false, error: 'This approval link is no longer valid.' }, 404);
     }
 

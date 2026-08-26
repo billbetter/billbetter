@@ -663,7 +663,11 @@ export default function InvoiceDetail() {
             never expires, shows the invoice itself, and mints the Checkout
             session at the moment the client clicks Pay.
           */}
-          <PublicLinkControls invoice={invoice} onChange={loadInvoiceData} />
+          <PublicLinkControls
+            document={invoice}
+            kind="invoice"
+            onChange={loadInvoiceData}
+          />
         </div>
       </div>
 

@@ -90,28 +90,48 @@ export function tokensMatch(a: string, b: string): boolean {
   return diff === 0;
 }
 
-export function isValidToken(token: unknown): token is string {
-  return typeof token === 'string' && UUID_RE.test(token);
+/**
+ * Opaque text credential: what Quote.public_id holds.
+ *
+ * That column is `text` rather than `uuid` because it predates the convention
+ * and already appears in links that have been sent. New values are uuids cast
+ * to text, so this is deliberately wider than UUID_RE -- narrow enough to keep
+ * junk out of a query, wide enough not to reject a token we ourselves issued
+ * under the old shape.
+ */
+const OPAQUE_RE = /^[A-Za-z0-9_-]{8,128}$/;
+
+export function isValidToken(token: unknown, format: 'uuid' | 'opaque' = 'uuid'): token is string {
+  if (typeof token !== 'string') return false;
+  return format === 'uuid' ? UUID_RE.test(token) : OPAQUE_RE.test(token);
 }
 
 /**
- * Resolve a public token to its row, or say why not.
+ * Resolve a public credential to its row, or say why not.
  *
  * `not_found` and `revoked` are returned separately because the CALLER needs
  * to tell them apart -- a revoked link should say "this link was turned off",
  * which is useful and true, while an unknown token must not confirm anything.
- * Both are answered to the client with a body that contains no invoice data.
+ * Both are answered to the client with a body containing no document data.
+ *
+ * `column` exists because the two document types do not share a credential
+ * name: Invoice has public_token (uuid, added by this work) and Quote has
+ * public_id (text, already in sent links). Renaming Quote's would have broken
+ * every link already in a client's inbox, so the lookup takes the column
+ * instead -- one code path, two column names.
  */
 export async function docByToken(
   table: string,
   token: unknown,
+  opts: { column?: string; format?: 'uuid' | 'opaque' } = {},
 ): Promise<{ ok: true; row: Record<string, unknown> } | { ok: false; reason: LookupFailure }> {
-  if (!isValidToken(token)) return { ok: false, reason: 'invalid' };
+  const column = opts.column || 'public_token';
+  if (!isValidToken(token, opts.format || 'uuid')) return { ok: false, reason: 'invalid' };
 
-  const row = await db.findOne(table, { public_token: token });
+  const row = await db.findOne(table, { [column]: token });
   // The PostgREST filter is what makes the lookup indexed; the constant-time
   // compare is what makes it safe to have used a string equality to get here.
-  if (!row || !tokensMatch(String(row.public_token), token)) {
+  if (!row || !tokensMatch(String(row[column]), token)) {
     return { ok: false, reason: 'not_found' };
   }
   if (row.public_link_revoked_at) return { ok: false, reason: 'revoked' };
@@ -185,14 +205,17 @@ export async function isRateLimited(hash: string): Promise<boolean> {
  * a client cannot see their invoice.
  */
 export async function recordHit(entry: {
-  invoice_id: string | null;
+  /** Null when the credential matched nothing. Both null is a valid row. */
+  invoice_id?: string | null;
+  quote_id?: string | null;
   is_bot: boolean;
   referrer: string | null;
   dedupe_hash: string;
 }): Promise<void> {
   try {
     await db.insert('PublicLinkHit', {
-      invoice_id: entry.invoice_id,
+      invoice_id: entry.invoice_id ?? null,
+      quote_id: entry.quote_id ?? null,
       is_bot: entry.is_bot,
       referrer: entry.referrer ? entry.referrer.slice(0, 500) : null,
       dedupe_hash: entry.dedupe_hash,

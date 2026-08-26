@@ -28,6 +28,7 @@ ANON = require('VITE_SUPABASE_ANON_KEY')
 CASES = [
     ('get-public-invoice', {'token': '00000000-0000-4000-8000-000000000000'}, {404}),
     ('pay-public-invoice', {'token': '00000000-0000-4000-8000-000000000000'}, {404}),
+    ('get-public-quote', {'public_id': '00000000-0000-4000-8000-000000000000'}, {404}),
     ('approve-quote', {'token': 'x' * 32}, {404}),
     ('send-invoice-email', {'to': 'nobody@example.com'}, {401, 402, 403}),
     ('send-invoice-sms', {'to': '+15550000000'}, {401, 402, 403}),

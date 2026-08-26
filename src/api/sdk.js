@@ -308,6 +308,7 @@ async function handleFunctionInvoke(name, payload = {}) {
     // without loosening a single RLS policy.
     getPublicInvoice: "get-public-invoice",
     payPublicInvoice: "pay-public-invoice",
+    getPublicQuote: "get-public-quote",
   };
 
   // Only invoice/quote send functions need the client-contact normalizer. Crew

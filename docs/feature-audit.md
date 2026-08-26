@@ -489,3 +489,117 @@ across invocations while looking exactly like a rate limit in the source.
 
 `invoice_id` is now nullable; a null means "token matched nothing". Every read
 that reports views filters on it.
+
+---
+
+## 9. Step 6: quotes ported, booking is not a port
+
+Step 6 was "port the pattern to PublicQuote and PublicBooking — both are dead in
+production and it's the same mechanism". That is true of PublicQuote. It is not
+true of PublicBooking, and the difference is worth being precise about.
+
+### 9.1 FIXED — quotes had no credentials at all
+
+PublicQuote was believed dead because anonymous reads resolve to empty under
+RLS. It is deader than that: **nothing in the application has ever written
+`public_id` or `approval_token`.**
+
+`src/pages/CreateQuote.jsx:681` builds `quoteData` from `formData` plus six
+explicit fields. Neither credential is among them. The only place either string
+appears with a value is `src/entities/seedData.js`, which is local demo data.
+Verified on the live database — `select count(*) from "Quote"` returns 0, and
+the columns have no default.
+
+Two consequences that were invisible because they compounded:
+
+- `QuoteDetail.jsx:263` computed `quote.public_id ? url : null`. With
+  `public_id` always null the link was never rendered, so **the page was
+  unreachable even by its owner** — and the variable holding the URL was never
+  read anywhere in the file either, so the share UI did not exist at all.
+- `approve-quote` looks up by `approval_token`. It works; there has simply never
+  been a row for it to find. Every "the quote approval flow is broken" symptom
+  had this underneath it.
+
+Fixed at the database, not in the client: both columns now default to
+`gen_random_uuid()::text`. A credential that exists only if one code path
+remembers to create it is a credential that goes missing, which is exactly what
+happened. Adding a default to an existing column is a catalogue update, so no
+rewrite — unlike creating column and volatile default together, which is what
+forced the three-step form on `Invoice.public_token`.
+
+### 9.2 FIXED — the branding trap, caught before it became a leak
+
+`PublicQuote.jsx` read `BusinessSettings.list()` and took `[0]` — the first row
+in the table, not the row belonging to the quote's owner.
+
+Under the old RLS that read returned `[]`, so the bug was dormant and the page
+merely showed "Quote Not Found". **Moving the read behind a service role is
+precisely what would have woken it up**, because the service role bypasses RLS:
+`list()` would have started returning rows and `[0]` would have shown one
+contractor's client another contractor's business name, logo, address, phone
+and tax details. Porting the pattern without noticing would have converted a
+dead page into a cross-tenant branding leak.
+
+`get-public-quote` resolves settings by `quote.user_id`. There is no `list()`
+call in it.
+
+Proven in both directions rather than reasoned about.
+`scripts/test-public-quote.py` creates a second settings row owned by a
+different user, then asserts the payload carries the OWNER's name and does not
+contain the decoy's. Confirmed separately that PostgREST's unordered `list()`
+returns the decoy first, so the `[0]` bug would have failed this assertion:
+
+```
+list() order with both rows present: ['That Guy', 'ZZ-TEST-OWNER-A']
+list()[0] would have been: 'That Guy'
+```
+
+### 9.3 NOT DONE — PublicBooking is an unbuilt feature, not a dead page
+
+Deliberately not ported, and deliberately not given a `get-public-booking`
+function. Building one would have made the page load and render branding while
+remaining incapable of taking a booking — a facade, and the same
+looks-like-it-works pattern this document exists to catch.
+
+The anon-RLS problem is not what is stopping it. Four things are, and only the
+last is the one the pattern addresses:
+
+| # | Missing | Evidence |
+|---|---|---|
+| 1 | `BusinessSettings.booking_slug` — **the column does not exist** | PostgREST: `42703 column BusinessSettings.booking_slug does not exist`, against a control query on `business_name` that returns 200 |
+| 2 | `BusinessSettings.available_hours` — also does not exist | same probe |
+| 3 | `getAvailableSlots` | returns `notImplemented` (`src/api/sdk.js:482`) |
+| 4 | `createBooking` | returns `notImplemented` (`src/api/sdk.js:490`) |
+
+`PublicBooking.jsx:61` filters on `booking_slug`, so the page 400s before it
+ever reaches an RLS decision. It has never worked, and no amount of
+service-role resolution changes that. A working booking page needs the two
+columns, a slot-computation function built on `google-calendar-events`, a
+booking-creation function, and a connected Google Calendar. That is a feature,
+and it should be scoped as one.
+
+### 9.4 OPEN — typing a booking URL breaks the entire Settings save
+
+Found while establishing 9.3, and it is live and user-reachable today.
+
+`src/pages/Settings.jsx:459` builds its payload as `{ ...formData }` — a full
+spread. `src/components/settings/CalendarSettings.jsx:206` renders an input
+bound to `formData.booking_slug`, and line 61 writes `formData.available_hours`.
+**Neither column exists**, and PostgREST rejects the whole PATCH rather than
+ignoring the unknown key.
+
+Neither key is in `initialFormData`, and neither can arrive from a fetched row,
+so the bug is dormant until somebody touches one of those two controls. From
+that moment their next save fails — and it fails for *every* setting on the
+page, not just the booking ones, reporting only "Failed to save settings.
+Please try again."
+
+Two candidate fixes, and they are not equivalent:
+
+- **Add the columns.** Correct if booking is going to be built (9.3), and it
+  makes the existing UI honest.
+- **Strip unknown keys before the PATCH.** Fixes this class of bug permanently
+  rather than this instance of it — and this is the second time this exact
+  failure has occurred.
+
+Not fixed here, because it is not step 6.

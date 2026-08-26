@@ -1,59 +1,169 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { sdk } from "@/api/sdk";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Loader2, XCircle } from "lucide-react";
-import { format, differenceInDays } from "date-fns";
+import {
+  AlertCircle,
+  CheckCircle2,
+  Download,
+  Loader2,
+  Lock,
+  ThumbsUp,
+} from "lucide-react";
+import { format } from "date-fns";
 import SEO from "@/components/seo/SEO";
+
+/**
+ * The quote a client sees. No account, no login -- the public_id in the URL is
+ * the credential.
+ *
+ * This page used to call sdk.entities directly, and it had two problems that
+ * masked each other:
+ *
+ *   1. Both reads ran with the anon key, and RLS resolves to false for an
+ *      anonymous caller, so both arrays were always empty and every client who
+ *      ever opened a quote link saw "Quote Not Found". A live outage.
+ *   2. The settings read was `BusinessSettings.list()` and then `[0]` -- the
+ *      FIRST row in the table, not the one belonging to this quote's owner.
+ *
+ * (2) was dormant only because of (1). Fixing the outage by moving the read
+ * behind the service role -- which bypasses RLS -- would have woken it up and
+ * shown one contractor's client another contractor's name, logo, address and
+ * phone number. The fix for both is get-public-quote, which resolves settings
+ * BY the quote's user_id and returns a narrowed payload. There is no
+ * sdk.entities call left in this file.
+ */
+
+function money(amount, currency) {
+  try {
+    return new Intl.NumberFormat(undefined, {
+      style: "currency",
+      currency: currency || "CAD",
+    }).format(Number(amount) || 0);
+  } catch {
+    return `${(Number(amount) || 0).toFixed(2)} ${currency || ""}`.trim();
+  }
+}
+
+function safeDate(value, pattern) {
+  if (!value) return null;
+  const parsed = new Date(value);
+  return Number.isNaN(parsed.getTime()) ? null : format(parsed, pattern);
+}
+
+function Notice({ icon: Icon, tone, title, children }) {
+  return (
+    <div className="min-h-screen bg-surface-sunken flex items-center justify-center p-4">
+      <div className="text-center max-w-md">
+        <Icon className={`w-16 h-16 mx-auto mb-4 ${tone}`} />
+        <h1 className="text-2xl font-black text-ink-800">{title}</h1>
+        <p className="text-content-body mt-2">{children}</p>
+      </div>
+    </div>
+  );
+}
 
 export default function PublicQuote() {
   const [searchParams] = useSearchParams();
   const publicId = searchParams.get("id");
+  const isPreview = searchParams.get("preview") === "1";
 
-  const [quote, setQuote] = useState(null);
-  const [settings, setSettings] = useState(null);
+  const [data, setData] = useState(null);
+  const [failure, setFailure] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [approving, setApproving] = useState(false);
+  const [approved, setApproved] = useState(null);
+  const [downloading, setDownloading] = useState(false);
+  const [actionError, setActionError] = useState("");
 
-  useEffect(() => {
-    if (publicId) {
-      loadData();
+  const load = useCallback(async () => {
+    const { data: res } = await sdk.functions.invoke("getPublicQuote", {
+      public_id: publicId,
+    });
+    if (res?.success) {
+      setData(res);
     } else {
-      setLoading(false);
-    }
-  }, [publicId]);
-
-  const loadData = async () => {
-    try {
-      const [quoteData, settingsData] = await Promise.all([
-        sdk.entities.Quote.filter({ public_id: publicId }),
-        sdk.entities.BusinessSettings.list(),
-      ]);
-
-      if (quoteData.length > 0) setQuote(quoteData[0]);
-      // settingsData[0] is the wrong row: it takes the FIRST BusinessSettings
-      // row rather than the one belonging to this quote's owner, so it would
-      // show a client another contractor's name, logo and address.
-      //
-      // It is unreachable today. Both queries above run with the anon key, and
-      // the RLS policies resolve to false for an anonymous caller --
-      // has_app_access(null) is false, and accessible_owner_ids(null) yields a
-      // single NULL so `user_id IN (NULL)` is never true. Verified by direct
-      // anonymous request: both return 200 [] against tables that do hold rows.
-      // So these arrays are always empty and this page always renders
-      // "Quote Not Found" -- a live outage, not a leak.
-      //
-      // THE TRAP: the obvious fix for blank branding is to loosen the anon
-      // policy on BusinessSettings. Do not. That would make this line reachable
-      // and turn a dormant bug into a cross-tenant branding leak, while also
-      // exposing every business's address, phone and tax details. The fix is a
-      // service-role edge function that resolves settings BY the quote's
-      // user_id and returns a narrowed payload. See docs/invoice-links-plan.md.
-      if (settingsData.length > 0) setSettings(settingsData[0]);
-    } catch (error) {
-      console.error("Error loading data:", error);
+      setFailure({
+        reason: res?.reason || "server_error",
+        message: res?.error || "Something went wrong loading this quote.",
+      });
     }
     setLoading(false);
+  }, [publicId]);
+
+  useEffect(() => {
+    if (!publicId) {
+      setFailure({ reason: "not_found", message: "This quote link is not valid." });
+      setLoading(false);
+      return;
+    }
+    load();
+  }, [publicId, load]);
+
+  // Recorded from JS after mount, never from the request that served the HTML --
+  // corporate mail scanners pre-fetch every URL in an email at delivery time,
+  // and they do not boot a React SPA. See _shared/public-link.ts.
+  useEffect(() => {
+    if (!data) return;
+    sdk.functions
+      .invoke("getPublicQuote", {
+        public_id: publicId,
+        action: "record_view",
+        preview: isPreview,
+      })
+      .catch(() => {
+        // Telemetry must never be why a client cannot read their quote.
+      });
+  }, [data, publicId, isPreview]);
+
+  const handleApprove = async () => {
+    setApproving(true);
+    setActionError("");
+    // approve-quote accepts public_id as well as the emailed approval_token, so
+    // this page never has to hold the approval credential.
+    const { data: res } = await sdk.functions.invoke("approveQuote", {
+      public_id: publicId,
+    });
+    if (res?.success) {
+      setApproved(res);
+    } else if (res?.already_approved) {
+      setActionError("This quote has already been approved.");
+    } else if (res?.expired) {
+      setActionError("This quote has expired. Please ask for an updated one.");
+    } else {
+      setActionError(res?.error || "Could not approve the quote. Please try again.");
+    }
+    setApproving(false);
+  };
+
+  const handleDownload = async () => {
+    setDownloading(true);
+    setActionError("");
+    try {
+      const { data: res } = await sdk.functions.invoke("getPublicQuote", {
+        public_id: publicId,
+        action: "download_pdf",
+      });
+      if (!res?.success || !res.pdf_url) {
+        setActionError(res?.error || "No PDF is available for this quote.");
+        return;
+      }
+      // Chrome blocks top-level navigation to data: URLs, so the stored base64
+      // has to become a blob before a download link can take it.
+      const blob = await (await fetch(res.pdf_url)).blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `Quote-${data?.quote?.number || "quote"}.pdf`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    } catch {
+      setActionError("Could not download the PDF. Please try again.");
+    } finally {
+      setDownloading(false);
+    }
   };
 
   if (loading) {
@@ -64,84 +174,117 @@ export default function PublicQuote() {
     );
   }
 
-  if (!quote) {
+  if (failure) {
+    if (failure.reason === "revoked") {
+      return (
+        <Notice icon={Lock} tone="text-caution-500" title="This link has been turned off">
+          The sender turned off this quote link. Please contact them directly for
+          an up-to-date copy.
+        </Notice>
+      );
+    }
+    if (failure.reason === "rate_limited") {
+      return (
+        <Notice icon={AlertCircle} tone="text-caution-500" title="Too many requests">
+          Please wait a moment and refresh the page.
+        </Notice>
+      );
+    }
     return (
-      <div className="min-h-screen bg-surface-sunken flex items-center justify-center p-4">
-        <div className="text-center">
-          <XCircle className="w-16 h-16 text-danger-500 mx-auto mb-4" />
-          <h1 className="text-2xl font-black text-ink-800">Quote Not Found</h1>
-          <p className="text-content-body mt-2">
-            This link may be invalid or the quote has been removed.
-          </p>
-        </div>
-      </div>
+      <Notice icon={AlertCircle} tone="text-danger-500" title="Quote not found">
+        {failure.message}
+      </Notice>
     );
   }
 
-  const isActionable = quote.status === "sent";
-  const isExpired =
-    differenceInDays(new Date(quote.expiry_date), new Date()) < 0;
+  const { quote, client, business, capabilities } = data;
+  const issued = safeDate(quote.issue_date, "PP");
+  const expires = safeDate(quote.expiry_date, "PP");
+  const isApproved = approved || quote.status === "approved";
 
   return (
     <div className="min-h-screen bg-surface-sunken p-4 sm:p-8">
       <SEO
-        title={`Quote #${quote.quote_number}`}
-        description={`View and approve your quote from ${settings?.business_name || "Invoicium"}.`}
+        title={`Quote ${quote.number}`}
+        description={`View and approve your quote from ${business.name || "Invoicium"}.`}
+        // A quote is addressed to one person and the credential is in the URL.
+        // A crawler that found this would put a live credential in a search
+        // result.
         noindex={true}
       />
-      <div className="max-w-4xl mx-auto">
+
+      <div className="max-w-3xl mx-auto">
         <header className="mb-8 text-center">
-          {settings?.logo_url && (
+          {business.logo_url && (
             <img
-              src={settings.logo_url}
-              alt="Logo"
+              src={business.logo_url}
+              alt={business.name}
               className="w-24 h-auto mx-auto mb-4"
             />
           )}
           <h1 className="text-3xl font-black text-content">
-            Quote from {settings?.business_name || "Us"}
+            Quote from {business.name || "Us"}
           </h1>
-          <p className="text-content-body">Quote #{quote.quote_number}</p>
+          <p className="text-content-body">Quote #{quote.number}</p>
         </header>
 
-        {quote.status !== "sent" && (
-          <Card className="mb-6 shadow-lg">
-            <CardContent className="p-6 text-center">
-              <p className="font-semibold text-lg text-ink-800">
-                This quote was {quote.status} on{" "}
-                {format(new Date(quote.updated_date), "MMMM d, yyyy")}.
-              </p>
-            </CardContent>
-          </Card>
+        {isPreview && (
+          <div className="mb-6 rounded-lg border border-line bg-surface p-4 text-center text-sm text-content-body">
+            <strong className="text-ink-800">Preview.</strong> This is exactly
+            what your client sees. Opening it this way does not count as a view.
+          </div>
         )}
 
-        {isExpired && isActionable && (
-          <Card className="mb-6 shadow-lg bg-caution-50">
-            <CardContent className="p-6 text-center">
-              <p className="font-semibold text-lg text-caution-800">
-                This quote has expired. Please contact us for a new one.
-              </p>
-            </CardContent>
-          </Card>
+        {isApproved && (
+          <div className="mb-6 rounded-lg bg-success-50 p-6 text-center">
+            <CheckCircle2 className="w-8 h-8 text-success-600 mx-auto mb-2" />
+            <p className="font-semibold text-lg text-success-800">
+              Quote approved. Thank you!
+            </p>
+            <p className="text-sm text-success-800 mt-1">
+              {business.name || "Your contractor"} has been notified and will be
+              in touch.
+            </p>
+          </div>
         )}
 
-        <div className="p-8 bg-surface rounded-lg shadow-lg">
+        {!isApproved && capabilities.expired && (
+          <div className="mb-6 rounded-lg bg-caution-50 p-6 text-center">
+            <p className="font-semibold text-lg text-caution-800">
+              This quote has expired. Please contact us for an updated one.
+            </p>
+          </div>
+        )}
+
+        {!isApproved && !capabilities.expired && quote.status === "rejected" && (
+          <div className="mb-6 rounded-lg bg-surface p-6 text-center shadow">
+            <p className="font-semibold text-lg text-ink-800">
+              This quote was declined.
+            </p>
+          </div>
+        )}
+
+        <div className="p-6 sm:p-8 bg-surface rounded-lg shadow-lg">
           <div className="grid grid-cols-2 gap-8 mb-8">
             <div>
               <h2 className="text-sm text-content-muted mb-1">Quote For</h2>
-              <p className="font-semibold text-content">{quote.client_name}</p>
+              <p className="font-semibold text-content">{client.name}</p>
             </div>
             <div className="text-right">
-              <p className="text-sm text-content-muted mb-1">Issued Date</p>
-              <p className="font-semibold text-content">
-                {format(new Date(quote.date_issued), "PP")}
-              </p>
-              <p className="text-sm text-content-muted mb-1 mt-2">
-                Expiry Date
-              </p>
-              <p className="font-semibold text-content">
-                {format(new Date(quote.expiry_date), "PP")}
-              </p>
+              {issued && (
+                <>
+                  <p className="text-sm text-content-muted mb-1">Issued</p>
+                  <p className="font-semibold text-content">{issued}</p>
+                </>
+              )}
+              {expires && (
+                <>
+                  <p className="text-sm text-content-muted mb-1 mt-2">
+                    Valid until
+                  </p>
+                  <p className="font-semibold text-content">{expires}</p>
+                </>
+              )}
             </div>
           </div>
 
@@ -149,47 +292,98 @@ export default function PublicQuote() {
             {quote.items.map((item, index) => (
               <div
                 key={index}
-                className="flex justify-between items-start py-3 border-b last:border-b-0"
+                className="flex justify-between items-start py-3 border-b border-line last:border-b-0"
               >
-                <div>
+                <div className="pr-4">
                   <p className="font-medium text-content">{item.description}</p>
                   <p className="text-sm text-content-body">
-                    {item.quantity} × ${item.rate.toFixed(2)}
+                    {item.quantity} × {money(item.rate, quote.currency)}
                   </p>
                 </div>
-                <p className="font-medium text-content">
-                  ${item.amount.toFixed(2)}
+                <p className="font-medium text-content whitespace-nowrap">
+                  {money(item.amount, quote.currency)}
                 </p>
               </div>
             ))}
           </div>
 
-          <div className="mt-6 pt-6 border-t-2 space-y-2">
+          <div className="mt-6 pt-6 border-t-2 border-line space-y-2">
             <div className="flex justify-between text-content-body">
               <span>Subtotal</span>
-              <span>${quote.subtotal.toFixed(2)}</span>
+              <span>{money(quote.subtotal, quote.currency)}</span>
             </div>
             {quote.tax_rate > 0 && (
               <div className="flex justify-between text-content-body">
                 <span>Tax ({quote.tax_rate}%)</span>
-                <span>${quote.tax_amount.toFixed(2)}</span>
+                <span>{money(quote.tax_amount, quote.currency)}</span>
               </div>
             )}
             <div className="flex justify-between text-2xl font-bold text-content pt-2">
               <span>Total</span>
-              <span>${quote.total.toFixed(2)}</span>
+              <span>{money(quote.total, quote.currency)}</span>
             </div>
           </div>
 
           {quote.notes && (
-            <div className="mt-8 pt-6 border-t">
+            <div className="mt-8 pt-6 border-t border-line">
               <h3 className="font-black text-ink-800 mb-2">Notes</h3>
               <p className="text-content-body whitespace-pre-wrap">
                 {quote.notes}
               </p>
             </div>
           )}
+
+          {((capabilities.can_approve && !isApproved) ||
+            capabilities.can_download_pdf) && (
+            <div className="mt-8 pt-6 border-t border-line flex flex-col sm:flex-row gap-3">
+              {capabilities.can_approve && !isApproved && (
+                <Button
+                  onClick={handleApprove}
+                  disabled={approving}
+                  className="flex-1 h-12 text-base"
+                >
+                  {approving ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <ThumbsUp className="w-5 h-5 mr-2" />
+                  )}
+                  Approve this quote
+                </Button>
+              )}
+              {capabilities.can_download_pdf && (
+                <Button
+                  variant="outline"
+                  onClick={handleDownload}
+                  disabled={downloading}
+                  className="flex-1 h-12 text-base"
+                >
+                  {downloading ? (
+                    <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : (
+                    <Download className="w-5 h-5 mr-2" />
+                  )}
+                  Download PDF
+                </Button>
+              )}
+            </div>
+          )}
+
+          {actionError && (
+            <p className="mt-4 text-sm text-danger-600 text-center">
+              {actionError}
+            </p>
+          )}
         </div>
+
+        <footer className="mt-8 text-center text-sm text-content-muted">
+          {business.name && <p className="font-semibold">{business.name}</p>}
+          {business.address && <p>{business.address}</p>}
+          <p>
+            {[business.phone, business.email, business.website]
+              .filter(Boolean)
+              .join(" · ")}
+          </p>
+        </footer>
       </div>
     </div>
   );

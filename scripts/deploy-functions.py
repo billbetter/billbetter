@@ -53,6 +53,7 @@ FUNCTIONS = [
     # traffic that is not even pretending to be our app.
     ('approve-quote', True),
     ('get-public-invoice', True),
+    ('get-public-quote', True),
     ('pay-public-invoice', True),
 
     # Called by an external service, so no user JWT is available.

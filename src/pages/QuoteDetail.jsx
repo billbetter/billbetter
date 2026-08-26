@@ -29,6 +29,7 @@ import {
   Building2,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
+import PublicLinkControls from "@/components/invoice/PublicLinkControls";
 import {
   Dialog,
   DialogContent,
@@ -259,10 +260,6 @@ export default function QuoteDetail() {
       </div>
     );
   }
-
-  const publicUrl = quote.public_id
-    ? `${window.location.origin}${createPageUrl("PublicQuote")}?id=${quote.public_id}`
-    : null;
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto pb-24 sm:pb-8">
@@ -640,7 +637,17 @@ export default function QuoteDetail() {
 
         {/* Sidebar for additional info if needed */}
         <div className="lg:col-span-1 space-y-6">
-          {/* Additional sidebar content can go here */}
+          {/*
+            The hosted quote page a client actually opens. Until now nothing
+            rendered a link to it at all: publicUrl was computed here and never
+            used, and public_id was never written in the first place, so the
+            page was unreachable even by its owner.
+          */}
+          <PublicLinkControls
+            document={quote}
+            kind="quote"
+            onChange={loadQuoteData}
+          />
         </div>
       </div>
 
