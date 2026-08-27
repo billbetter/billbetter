@@ -90,7 +90,16 @@ Deno.serve(async (req) => {
       },
     });
 
-    const data = await sendEmail({ to, subject, html, attachments });
+    // This email asks for a reply in two places -- the intro when there is
+    // no approval link, and the footer always -- so it needs the contractor's
+    // address on the Reply-To header for either sentence to be true.
+    const data = await sendEmail({
+      to,
+      subject,
+      html,
+      attachments,
+      replyTo: sender_email,
+    });
 
     return new Response(
       JSON.stringify({ success: true, id: data?.id }),

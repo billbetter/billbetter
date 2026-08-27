@@ -150,6 +150,9 @@ Deno.serve(async (req) => {
       to: normalisedEmail,
       subject: `${inviterName} invited you to join ${businessName} on Invoicium`,
       html,
+      // Someone asked to join a crew almost always has a question for the
+      // person who invited them, not for us.
+      replyTo: settings?.email || user.email,
     });
 
     return new Response(JSON.stringify({ success: true }), {

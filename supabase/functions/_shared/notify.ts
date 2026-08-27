@@ -16,7 +16,7 @@
 // and keeps the property that matters: one chokepoint, so swapping providers
 // or adding logging happens in exactly one file.
 
-import { sendEmail } from "../_shared/resend.ts";
+import { sendEmail, SUPPORT_EMAIL } from "../_shared/resend.ts";
 import type {
   NotificationResult,
   TrialStartedPayload,
@@ -50,7 +50,11 @@ async function deliver(
 
   try {
     const { subject, html } = build();
-    const data = await sendEmail({ to, subject, html });
+    // These are Invoicium's own notifications to the contractor, and the
+    // shared footer already tells them "Reply to this email or contact
+    // support@invoicium.ca". Pointing Reply-To at the same address the copy
+    // already names makes replying do what the sentence promises.
+    const data = await sendEmail({ to, subject, html, replyTo: SUPPORT_EMAIL });
     console.log(`[notify:${kind}] sent to ${to} (${data?.id ?? "no id"})`);
     return { sent: true, id: data?.id };
   } catch (err) {

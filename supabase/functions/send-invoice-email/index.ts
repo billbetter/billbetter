@@ -146,7 +146,18 @@ Deno.serve(async (req) => {
       },
     });
 
-    const data = await sendEmail({ to, subject, html, attachments });
+    // The body says "just reply to this email", and the From is
+    // noreply@invoicium.ca -- so without this the client's reply goes nowhere
+    // and the contractor never learns they had a question about an unpaid
+    // invoice. sender_email is the contractor's own address, already rendered
+    // in the footer of this very message.
+    const data = await sendEmail({
+      to,
+      subject,
+      html,
+      attachments,
+      replyTo: sender_email,
+    });
 
     // Confirm to the CONTRACTOR that it went out. The client already has the
     // invoice itself (above); this is the account notification. Deliberately

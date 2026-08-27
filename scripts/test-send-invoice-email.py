@@ -101,6 +101,13 @@ def main():
         print('dry run: nothing sent.')
         return
 
+    # --bad-reply-to proves the GUARD, which matters more than it looks: a
+    # contractor with a typo'd email in Settings must still be able to send
+    # invoices. Resend rejects the whole request for a malformed reply_to, so
+    # without the filter in _shared/resend.ts one bad character in one settings
+    # field would silently stop every invoice that account ever sent.
+    bad_reply_to = '--bad-reply-to' in sys.argv
+
     # A real user session for the CONTRACTOR -- send-invoice-email sits behind
     # requireAppAccess, which authenticates the invoice's owner, not the client.
     sess = session_for(inv['owner_email'])
@@ -127,13 +134,13 @@ def main():
         # enrichBusinessContext()
         'business_name': settings['business_name'],
         'sender_name': settings['business_name'],
-        'sender_email': settings['email'],
+        'sender_email': 'not an email address' if bad_reply_to else settings['email'],
         'sender_phone': settings['phone'],
         'sender_address': settings['address'],
         'sender_website': settings['website'],
     }
 
-    print('sending...')
+    print('sending...' + ('  (with a deliberately malformed reply-to)' if bad_reply_to else ''))
     status, res = call_function('send-invoice-email', payload, token)
     print(f'  HTTP {status}  {json.dumps(res)[:300]}\n')
     if status != 200 or not res.get('success'):
@@ -191,6 +198,26 @@ def main():
     check('it still says a PDF is attached (Phase A keeps the attachment)',
           'attached' in text.lower())
     check('the business name appears', str(settings['business_name']) in text)
+
+    # The email tells the client to reply. Without a Reply-To header that reply
+    # goes to noreply@invoicium.ca and is lost -- so the instruction and the
+    # header have to agree. Read off the DELIVERED message, not the source.
+    reply_to = sent.get('reply_to')
+    if bad_reply_to:
+        check('a malformed reply-to did NOT break the send', status == 200)
+        check('the bad address was dropped rather than sent',
+              not reply_to, repr(reply_to))
+        print('\n  (guard verified: the email still went out, just without a Reply-To)')
+        sys.exit(0 if all(checks) else 1)
+
+    check('the email invites a reply', 'reply to this email' in text.lower())
+    check('Reply-To is populated, not null', bool(reply_to), repr(reply_to))
+    expected = settings['email']
+    check('Reply-To is the contractor, not noreply',
+          bool(reply_to) and expected in (reply_to if isinstance(reply_to, list) else [reply_to]),
+          f'expected {expected}, got {reply_to!r}')
+    check('Reply-To is NOT the noreply sender',
+          bool(reply_to) and 'noreply@' not in str(reply_to), repr(reply_to))
 
     ok = all(checks)
     print('\n' + ('ALL CHECKS PASS' if ok else 'FAILURES ABOVE'))

@@ -164,6 +164,10 @@ Deno.serve(async (req) => {
       if (contact?.email) {
         const total = formatCurrency(Number(quote.total) || 0);
         await sendEmail({
+          // This one goes TO the contractor, so a reply should reach the CLIENT
+          // who just approved -- that is the conversation that wants to happen
+          // next ("great, when can you start?").
+          replyTo: quote.client_email ? String(quote.client_email) : undefined,
           to: contact.email,
           subject: `Quote ${quote.quote_number} approved by ${approverName}`,
           html: renderEmailLayout({

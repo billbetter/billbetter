@@ -621,7 +621,8 @@ owner has.
       **Needs: a working Stripe account.**
 - [x] **The rendered email body.** DONE -- one real invoice was sent and the
       delivered HTML read back from Resend by id. See section 11. One finding
-      came out of it (11.1: the email invites a reply it cannot receive).
+      came out of it and was fixed (11.1: the email invited a reply it could
+      not receive).
 - [ ] **The page on a real phone.** Every assertion here is headless Chrome at a
       desktop viewport. Nothing has been seen on an actual handset, which is
       where most clients will open these links.
@@ -689,27 +690,62 @@ building rather than what the source suggests it would be.
   also the visible cost of §8.4: the client currently has no way to pay from
   the email.
 
-### 11.1 OPEN — the email asks for a reply it cannot receive
+### 11.1 FIXED — the email asked for a reply it could not receive
 
-The body says:
+The body said:
 
 > Questions about this invoice? Just reply to this email and we'll get back to
 > you.
 
-The message is sent **from `noreply@invoicium.ca` with no `Reply-To` header** —
-confirmed on the delivered message, `reply_to: null`. `_shared/resend.ts` does
-not accept or set one; its `sendEmail` takes only `to`, `subject`, `html` and
-`attachments`.
+The message went out from `noreply@invoicium.ca` with **no `Reply-To` header** --
+confirmed on the delivered message, which came back `reply_to: null`. A client
+doing exactly what the email told them to do wrote into a void, and the
+contractor never learned they had a question about an unpaid invoice.
 
-So a client who does the thing the email tells them to do is writing to a
-noreply mailbox. Depending on how that address is configured they get a bounce
-or silence, and the contractor never learns the client had a question about an
-unpaid invoice.
+The instruction was the right one -- replying is what people actually do -- so
+the header changed, not the sentence.
 
-The contractor's own address is already in the payload as `sender_email` and is
-already rendered in the footer, so the fix is small: thread it through
-`sendEmail` as `reply_to`. Not done here — it was outside the two things asked
-for.
+`_shared/resend.ts` now takes `replyTo`, and because it is the shared helper the
+fix reaches every email the product sends, not just invoices:
+
+| Function | Reply-To | Why that address |
+|---|---|---|
+| `send-invoice-email` | the contractor (`sender_email`) | the body asks the client to reply |
+| `send-quote-email` | the contractor (`sender_email`) | asks twice -- intro and footer |
+| `approve-quote` | the CLIENT (`quote.client_email`) | goes to the contractor; the next conversation is "great, when can you start?" |
+| `send-crew-invite` | the employer | an invitee's question is for the person who invited them, not for us |
+| `_shared/notify.ts` | `support@invoicium.ca` | platform notifications, and the shared footer already names that address |
+
+**A malformed address is dropped, not sent.** Resend rejects the whole request
+for a bad `reply_to`, so without that filter one typo in a contractor's Settings
+email would have silently stopped every invoice that account ever sent -- a far
+worse failure than losing the reply path on one message. The bad value is logged
+rather than discarded silently.
+
+Both directions proven against real delivered messages, not the source:
+
+```
+PASS  Reply-To is populated, not null
+PASS  Reply-To is the contractor, not noreply
+PASS  Reply-To is NOT the noreply sender
+```
+
+and with `--bad-reply-to`:
+
+```
+PASS  a malformed reply-to did NOT break the send
+PASS  the bad address was dropped rather than sent
+```
+
+One caveat on the first set: in this database the contractor's configured
+business email and the client's email are the same address, so those assertions
+prove Reply-To is populated and is not the noreply sender -- they cannot
+distinguish "the contractor" from "the client". The code takes `sender_email`,
+which is the contractor's; a database with two distinct addresses would prove it
+outright.
+
+`scripts/test-send-invoice-email.py` sends and asserts;
+`scripts/inspect-sent-email.py <id>` reads any sent message back.
 
 ---
 
