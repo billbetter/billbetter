@@ -1,5 +1,73 @@
 # Feature audit — what this product actually does
 
+> ## HANDOFF — read this first
+>
+> **Invoicium** is a Vite + React SPA (plain JSX, not TypeScript, not Next.js)
+> with a Supabase backend: Postgres behind RLS, plus Deno edge functions in
+> `supabase/functions/`. `src/api/sdk.js` is the seam the app calls; edge
+> functions are deployed with `python scripts/deploy-functions.py [slug...]`,
+> migrations applied with `python scripts/apply-migration.py <file.sql>`.
+>
+> ### What is finished and proven
+>
+> **The public document surface.** A client with no account can open, read and
+> pay an invoice at `/i/<token>`, and open and approve a quote at
+> `/PublicQuote?id=<public_id>`. Both are served by service-role edge functions
+> (`get-public-invoice`, `get-public-quote`) that resolve a document by its
+> credential and return a payload enumerated field by field. **RLS was not
+> loosened to do this and must not be** — a policy grants every column of a
+> matching row, so the token would gate the row and nothing would gate the
+> shape.
+>
+> Also done, and each with a test that fails if it regresses:
+>
+> - Approving a quote requires a typed name, enforced server-side, and records
+>   who approved and when
+> - Unknown, malformed and revoked credentials are answered byte-for-byte
+>   identically, so the endpoints cannot be probed for which links were ever real
+> - Emails carry a working `Reply-To` (they had none, from a `noreply@` sender)
+> - `localDataEngine` strips keys that are not real columns before writing, and
+>   says so loudly in dev
+> - List queries no longer select `pdf_url`, which holds an entire PDF inline
+>
+> Run everything: the `scripts/test-*.py` and `scripts/test-*.cjs` files. They
+> hit the live project with the anon key and clean up after themselves.
+> `npm run check` gates the build and must stay green.
+>
+> ### The four things still open, and who they need
+>
+> None is a code problem. Each needs an account, a credential or a device that
+> only the product owner has.
+>
+> | # | Open | The one sentence that matters |
+> |---|---|---|
+> | 1 | **A successful card payment** | Never executed once: the Stripe key is LIVE and the only connected account is `restricted`, so only the refusal path is reachable — needs a test-mode key or an active connected account. |
+> | 2 | **SMS on any channel** | Twilio answers `401 Authenticate` (code 20003) to well-formed credentials that match between `.env` and the deployed secrets, so the token was rotated or the account is closed — the code is correct and both invoice and quote SMS are dead until the secret is replaced (§12). |
+> | 3 | **Email landing in an inbox** | Resend reports `delivered` and the domain is real, but SPF/DKIM/DMARC have never been checked, so inbox-versus-spam is still an assumption (Phase B of `docs/invoice-links-plan.md`). |
+> | 4 | **The page on a real phone** | Every assertion in this document is headless Chrome at a desktop viewport, and a phone is where clients will actually open these links. |
+>
+> ### Separate work, deliberately not started
+>
+> - **§0 AI launch gate** — `invoke-llm` is built and deployed but returns
+>   `not_configured` with no `LLM_API_KEY`, so every AI bullet on the pricing
+>   page is still an unproven claim. Four boxes, all unticked.
+> - **§3 no scheduler** — nothing runs on a timer, which is why overdue sweeps,
+>   recurring generation and review requests do not exist. `PublicLinkHit` has a
+>   180-day retention decision with nothing enforcing it.
+> - **§5 pricing enforcement** — four feature flags gate anything and two of
+>   those are dormant, so the plan ladder is close to unenforced.
+> - **§9.3 online booking** — not a broken page but an unbuilt feature; two of
+>   its columns do not exist. `PublicBooking` says so plainly rather than
+>   pretending.
+> - **§8.3 `pdf_url`** — invoices store the whole PDF inline as base64. The
+>   cheap half is fixed; moving the bytes to Storage is not, and it is cheapest
+>   before there is real data.
+> - **§10.1 line-item suggestion `TypeError`** — a live client-side crash,
+>   logged and not investigated.
+>
+> `STRIPE_PRICES_UPDATED` stays `false` until the pricing table below is
+> settled.
+
 Every claim traced to code. **Traced, not run** — reading is dispositive when the
 code plainly does not contain the thing; live proof is for when the code *claims*
 to do it and might still fail (the `approve-quote` case, where the bug was in a
