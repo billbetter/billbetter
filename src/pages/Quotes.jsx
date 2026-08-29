@@ -145,35 +145,35 @@ export default function Quotes() {
   const handleStatusChange = async (quoteId, newStatus) => {
     setUpdatingStatus(quoteId);
     try {
-      await sdk.entities.Quote.update(quoteId, { status: newStatus });
+      // -- Stamp the date, never a name -----------------------------------
+      //
+      // approved_by_name and declined_by_name are written ONLY by a client
+      // responding through the public link, where a real person typed their
+      // name into a confirmation. That is the whole evidentiary value of those
+      // columns.
+      //
+      // You moving this dropdown is a different event: it records that the
+      // quote is settled, not that the client asserted anything. So it stamps
+      // the timestamp alone, and QuoteDetail renders the two differently --
+      // "Marked approved by you" versus "Approved by Dana Marchetti". A record
+      // that looked identical either way would be worth nothing in a dispute,
+      // which is the one moment it exists for.
+      const patch = { status: newStatus };
+      const now = new Date().toISOString();
+      if (newStatus === "approved") patch.approved_at = now;
+      if (newStatus === "declined") patch.declined_at = now;
 
-      if (newStatus === "approved") {
-        const quote = quotes.find((q) => q.id === quoteId);
-        if (quote) {
-          try {
-            console.log(
-              "📧 Sending approval notification for quote:",
-              quote.quote_number,
-            );
+      await sdk.entities.Quote.update(quoteId, patch);
 
-            const response = await sdk.functions.invoke("notifyQuoteApproval", {
-              quote_id: quote.id,
-              quote_number: quote.quote_number,
-              client_name: quote.client_name,
-              total: quote.total,
-              approval_date: new Date().toISOString(),
-            });
-
-            console.log("✅ Notification response:", response.data);
-          } catch (notifyError) {
-            console.error("❌ Failed to send notification:", notifyError);
-            console.error(
-              "Error details:",
-              notifyError.response?.data || notifyError.message,
-            );
-          }
-        }
-      }
+      // The notification that used to live here called "notifyQuoteApproval",
+      // a function that has never existed: sdk.js routes the name to
+      // notImplemented, and the only caller logged the result to the console.
+      // So a manual approve told nobody, and said "✅" while doing it.
+      //
+      // Nothing replaces it deliberately. The approval notification exists to
+      // tell the contractor something they do not already know; you moving
+      // this dropdown yourself is not that. The client-response path in
+      // approve-quote sends it, gated by Settings.
 
       await loadData(true);
     } catch (error) {
@@ -288,6 +288,28 @@ export default function Quotes() {
       icon: FileCheck,
       indicator: "bg-accent-500",
     },
+  };
+
+  /**
+   * Who responded to this quote, for the list.
+   *
+   * Returns null unless a CLIENT responded through the public link -- the name
+   * columns are written by nothing else. A quote the contractor marked approved
+   * from the dropdown here keeps its badge and nothing more, which is correct:
+   * there is no client assertion to report, and inventing a line that looked
+   * like one would make the two indistinguishable at a glance.
+   */
+  const respondedBy = (quote) => {
+    if (quote.status === "approved" && quote.approved_by_name) {
+      return { verb: "Approved by", who: quote.approved_by_name };
+    }
+    if (
+      (quote.status === "declined" || quote.status === "rejected") &&
+      quote.declined_by_name
+    ) {
+      return { verb: "Declined by", who: quote.declined_by_name };
+    }
+    return null;
   };
 
   const stats = {
@@ -867,6 +889,20 @@ export default function Quotes() {
                               ))}
                             </SelectContent>
                           </Select>
+                          {/*
+                            The name the client typed, under the badge. A green
+                            badge says the quote is settled; it does not say who
+                            settled it, and "who" is the part that matters three
+                            months later.
+                          */}
+                          {respondedBy(quote) && (
+                            <p className="mt-1 text-[11px] leading-tight text-content-muted dark:text-content-subtle truncate max-w-[130px]">
+                              {respondedBy(quote).verb}{" "}
+                              <span className="font-medium text-content-body dark:text-ink-300">
+                                {respondedBy(quote).who}
+                              </span>
+                            </p>
+                          )}
                         </TableCell>
 
                         <TableCell className="py-4 px-4">
@@ -991,12 +1027,22 @@ export default function Quotes() {
                         </div>
 
                         <div className="flex items-center justify-between pt-3 border-t border-ink-50 dark:border-ink-700">
-                          <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${statusConfig[quote.status]?.color || "bg-ink-100"}`}
-                          >
-                            <StatusIcon className="w-3 h-3" />
-                            <span className="capitalize">{quote.status}</span>
-                          </span>
+                          <div className="min-w-0">
+                            <span
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${statusConfig[quote.status]?.color || "bg-ink-100"}`}
+                            >
+                              <StatusIcon className="w-3 h-3" />
+                              <span className="capitalize">{quote.status}</span>
+                            </span>
+                            {respondedBy(quote) && (
+                              <p className="mt-1.5 text-[11px] leading-tight text-content-muted dark:text-content-subtle truncate">
+                                {respondedBy(quote).verb}{" "}
+                                <span className="font-medium text-content-body dark:text-ink-300">
+                                  {respondedBy(quote).who}
+                                </span>
+                              </p>
+                            )}
+                          </div>
 
                           <div className="flex gap-2">
                             {canConvert ? (

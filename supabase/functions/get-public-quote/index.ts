@@ -129,6 +129,15 @@ Deno.serve(async (req) => {
       quote.expiry_date && new Date(String(quote.expiry_date)).getTime() < Date.now(),
     );
 
+    // The contractor's switch for whether clients may respond at all.
+    //
+    // `!== false` rather than truthiness: a missing settings row, or a row read
+    // before this column existed, must mean ENABLED -- that is how the product
+    // behaves today, and a business-level default that silently changed the
+    // behaviour of links already sitting in clients' inboxes would be worse
+    // than the one it replaced. Only an explicit false turns it off.
+    const acceptsResponses = settings?.allow_client_quote_approval !== false;
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -164,9 +173,16 @@ Deno.serve(async (req) => {
           website: settings?.website || '',
         },
         capabilities: {
-          // Computed server-side. The page never decides for itself whether an
-          // approval would be accepted -- approve-quote re-checks all of this.
-          can_approve: status === 'sent' && !expired,
+          // Computed server-side. The page never decides for itself whether a
+          // response would be accepted -- approve-quote re-checks every one of
+          // these, including the business gate, because this endpoint decides
+          // what is DRAWN and cannot decide what is ALLOWED.
+          can_approve: acceptsResponses && status === 'sent' && !expired,
+          // A separate flag even though it is computed identically today.
+          // "Clients may say no but not yes" is a setting somebody will ask
+          // for, and a page reading one flag for two buttons would need
+          // changing on that day rather than a server that already sends two.
+          can_decline: acceptsResponses && status === 'sent' && !expired,
           expired,
           can_download_pdf: String(quote.pdf_url || '').startsWith('data:application/pdf'),
         },

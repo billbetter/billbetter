@@ -145,6 +145,28 @@ export default function QuoteDetail() {
       }
     }
 
+    // -- Mark the quote sent -------------------------------------------------
+    //
+    // This page used to deliver the quote and never touch the row, so a quote
+    // created as a draft and sent from here stayed 'draft' forever. That is not
+    // cosmetic: get-public-quote computes `can_approve: status === 'sent'`, so
+    // the client opened the link to a quote with NO APPROVE BUTTON on it. The
+    // emailed one-click link still worked, which is why the outage was partial
+    // and easy to miss.
+    //
+    // CreateQuote.jsx already does this after each successful send; this is the
+    // same write on the other send path.
+    if ((smsSuccess || emailSuccess) && quote.status === "draft") {
+      try {
+        await sdk.entities.Quote.update(quote.id, { status: "sent" });
+        setQuote((prev) => (prev ? { ...prev, status: "sent" } : prev));
+      } catch (statusError) {
+        // The client HAS the quote -- the send succeeded. Failing the whole
+        // action over the status write would tell them otherwise.
+        console.error("Quote sent but status update failed:", statusError);
+      }
+    }
+
     setSendingNotifications(false);
     setNotificationResult({
       sms: smsSuccess,
@@ -237,6 +259,73 @@ export default function QuoteDetail() {
     declined: <XCircle className="w-4 h-4" />,
     converted: <FileCheck className="w-4 h-4" />,
   };
+
+  /**
+   * What actually happened to this quote, and who said so.
+   *
+   * -- Why the name is the whole point ------------------------------------
+   *
+   * This used to read `quote.approval_date`, a column that has never existed.
+   * The migration added `approved_at`, so the "Approved [date]" line has never
+   * rendered once, and `approved_by_name` was displayed nowhere in the app at
+   * all. The record a contractor needs when a client disputes the scope three
+   * months later was being collected and never shown.
+   *
+   * -- Two records that must not look alike -------------------------------
+   *
+   * A client typing their name into the confirmation and a contractor flipping
+   * the status from a dropdown are not the same event, and they carry opposite
+   * evidentiary weight. So only the client path ever writes a NAME; a manual
+   * flip stamps the timestamp alone. The presence of the name is therefore what
+   * distinguishes them, and the copy says which one you are looking at:
+   *
+   *     "Approved by Dana Marchetti on 4 September"   <- the client agreed
+   *     "Marked approved by you on 4 September"       <- you set the status
+   *
+   * Nothing is inferred from another column. A quote approved before this
+   * record existed has neither a name nor a date, and says so rather than
+   * borrowing `updated_at` -- manufacturing evidence for exactly the dispute
+   * this is meant to settle would be worse than showing nothing.
+   */
+  const responseRecord = (() => {
+    if (!quote) return null;
+
+    const isApproved = quote.status === "approved";
+    // "declined" is the app's vocabulary; "rejected" is read for safety only.
+    const isDeclined =
+      quote.status === "declined" || quote.status === "rejected";
+    if (!isApproved && !isDeclined) return null;
+
+    const verb = isApproved ? "Approved" : "Declined";
+    const byName = isApproved ? quote.approved_by_name : quote.declined_by_name;
+    const at = isApproved ? quote.approved_at : quote.declined_at;
+
+    const stamp = at ? new Date(at) : null;
+    const valid = stamp && !Number.isNaN(stamp.getTime());
+
+    const shortDate = valid ? ` ${format(stamp, "MMM d, yyyy")}` : "";
+    const fullDate = valid
+      ? ` on ${format(stamp, "MMMM d, yyyy 'at' h:mm a")}`
+      : "";
+
+    if (byName) {
+      return {
+        byName,
+        reason: isDeclined ? quote.decline_reason || "" : "",
+        short: `${verb} by ${byName}${shortDate}`,
+        full: `${verb} by ${byName}${fullDate}`,
+      };
+    }
+
+    return {
+      byName: null,
+      reason: isDeclined ? quote.decline_reason || "" : "",
+      short: `Marked ${verb.toLowerCase()}${shortDate}`,
+      full: valid
+        ? `Marked ${verb.toLowerCase()} by you${fullDate}`
+        : `Marked ${verb.toLowerCase()}. No date on record.`,
+    };
+  })();
 
   if (loading) {
     return (
@@ -400,10 +489,9 @@ export default function QuoteDetail() {
                       {statusIcons[quote.status]}
                       <span className="capitalize">{quote.status}</span>
                     </Badge>
-                    {quote.status === "approved" && quote.approval_date && (
+                    {responseRecord && (
                       <span className="text-sm text-content-body dark:text-content-subtle">
-                        Approved{" "}
-                        {format(new Date(quote.approval_date), "MMM d, yyyy")}
+                        {responseRecord.short}
                       </span>
                     )}
                   </div>
@@ -472,14 +560,12 @@ export default function QuoteDetail() {
                 <CheckCircle className="w-6 h-6 text-success-600 flex-shrink-0" />
                 <div className="flex-1">
                   <p className="text-sm font-semibold text-success-900">
-                    Quote Approved
+                    {responseRecord?.byName
+                      ? "Approved by your client"
+                      : "Quote Approved"}
                   </p>
                   <p className="text-xs text-success-800">
-                    {quote.approval_date &&
-                      format(
-                        new Date(quote.approval_date),
-                        "MMMM d, yyyy 'at' h:mm a",
-                      )}
+                    {responseRecord?.full || "No approval date on record."}
                   </p>
                 </div>
                 <Button
@@ -490,6 +576,40 @@ export default function QuoteDetail() {
                   <FileText className="w-4 h-4 mr-2" />
                   Convert to Invoice
                 </Button>
+              </CardContent>
+            </Card>
+          )}
+
+          {/*
+            The decline, with the same standing as the approval above.
+            Deliberately neutral rather than danger-red: a client saying no is
+            an ordinary commercial outcome, not a fault or an error, and this
+            card is the contractor's record of it -- not an alert.
+          */}
+          {(quote.status === "declined" || quote.status === "rejected") && (
+            <Card className="border-none shadow-lg bg-surface-sunken dark:bg-ink-800/50">
+              <CardContent className="p-4 sm:p-6 flex flex-col sm:flex-row items-start gap-4">
+                <XCircle className="w-6 h-6 text-content-muted dark:text-content-subtle flex-shrink-0" />
+                <div className="flex-1">
+                  <p className="text-sm font-semibold text-content dark:text-content-inverted">
+                    {responseRecord?.byName
+                      ? "Declined by your client"
+                      : "Quote Declined"}
+                  </p>
+                  <p className="text-xs text-content-body dark:text-content-subtle">
+                    {responseRecord?.full || "No decline date on record."}
+                  </p>
+                  {responseRecord?.reason && (
+                    <div className="mt-3 rounded-lg border border-line dark:border-ink-700 bg-surface dark:bg-ink-900 p-3">
+                      <p className="text-xs font-medium text-content-muted dark:text-content-subtle mb-1">
+                        Reason given
+                      </p>
+                      <p className="text-sm text-content-body dark:text-content-subtle whitespace-pre-wrap">
+                        {responseRecord.reason}
+                      </p>
+                    </div>
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}

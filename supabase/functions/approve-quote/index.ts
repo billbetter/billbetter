@@ -1,10 +1,12 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserContact } from '../_shared/supabase-admin.ts';
-import { sendEmail } from '../_shared/resend.ts';
-import { renderEmailLayout, formatCurrency, escapeHtml } from '../_shared/email-templates.ts';
+import { tokensMatch } from '../_shared/public-link.ts';
+import { notify } from '../_shared/notify.ts';
+import { APP_URL } from '../_shared/app-url.ts';
 
 /**
- * Approve a quote from the public link a client was emailed.
+ * Record a client's response to a quote from the public link they were emailed:
+ * approve it, or decline it.
  *
  * THIS FUNCTION NEVER EXISTED. ApproveQuote.jsx has called
  * sdk.functions.invoke("approveQuote") since it was written; nothing answered,
@@ -14,6 +16,20 @@ import { renderEmailLayout, formatCurrency, escapeHtml } from '../_shared/email-
  * and the contractor was never told. Every approval ever made was discarded,
  * and both sides were shown a confirmation.
  *
+ * -- ONE FUNCTION, TWO ACTIONS ---------------------------------------------
+ *
+ * Decline lives here rather than in a sibling function on purpose. Everything
+ * that protects an approval -- credential resolution, the constant-time
+ * compare, the revoked check, the status and expiry guards, the business gate,
+ * the server-side confirmation -- protects a decline identically. A separate
+ * function would have to import that sequence and remember to call every step
+ * in order; here there is one path and `action` selects only the terminal
+ * branch. Sharing by construction, not by discipline.
+ *
+ * The slug still says approve-quote. Kept deliberately: renaming would leave
+ * the old function deployed and orphaned, and `approveQuote` is the name the
+ * pages already call through src/api/sdk.js.
+ *
  * -- DELIBERATE: no requireAppAccess() on this path -----------------------
  *
  * Every other function here starts with the paywall. This one must not, and it
@@ -22,34 +38,42 @@ import { renderEmailLayout, formatCurrency, escapeHtml } from '../_shared/email-
  *   1. The caller is the contractor's CLIENT. They have no account, no session
  *      and no subscription. requireAppAccess would reject every legitimate use.
  *   2. If the contractor's own subscription has lapsed, blocking their client
- *      from approving punishes the contractor by killing work they already won.
+ *      from responding punishes the contractor by killing work they already won.
  *   3. The exposure is bounded: RLS still stops a lapsed user creating new
- *      quotes, so the set of approvable documents is frozen at the moment
+ *      quotes, so the set of reachable documents is frozen at the moment
  *      access lapsed.
  *
- * The approval_token is therefore the only credential, which is why it is
+ * The credential is therefore the only thing standing here, which is why it is
  * compared in constant time and why unknown tokens are answered identically to
  * expired ones.
  */
 
-/** Approve/expire outcomes the page distinguishes. */
+/** Approve/decline outcomes the pages distinguish. */
 type Outcome =
-  | { ok: true; client_name: string; business_name: string; quote_number: string; total: number; approved_by: string }
-  | { ok: false; already_approved?: true; expired?: true; needs_confirmation?: true; error?: string };
+  | {
+      ok: true;
+      action: 'approved' | 'declined';
+      client_name: string;
+      business_name: string;
+      quote_number: string;
+      total: number;
+      responded_by: string;
+      /** Retained for the existing pages, which read `approved_by`. */
+      approved_by?: string;
+    }
+  | {
+      ok: false;
+      already_approved?: true;
+      already_declined?: true;
+      expired?: true;
+      needs_confirmation?: true;
+      responses_disabled?: true;
+      not_sent?: true;
+      error?: string;
+    };
 
-/**
- * Constant-time string compare.
- *
- * The token is the whole credential, so a plain === would leak its prefix
- * through timing. Deno gives us no crypto.timingSafeEqual, so compare every
- * byte and accumulate.
- */
-function tokensMatch(a: string, b: string): boolean {
-  if (a.length !== b.length) return false;
-  let diff = 0;
-  for (let i = 0; i < a.length; i++) diff |= a.charCodeAt(i) ^ b.charCodeAt(i);
-  return diff === 0;
-}
+/** Longest decline reason we store. Trimmed here, not by a database error. */
+const MAX_REASON = 500;
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -64,11 +88,15 @@ Deno.serve(async (req) => {
     const token = payload?.token;
     const publicId = payload?.public_id;
 
+    // 'approve' is the default so every caller that predates the decline branch
+    // keeps working unchanged.
+    const action = payload?.action === 'decline' ? 'decline' : 'approve';
+
     // -- Two credentials, one action --------------------------------------
     //
     // `token` is the approval_token from the one-click link in the email, and
     // is the original path. `public_id` is the credential the public quote page
-    // was opened with, added so that page can carry an Approve button.
+    // was opened with, added so that page can carry Approve and Decline.
     //
     // The alternative was to put approval_token into get-public-quote's
     // payload. That was rejected: it would place a second credential into the
@@ -87,131 +115,203 @@ Deno.serve(async (req) => {
         : null;
 
     if (!credential) {
-      return respond({ ok: false, error: 'This approval link is not valid.' }, 400);
+      return respond({ ok: false, error: 'This link is not valid.' }, 400);
     }
 
     // -- The confirmation is server-side, not a client-side dialog ---------
     //
     // A confirm step that lives only in the page is decoration: the endpoint is
     // reachable directly, so anything that matters has to be required HERE.
-    // Requiring a typed name makes approval a deliberate act rather than a
+    // Requiring a typed name makes a response a deliberate act rather than a
     // consequence of opening a URL, and gives the contractor a record that
     // survives a scope dispute three months later.
     //
     // This also removes a GET-triggered state change. ApproveQuote.jsx used to
     // approve on mount, so merely loading the emailed link committed the
     // client -- and anything that pre-fetches or pre-renders a URL could do it
-    // for them. Approval now takes a second, explicit call carrying a name.
-    const approverName = typeof payload?.approver_name === 'string'
-      ? payload.approver_name.trim().slice(0, 120)
+    // for them. A response now takes a second, explicit call carrying a name.
+    //
+    // Two accepted spellings: `responder_name` is what the pages send now,
+    // `approver_name` is what a cached older bundle still sends.
+    const rawName = payload?.responder_name ?? payload?.approver_name;
+    const responderName = typeof rawName === 'string'
+      ? rawName.trim().slice(0, 120)
       : '';
-    if (approverName.length < 2) {
+    if (responderName.length < 2) {
       return respond({ ok: false, needs_confirmation: true }, 400);
     }
 
     // PostgREST filter, then a constant-time confirm. The filter is what makes
     // the lookup indexed; the compare is what makes it safe to have used a
-    // string equality to get here.
+    // string equality to get here. tokensMatch is imported rather than
+    // redeclared -- this file used to carry its own copy, and two constant-time
+    // comparators that must stay identical is one more than necessary.
     const quote = await db.findOne('Quote', { [credential.column]: credential.value });
     if (!quote || !tokensMatch(String(quote[credential.column]), credential.value)) {
       // Deliberately the same answer as an expired quote: distinguishing them
       // would turn this endpoint into an oracle for guessing valid tokens.
-      return respond({ ok: false, error: 'This approval link is no longer valid.' }, 404);
+      return respond({ ok: false, error: 'This link is no longer valid.' }, 404);
     }
 
-    // A revoked link must not be approvable. Answered like an unknown token,
+    // A revoked link must not be usable. Answered like an unknown token,
     // because a contractor who turned the link off does not want it confirming
     // that the quote exists.
     if (quote.public_link_revoked_at) {
-      return respond({ ok: false, error: 'This approval link is no longer valid.' }, 404);
+      return respond({ ok: false, error: 'This link is no longer valid.' }, 404);
     }
 
+    // -- Terminal states, before the positive guard ------------------------
+    //
+    // Checked first so a client who clicks twice gets "already approved"
+    // rather than the blunter "this quote is not awaiting a response".
     if (quote.status === 'approved') {
       return respond({ ok: false, already_approved: true });
     }
-    if (quote.status === 'rejected') {
-      return respond({ ok: false, error: 'This quote was already declined.' });
+    // Both spellings. The app writes 'declined' everywhere; 'rejected' was read
+    // by this file and by PublicQuote.jsx and written by nothing, so it is
+    // accepted on the way in and never on the way out.
+    if (quote.status === 'declined' || quote.status === 'rejected') {
+      return respond({ ok: false, already_declined: true });
+    }
+
+    // -- A quote must be SENT to be responded to ---------------------------
+    //
+    // get-public-quote already computes `can_approve: status === 'sent'`, under
+    // a comment saying this function re-checks it. It did not: the guards above
+    // were the only ones, so a DRAFT quote could be approved by a direct call
+    // even though the page never offered the button.
+    //
+    // This closes it, and it is safe to close only because QuoteDetail.jsx now
+    // sets status:'sent' when it sends. Before that fix a quote sent from the
+    // detail page stayed 'draft' forever, and this guard would have refused
+    // every one of those emailed approval links.
+    if (quote.status !== 'sent') {
+      return respond({
+        ok: false,
+        not_sent: true,
+        error: 'This quote is not currently awaiting a response.',
+      }, 409);
     }
 
     // Expiry is checked against the stored date, never against anything the
     // client sends.
-    if (quote.expiry_date && new Date(quote.expiry_date).getTime() < Date.now()) {
+    if (quote.expiry_date && new Date(String(quote.expiry_date)).getTime() < Date.now()) {
       return respond({ ok: false, expired: true });
     }
 
-    const settings = await db.findOne('BusinessSettings', { user_id: quote.user_id });
+    // -- The business gate, re-checked here --------------------------------
+    //
+    // get-public-quote uses this same column to decide whether to render the
+    // buttons. That decides what is DRAWN; it cannot decide what is ALLOWED,
+    // because this endpoint is reachable directly by anyone holding the link.
+    // So it is read again here, from the same row.
+    //
+    // The settings read also supplies the branding below, and it moved above
+    // the write rather than being added: one query, two jobs.
+    //
+    // `!== false`, not truthiness -- a missing row, or a row from before the
+    // column existed, means enabled, which is how the product behaves today.
+    const settings = await db.findOne('BusinessSettings', { user_id: String(quote.user_id) });
+    if (settings?.allow_client_quote_approval === false) {
+      return respond({
+        ok: false,
+        responses_disabled: true,
+        error:
+          'This business is not accepting online quote responses right now. ' +
+          'Please contact them directly.',
+      }, 403);
+    }
+
     const businessName = settings?.business_name || 'Your contractor';
+    const respondedAt = new Date().toISOString();
 
-    // The write. Everything above is a read, so a failure here is the only one
-    // that can leave the client believing something untrue -- hence it happens
-    // BEFORE the notification, and a notification failure never fails the call.
-    const approvedAt = new Date().toISOString();
-    await db.update('Quote', quote.id, {
-      status: 'approved',
-      // Who and when, stored so an approval is a record rather than a state
-      // flag. approved_at is separate from updated_at because updated_at moves
-      // on any edit and cannot answer "when did the client agree".
-      approved_by_name: approverName,
-      approved_at: approvedAt,
-      updated_at: approvedAt,
-    });
+    // -- The write ---------------------------------------------------------
+    //
+    // Everything above is a read, so a failure here is the only one that can
+    // leave the client believing something untrue -- hence it happens BEFORE
+    // the notification, and a notification failure never fails the call.
+    //
+    // approved_at / declined_at are stored separately from updated_at because
+    // updated_at moves on any edit and cannot answer "when did the client
+    // decide", which is the question that matters in a dispute.
+    const patch: Record<string, unknown> = { updated_at: respondedAt };
 
-    // Tell the contractor. Best-effort by design: the approval is already
-    // committed, and a Resend outage must not make the client think their
-    // approval failed and click again.
+    let reason = '';
+    if (action === 'decline') {
+      const rawReason = payload?.decline_reason;
+      reason = typeof rawReason === 'string' ? rawReason.trim().slice(0, MAX_REASON) : '';
+      patch.status = 'declined';
+      patch.declined_by_name = responderName;
+      patch.declined_at = respondedAt;
+      // Only when given. Writing '' would make "declined without saying why"
+      // indistinguishable from "declined and the reason was lost".
+      if (reason) patch.decline_reason = reason;
+    } else {
+      patch.status = 'approved';
+      patch.approved_by_name = responderName;
+      patch.approved_at = respondedAt;
+    }
+
+    await db.update('Quote', String(quote.id), patch);
+
+    // -- Tell the contractor -----------------------------------------------
+    //
+    // Best-effort by design: the response is already committed, and a Resend
+    // outage must not make the client think their click failed and try again.
+    //
+    // Routed through notify.ts rather than sendEmail, which is what makes the
+    // Settings toggle real -- this used to call sendEmail directly, so
+    // quote_approved in Settings gated nothing. The settings row is passed in
+    // because it is already loaded, so the preference check costs no query.
     try {
-      const contact = await getUserContact(quote.user_id);
+      const contact = await getUserContact(String(quote.user_id));
       if (contact?.email) {
-        const total = formatCurrency(Number(quote.total) || 0);
-        await sendEmail({
-          // This one goes TO the contractor, so a reply should reach the CLIENT
-          // who just approved -- that is the conversation that wants to happen
-          // next ("great, when can you start?").
+        const shared = {
+          userEmail: contact.email,
+          userName: contact.name,
+          quoteNumber: quote.quote_number ? String(quote.quote_number) : null,
+          clientName: quote.client_name ? String(quote.client_name) : null,
+          total: Number(quote.total) || 0,
+          quoteUrl: `${APP_URL}/QuoteDetail?id=${quote.id}`,
+        };
+        // Reply-To is the CLIENT: this email goes to the contractor about a
+        // decision their client just made, and the next conversation is with
+        // that client.
+        const opts = {
+          settings,
           replyTo: quote.client_email ? String(quote.client_email) : undefined,
-          to: contact.email,
-          subject: `Quote ${quote.quote_number} approved by ${approverName}`,
-          html: renderEmailLayout({
-            heading: 'Quote approved',
-            // The typed name, not the client_name on the record -- they can
-            // differ, and the one that matters in a dispute is what the person
-            // approving actually asserted about themselves.
-            intro:
-              `<strong>${escapeHtml(approverName)}</strong> approved quote ` +
-              `<strong>${escapeHtml(quote.quote_number || '')}</strong> for <strong>${total}</strong>` +
-              `${quote.client_name ? ` on behalf of ${escapeHtml(String(quote.client_name))}` : ''}.`,
-            detailsRows: [
-              { label: 'Approved by', value: approverName },
-              { label: 'Approved on', value: new Date(approvedAt).toUTCString() },
-            ],
-            footerMessage: 'You can convert it to an invoice whenever you are ready.',
-            // This email goes to the CONTRACTOR, so it is branded as their own
-            // business writing to them -- the same settings row the client-
-            // facing quote email uses.
-            branding: {
-              business_name: businessName,
-              sender_name: settings?.business_name || businessName,
-              sender_email: settings?.email,
-              sender_phone: settings?.phone,
-              sender_address: settings?.address,
-              website: settings?.website,
-            },
-          }),
-        });
+        };
+
+        if (action === 'decline') {
+          await notify.quoteDeclined(
+            { ...shared, declinedBy: responderName, declinedAt: respondedAt, reason: reason || null },
+            opts,
+          );
+        } else {
+          await notify.quoteApproved(
+            { ...shared, approvedBy: responderName, approvedAt: respondedAt },
+            opts,
+          );
+        }
       }
     } catch (notifyError) {
-      console.error('approve-quote: approval saved but notification failed:', notifyError);
+      console.error('approve-quote: response saved but notification failed:', notifyError);
     }
 
     return respond({
       ok: true,
-      client_name: quote.client_name || '',
+      action: action === 'decline' ? 'declined' : 'approved',
+      client_name: quote.client_name ? String(quote.client_name) : '',
       business_name: businessName,
-      quote_number: quote.quote_number || '',
+      quote_number: quote.quote_number ? String(quote.quote_number) : '',
       total: Number(quote.total) || 0,
-      approved_by: approverName,
+      responded_by: responderName,
+      // ApproveQuote.jsx reads approved_by. Kept so a cached older bundle still
+      // greets the person by name.
+      approved_by: responderName,
     });
   } catch (err) {
     console.error('approve-quote failed:', err);
-    return respond({ ok: false, error: 'Something went wrong approving this quote.' }, 500);
+    return respond({ ok: false, error: 'Something went wrong recording your response.' }, 500);
   }
 });

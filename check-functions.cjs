@@ -50,7 +50,6 @@ const KNOWN_STUBS = new Set([
   "getBillingHistory",
   "getInvoiceBySession",
   "notifyInvoiceCreated",
-  "notifyQuoteApproval",
   "saveNotificationSettings",
   "sendContactEmail",
   "sendOverdueNotification",

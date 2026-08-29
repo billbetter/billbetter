@@ -69,25 +69,40 @@ export default function NotificationSettings() {
       const currentUser = await sdk.auth.me();
       setUser(currentUser);
 
-      // Load preferences from user record or database
-      if (currentUser.notification_preferences) {
-        try {
-          const parsed =
-            typeof currentUser.notification_preferences === "string"
-              ? JSON.parse(currentUser.notification_preferences)
-              : currentUser.notification_preferences;
-          setPreferences((prev) => ({ ...prev, ...parsed }));
-        } catch (e) {
-          // ignore malformed preferences
-        }
-      }
-
       // Load business settings for analytics frequency
       const businessSettings = await sdk.entities.BusinessSettings.filter({
         user_id: currentUser.id,
       });
       if (businessSettings.length > 0) {
         setSettings(businessSettings[0]);
+
+        // -- Preferences come from the settings row -----------------------
+        //
+        // This used to read currentUser.notification_preferences, which is
+        // never populated: sdk.auth.me() returns the auth user plus the
+        // `profiles` row, and `profiles` has only id, full_name,
+        // onboarding_completed and role. Meanwhile saveNotificationSettings
+        // writes to BusinessSettings. The read and the write pointed at
+        // different stores, so every toggle came back at its default no matter
+        // what had been saved -- and nothing had been, because saveSettings()
+        // never sent the key either.
+        //
+        // Absent means enabled, which is why this merges over the defaults
+        // rather than replacing them: a key that has never been chosen must
+        // keep the product's existing behaviour.
+        const stored = businessSettings[0].notification_preferences;
+        if (stored) {
+          try {
+            const parsed = typeof stored === "string" ? JSON.parse(stored) : stored;
+            if (parsed && typeof parsed === "object") {
+              setPreferences((prev) => ({ ...prev, ...parsed }));
+            }
+          } catch {
+            // A malformed value must not stop the rest of the page loading.
+            console.warn("Ignoring malformed notification_preferences.");
+          }
+        }
+
         setAnalyticsFrequency(
           businessSettings[0].analytics_email_frequency || "biweekly",
         );
@@ -118,6 +133,11 @@ export default function NotificationSettings() {
         // sender exists. Written explicitly so a row that had it true stops
         // claiming a preference nothing can honour.
         send_review_requests: false,
+        // The ten toggles above this button were never in this payload, so
+        // togglePreference only ever moved React state and every switch
+        // reverted on reload. They are sent now, and _shared/notify-prefs.ts
+        // is what reads them on the way out.
+        notification_preferences: preferences,
       });
       alert("Settings saved successfully!");
     } catch (error) {
@@ -168,6 +188,28 @@ export default function NotificationSettings() {
       setSendingTest(false);
     }
   };
+
+  /**
+   * Which toggles actually gate a notification.
+   *
+   * Saving the preferences made a second problem visible. The ten switches
+   * below now persist -- they never did before -- but only these two are read
+   * by anything: _shared/notify-prefs.ts gates quote_approved and
+   * quote_declined inside approve-quote. The other eight would store a choice
+   * that no sender consults.
+   *
+   * A control someone deliberately turns OFF, which is then ignored, is the
+   * lying-stub bug with a nicer interface -- and worse than the version that
+   * did not save at all, because now it looks honoured. So the ungated ones say
+   * what they are, the same treatment the review-request toggle and the booking
+   * controls got, and they come back as each sender learns to check its key.
+   *
+   * invoice_sent and invoice_paid are the closest: both senders exist and both
+   * already load BusinessSettings, so each is a one-line change -- but they
+   * carry billing and payment mail, and switching those off is its own
+   * decision.
+   */
+  const WIRED_PREFERENCES = new Set(["quote_approved", "quote_declined"]);
 
   const notificationTypes = [
     {
@@ -513,34 +555,54 @@ export default function NotificationSettings() {
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">
-          {notificationTypes.map((type) => (
-            <div
-              key={type.key}
-              className="flex items-center justify-between p-3 rounded-lg hover:bg-surface-sunken dark:hover:bg-ink-800 transition-colors"
-            >
-              <div className="flex-1">
-                <Label
-                  htmlFor={type.key}
-                  className="font-medium text-content dark:text-content-inverted cursor-pointer"
+          {notificationTypes.map((type) => {
+            const wired = WIRED_PREFERENCES.has(type.key);
+            return (
+              <div
+                key={type.key}
+                className={`flex items-center justify-between p-3 rounded-lg transition-colors ${
+                  wired
+                    ? "hover:bg-surface-sunken dark:hover:bg-ink-800"
+                    : "opacity-60"
+                }`}
+              >
+                <div className="flex-1">
+                  <Label
+                    htmlFor={type.key}
+                    className={`font-medium text-content dark:text-content-inverted ${
+                      wired ? "cursor-pointer" : ""
+                    }`}
+                  >
+                    {type.label}
+                  </Label>
+                  <p className="text-sm text-content-body dark:text-content-subtle">
+                    {type.description}
+                  </p>
+                  {!wired && (
+                    <p className="text-xs text-content-muted dark:text-content-subtle mt-1">
+                      This switch isn&apos;t connected yet — these emails always
+                      send for now.
+                    </p>
+                  )}
+                </div>
+                <label
+                  className={`relative inline-flex items-center ${
+                    wired ? "cursor-pointer" : "cursor-not-allowed"
+                  }`}
                 >
-                  {type.label}
-                </Label>
-                <p className="text-sm text-content-body dark:text-content-subtle">
-                  {type.description}
-                </p>
+                  <input
+                    type="checkbox"
+                    id={type.key}
+                    checked={preferences[type.key]}
+                    onChange={() => togglePreference(type.key)}
+                    disabled={!wired}
+                    className="sr-only peer"
+                  />
+                  <div className="w-11 h-6 bg-ink-200 dark:bg-ink-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-success-300 dark:peer-focus:ring-success-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-content-inverted after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-line-strong dark:after:border-ink-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success-600 dark:peer-checked:bg-success-600 dark:after:bg-surface-inverted"></div>
+                </label>
               </div>
-              <label className="relative inline-flex items-center cursor-pointer">
-                <input
-                  type="checkbox"
-                  id={type.key}
-                  checked={preferences[type.key]}
-                  onChange={() => togglePreference(type.key)}
-                  className="sr-only peer"
-                />
-                <div className="w-11 h-6 bg-ink-200 dark:bg-ink-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-success-300 dark:peer-focus:ring-success-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-content-inverted after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-line-strong dark:after:border-ink-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success-600 dark:peer-checked:bg-success-600 dark:after:bg-surface-inverted"></div>
-              </label>
-            </div>
-          ))}
+            );
+          })}
 
           {/* Contractor Review Requests */}
           <div className="pt-2 border-t border-line dark:border-ink-700">

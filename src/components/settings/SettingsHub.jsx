@@ -70,9 +70,9 @@ const SECTIONS = [
       {
         tab: "business",
         icon: ReceiptText,
-        title: "Invoice defaults",
+        title: "Invoice and quote defaults",
         description:
-          "Tax rate, hourly rate, invoice numbering and payment terms.",
+          "Tax rate, hourly rate, invoice numbering, payment terms, and whether clients can approve quotes online.",
       },
       {
         tab: "template",

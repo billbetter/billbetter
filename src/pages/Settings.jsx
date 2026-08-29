@@ -164,6 +164,11 @@ export default function Settings() {
     custom_template_config: initialCustomTemplateConfig,
     stripe_account_id: null, // New field
     stripe_account_status: null, // New field
+    // Whether a client may approve or decline from the public quote link.
+    // Default true because that is how the product already behaves; a
+    // business-level switch that silently changed the behaviour of links
+    // already sitting in clients' inboxes would be a worse default.
+    allow_client_quote_approval: true,
   };
 
   const [formData, setFormData] = useState(initialFormData);
@@ -946,6 +951,51 @@ export default function Settings() {
                           customized per invoice)
                         </p>
                       </div>
+                    </div>
+
+                    {/*
+                      Whether clients can respond to a quote from its public
+                      link. Sits with the document defaults rather than in a
+                      section of its own -- it is a default for how documents
+                      behave once they leave here, which is what everything else
+                      in this block is.
+
+                      The switch only controls what the CLIENT'S page offers.
+                      get-public-quote reads this column to decide whether to
+                      send the capabilities, and approve-quote reads it again
+                      before accepting a response, because hiding a button is
+                      not a control -- the endpoint is reachable directly by
+                      anyone holding the link.
+                    */}
+                    <div className="flex items-start justify-between gap-4 rounded-lg border border-line dark:border-ink-700 p-4">
+                      <div className="flex-1">
+                        <Label
+                          htmlFor="allow_client_quote_approval"
+                          className="text-ink-700 dark:text-ink-300 cursor-pointer"
+                        >
+                          Let clients approve or decline quotes online
+                        </Label>
+                        <p className="text-sm text-content-muted dark:text-content-subtle mt-1">
+                          {formData.allow_client_quote_approval === false
+                            ? "Clients can view and download their quote, but not respond to it. You set the status yourself."
+                            : "Adds Approve and Decline buttons to the quote link you send. Each one asks the client to type their name to confirm, and records who responded."}
+                        </p>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-1">
+                        <input
+                          type="checkbox"
+                          id="allow_client_quote_approval"
+                          checked={formData.allow_client_quote_approval !== false}
+                          onChange={(e) =>
+                            setFormData({
+                              ...formData,
+                              allow_client_quote_approval: e.target.checked,
+                            })
+                          }
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-ink-200 dark:bg-ink-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-success-300 dark:peer-focus:ring-success-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-content-inverted after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-line-strong dark:after:border-ink-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success-600 dark:peer-checked:bg-success-600 dark:after:bg-surface-inverted"></div>
+                      </label>
                     </div>
 
                     <div>

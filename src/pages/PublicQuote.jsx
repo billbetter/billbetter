@@ -8,6 +8,7 @@ import {
   Download,
   Loader2,
   Lock,
+  ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
 import { format } from "date-fns";
@@ -71,15 +72,22 @@ export default function PublicQuote() {
   const [data, setData] = useState(null);
   const [failure, setFailure] = useState(null);
   const [loading, setLoading] = useState(true);
-  const [approving, setApproving] = useState(false);
-  const [approved, setApproved] = useState(null);
-  // The confirmation step. The public quote link is MEANT to be forwarded -- a
-  // client passing it to their spouse or business partner is normal -- so
-  // approval must be a deliberate act by a named person rather than a
-  // consequence of opening a URL. The name is also what makes the approval
-  // defensible if the scope is disputed later.
-  const [confirming, setConfirming] = useState(false);
-  const [approverName, setApproverName] = useState("");
+  const [submitting, setSubmitting] = useState(false);
+  // The response, once it lands: { action: "approved" | "declined", ... }.
+  const [outcome, setOutcome] = useState(null);
+  // The confirmation step, and which response it is confirming. The public
+  // quote link is MEANT to be forwarded -- a client passing it to their spouse
+  // or business partner is normal -- so a response must be a deliberate act by
+  // a named person rather than a consequence of opening a URL. The name is also
+  // what makes the decision defensible if the scope is disputed later.
+  //
+  // Declining goes through the SAME step, at the same weight. A decline is a
+  // commercial decision too: it ends a job the contractor is expecting, and one
+  // taken by whoever the forwarded link reached, with no name attached, is not
+  // a decision the contractor can act on with any confidence.
+  const [confirming, setConfirming] = useState(null); // null | "approve" | "decline"
+  const [responderName, setResponderName] = useState("");
+  const [declineReason, setDeclineReason] = useState("");
   const [downloading, setDownloading] = useState(false);
   const [actionError, setActionError] = useState("");
 
@@ -123,27 +131,48 @@ export default function PublicQuote() {
       });
   }, [data, publicId, isPreview]);
 
-  const handleApprove = async () => {
-    setApproving(true);
+  const handleRespond = async (action) => {
+    setSubmitting(true);
     setActionError("");
     // approve-quote accepts public_id as well as the emailed approval_token, so
-    // this page never has to hold the approval credential. The name is required
-    // by the FUNCTION, not just by this form -- a confirmation that lives only
-    // in the page is decoration, since the endpoint is reachable directly.
+    // this page never has to hold the approval credential. Both actions go to
+    // the same function, which shares one credential path and one set of
+    // guards. The name is required by the FUNCTION, not just by this form -- a
+    // confirmation that lives only in the page is decoration, since the
+    // endpoint is reachable directly.
     const { data: res } = await sdk.functions.invoke("approveQuote", {
       public_id: publicId,
-      approver_name: approverName.trim(),
+      action,
+      responder_name: responderName.trim(),
+      ...(action === "decline" && declineReason.trim()
+        ? { decline_reason: declineReason.trim() }
+        : {}),
     });
     if (res?.success) {
-      setApproved(res);
+      setOutcome(res);
     } else if (res?.already_approved) {
       setActionError("This quote has already been approved.");
+    } else if (res?.already_declined) {
+      setActionError("This quote has already been declined.");
     } else if (res?.expired) {
       setActionError("This quote has expired. Please ask for an updated one.");
+    } else if (res?.responses_disabled) {
+      setActionError(
+        res.error ||
+          "This business is not accepting online responses right now.",
+      );
     } else {
-      setActionError(res?.error || "Could not approve the quote. Please try again.");
+      setActionError(
+        res?.error || "Could not record your response. Please try again.",
+      );
     }
-    setApproving(false);
+    setSubmitting(false);
+  };
+
+  const cancelConfirm = () => {
+    setConfirming(null);
+    setDeclineReason("");
+    setActionError("");
   };
 
   const handleDownload = async () => {
@@ -212,7 +241,24 @@ export default function PublicQuote() {
   const { quote, client, business, capabilities } = data;
   const issued = safeDate(quote.issue_date, "PP");
   const expires = safeDate(quote.expiry_date, "PP");
-  const isApproved = approved || quote.status === "approved";
+
+  // "declined" is the app's vocabulary -- it is what the contractor's status
+  // dropdown writes and what every list, filter and badge keys off. "rejected"
+  // was read here and in approve-quote and written by nothing, so it is
+  // accepted on the way in and never produced.
+  const isApproved = outcome?.action === "approved" || quote.status === "approved";
+  const isDeclined =
+    outcome?.action === "declined" ||
+    quote.status === "declined" ||
+    quote.status === "rejected";
+  const isResolved = isApproved || isDeclined;
+
+  // Both capabilities are decided by the server, never here. can_decline is a
+  // separate flag from can_approve even though they agree today, so that
+  // "clients may say no but not yes" needs no change to this page.
+  const canRespond =
+    !isResolved && (capabilities.can_approve || capabilities.can_decline);
+  const isDeclining = confirming === "decline";
 
   return (
     <div className="min-h-screen bg-surface-sunken p-4 sm:p-8">
@@ -253,9 +299,9 @@ export default function PublicQuote() {
             <p className="font-semibold text-lg text-success-800">
               Quote approved. Thank you!
             </p>
-            {approved?.approved_by && (
+            {outcome?.responded_by && (
               <p className="text-sm text-success-800 mt-1">
-                Approved by <strong>{approved.approved_by}</strong>.
+                Approved by <strong>{outcome.responded_by}</strong>.
               </p>
             )}
             <p className="text-sm text-success-800 mt-1">
@@ -265,18 +311,32 @@ export default function PublicQuote() {
           </div>
         )}
 
-        {!isApproved && capabilities.expired && (
-          <div className="mb-6 rounded-lg bg-caution-50 p-6 text-center">
-            <p className="font-semibold text-lg text-caution-800">
-              This quote has expired. Please contact us for an updated one.
-            </p>
-          </div>
-        )}
-
-        {!isApproved && !capabilities.expired && quote.status === "rejected" && (
+        {isDeclined && (
+          // Neutral, not red. The client chose this, and colouring their own
+          // decision as an error tells them they did something wrong.
           <div className="mb-6 rounded-lg bg-surface p-6 text-center shadow">
             <p className="font-semibold text-lg text-ink-800">
               This quote was declined.
+            </p>
+            {outcome?.responded_by && (
+              <p className="text-sm text-content-body mt-1">
+                Declined by <strong>{outcome.responded_by}</strong>.
+              </p>
+            )}
+            {outcome && (
+              <p className="text-sm text-content-body mt-1">
+                {business.name || "Your contractor"} has been notified. If this
+                was a mistake, contact them directly and they can send an
+                updated quote.
+              </p>
+            )}
+          </div>
+        )}
+
+        {!isResolved && capabilities.expired && (
+          <div className="mb-6 rounded-lg bg-caution-50 p-6 text-center">
+            <p className="font-semibold text-lg text-caution-800">
+              This quote has expired. Please contact us for an updated one.
             </p>
           </div>
         )}
@@ -350,16 +410,42 @@ export default function PublicQuote() {
             </div>
           )}
 
-          {((capabilities.can_approve && !isApproved && !confirming) ||
-            capabilities.can_download_pdf) && (
+          {/*
+            The action row. Approve and Decline sit side by side, deliberately
+            the same size: a client who wants to say no should not have to hunt
+            for it, and burying decline is how you get a quote that sits in
+            "sent" forever while the contractor keeps chasing it.
+
+            Decline is `outline` rather than a danger colour. Saying no is a
+            normal commercial answer, not a destructive action, and painting it
+            red asks the client to feel bad about a decision they are entitled
+            to make.
+          */}
+          {((canRespond && !confirming) || capabilities.can_download_pdf) && (
             <div className="mt-8 pt-6 border-t border-line flex flex-col sm:flex-row gap-3">
-              {capabilities.can_approve && !isApproved && !confirming && (
+              {!confirming && !isResolved && capabilities.can_approve && (
                 <Button
-                  onClick={() => setConfirming(true)}
+                  onClick={() => setConfirming("approve")}
                   className="flex-1 h-12 text-base"
                 >
                   <ThumbsUp className="w-5 h-5 mr-2" />
                   Approve this quote
+                </Button>
+              )}
+              {/*
+                Gated on its OWN flag, not on can_approve. Until the updated
+                get-public-quote is deployed the field is undefined, so this
+                button simply does not appear -- the right direction for a
+                control that writes a terminal state.
+              */}
+              {!confirming && !isResolved && capabilities.can_decline && (
+                <Button
+                  variant="outline"
+                  onClick={() => setConfirming("decline")}
+                  className="flex-1 h-12 text-base"
+                >
+                  <ThumbsDown className="w-5 h-5 mr-2" />
+                  Decline
                 </Button>
               )}
               {capabilities.can_download_pdf && (
@@ -381,65 +467,105 @@ export default function PublicQuote() {
           )}
 
           {/*
-            The confirmation. Approving a quote commits to the job, and this
-            link is one a client may legitimately forward -- so the person
-            approving states who they are, deliberately, before it lands.
-            The name is stored with the approval so the contractor has a record
-            that survives a scope dispute months later.
+            The confirmation, shared by both answers.
+
+            One form, because the two responses must carry the same weight.
+            Approving commits to the job; declining ends it. This link is one a
+            client may legitimately forward to a spouse or a business partner,
+            so whichever answer they give, the person giving it states who they
+            are, deliberately, before it lands. The name is stored with the
+            response so the contractor has a record that survives a scope
+            dispute months later.
+
+            The name is required by the FUNCTION as well as by this form -- a
+            confirmation that lives only in the page is decoration, because the
+            endpoint is reachable directly.
           */}
-          {confirming && !isApproved && (
+          {confirming && !isResolved && (
             <form
               className="mt-6 pt-6 border-t border-line"
               onSubmit={(e) => {
                 e.preventDefault();
-                handleApprove();
+                handleRespond(confirming);
               }}
             >
               <h3 className="font-black text-ink-800 mb-1">
-                Approve {money(quote.total, quote.currency)} of work
+                {isDeclining
+                  ? "Decline this quote"
+                  : `Approve ${money(quote.total, quote.currency)} of work`}
               </h3>
               <p className="text-sm text-content-body mb-4">
-                By approving you accept this quote from{" "}
-                {business.name || "this business"}. Please enter your full name
-                to confirm.
+                {isDeclining
+                  ? `${business.name || "This business"} will be told you are not going ahead. Please enter your full name to confirm.`
+                  : `By approving you accept this quote from ${business.name || "this business"}. Please enter your full name to confirm.`}
               </p>
               <label
-                htmlFor="approver-name"
+                htmlFor="responder-name"
                 className="block text-sm font-medium text-ink-800 mb-1"
               >
                 Your full name
               </label>
               <input
-                id="approver-name"
+                id="responder-name"
                 type="text"
                 autoComplete="name"
-                value={approverName}
-                onChange={(e) => setApproverName(e.target.value)}
+                value={responderName}
+                onChange={(e) => setResponderName(e.target.value)}
                 placeholder="e.g. Dana Marchetti"
                 className="w-full rounded border border-line bg-surface px-3 py-2 text-content mb-4"
               />
+
+              {/*
+                Optional, and labelled as optional. A required reason is a
+                barrier in front of "no", which produces silence rather than
+                honesty -- and silence is the outcome this whole feature exists
+                to prevent.
+              */}
+              {isDeclining && (
+                <>
+                  <label
+                    htmlFor="decline-reason"
+                    className="block text-sm font-medium text-ink-800 mb-1"
+                  >
+                    Reason{" "}
+                    <span className="font-normal text-content-muted">
+                      (optional)
+                    </span>
+                  </label>
+                  <textarea
+                    id="decline-reason"
+                    rows={3}
+                    value={declineReason}
+                    onChange={(e) => setDeclineReason(e.target.value)}
+                    maxLength={500}
+                    placeholder="e.g. Going with another quote, or the timing does not work"
+                    className="w-full rounded border border-line bg-surface px-3 py-2 text-content mb-4"
+                  />
+                </>
+              )}
+
               <div className="flex flex-col sm:flex-row gap-3">
                 <Button
                   type="submit"
-                  disabled={approving || approverName.trim().length < 2}
+                  variant={isDeclining ? "outline" : "default"}
+                  disabled={submitting || responderName.trim().length < 2}
                   className="flex-1 h-12 text-base"
                 >
-                  {approving ? (
+                  {submitting ? (
                     <Loader2 className="w-5 h-5 mr-2 animate-spin" />
+                  ) : isDeclining ? (
+                    <ThumbsDown className="w-5 h-5 mr-2" />
                   ) : (
                     <ThumbsUp className="w-5 h-5 mr-2" />
                   )}
-                  Confirm approval
+                  {isDeclining ? "Confirm decline" : "Confirm approval"}
                 </Button>
                 <Button
                   type="button"
                   variant="ghost"
                   className="h-12"
-                  onClick={() => {
-                    setConfirming(false);
-                    setActionError("");
-                  }}
-                  disabled={approving}
+                  onClick={cancelConfirm}
+                  disabled={submitting}
                 >
                   Cancel
                 </Button>

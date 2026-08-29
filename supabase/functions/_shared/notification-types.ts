@@ -41,6 +41,40 @@ export interface InvoicePaidPayload extends NotificationRecipient {
   invoiceUrl?: string | null;
 }
 
+/**
+ * 5. A client approved a quote from its public link. Goes to the CONTRACTOR.
+ *
+ * `approvedBy` is the name the approver TYPED at the confirmation step, which
+ * is deliberately separate from `clientName` on the record. They can differ --
+ * the quote link is meant to be forwardable, so a partner or spouse may be the
+ * one who actually agreed -- and in a scope dispute the name that matters is
+ * what the person approving asserted about themselves.
+ */
+export interface QuoteApprovedPayload extends NotificationRecipient {
+  quoteNumber?: string | null;
+  /** Name typed at the confirm step. Unverified free text, by design. */
+  approvedBy: string;
+  /** client_name on the quote row. Shown alongside when it differs. */
+  clientName?: string | null;
+  total: number;
+  /** ISO 8601. */
+  approvedAt: string;
+  quoteUrl?: string | null;
+}
+
+/** 6. A client declined a quote from its public link. Goes to the CONTRACTOR. */
+export interface QuoteDeclinedPayload extends NotificationRecipient {
+  quoteNumber?: string | null;
+  declinedBy: string;
+  clientName?: string | null;
+  total: number;
+  /** ISO 8601. */
+  declinedAt: string;
+  /** Optional, client-supplied, already trimmed and capped by the caller. */
+  reason?: string | null;
+  quoteUrl?: string | null;
+}
+
 /** What happened to a subscription. Drives the copy and the accent colour. */
 export type SubscriptionChangeKind =
   "upgraded" | "downgraded" | "canceled" | "renewed" | "past_due";
@@ -60,5 +94,10 @@ export interface NotificationResult {
   sent: boolean;
   id?: string;
   error?: string;
-  skipped?: "no-recipient" | "not-configured";
+  /**
+   * "preference-off" is a SUCCESSFUL outcome, not a failure: the contractor
+   * asked us not to send this. It is distinguished from the other two so a log
+   * reader can tell "respected a choice" from "could not send".
+   */
+  skipped?: "no-recipient" | "not-configured" | "preference-off";
 }

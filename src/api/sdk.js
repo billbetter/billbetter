@@ -438,11 +438,17 @@ async function handleFunctionInvoke(name, payload = {}) {
   }
 
   // No user-facing claim -- callers only console.log. The contractor simply
-  // never hears that an invoice went out or a quote was approved.
+  // never hears that an invoice went out.
+  //
+  // notifyQuoteApproval used to be in this list. Its only caller was
+  // Quotes.jsx handleStatusChange, which logged "Notification response" and a
+  // green tick for a function that has never existed, so a manual approve told
+  // nobody. The caller is gone: a client's response now notifies through
+  // approve-quote, and the contractor moving the dropdown themselves is not
+  // news worth emailing them about.
   if (
     name === "notifyInvoiceCreated" ||
     name === "notifyQuoteCreated" ||
-    name === "notifyQuoteApproval" ||
     name === "notifyQuoteResponse"
   ) {
     return notImplemented(name);
