@@ -909,6 +909,38 @@ string in that variable makes the *correct* layer-3 throw look like the new code
 failing, which is an hour spent reading the wrong file. `diagnose-infobip.py`
 checks it before any send is attempted.
 
+### 12.3 OPEN — the infrastructure is live, the account is not ready
+
+Secrets pushed, both functions deployed and booting, deployed values confirmed
+identical to `.env` by digest. `SMS_PROVIDER=infobip` is live, so the next SMS
+attempt goes through Infobip. **No message has been sent, and two things will
+make the first one fail — both on the account, neither in the code.**
+
+| Blocker | What `diagnose-infobip.py` reports | Effect |
+|---|---|---|
+| **Zero balance** | `HTTP 200 -- key accepted`, `balance: 0.0 USD` | The credential is valid and the host is right, but with no credit every send returns `REJECTED` inside an HTTP 200. |
+| **UK sender** | `+447491163443 is a +44 number, but the recipients are +1` | A foreign long code originating into North America is cross-border A2P traffic; Canadian and US carriers filter or drop it, worst for link-bearing messages — which is all of ours. Needs a Canadian long code or toll-free number. |
+
+Either alone produces `REJECTED`, which is layer 3 working correctly and will
+read as the new code failing. That is the whole reason the diagnostic exists.
+
+A second-order effect of the UK sender: `send-quote-sms:48` falls back to
+`Questions? Reply here.` when `sender_phone` is unset, so a Toronto client
+replying would pay international rates. The copy stops being true before the
+carrier even gets involved.
+
+**The sender check was itself wrong first.** It passed `+447491163443` with "is
+numeric, which is what NANP destinations need" — it tested the FORMAT and made a
+claim about the DESTINATION it never looked at. Same defect as the Reply-To
+assertion in §11.1: output that reads stronger than the check behind it. It now
+compares the country code and names both the carrier and the copy consequence.
+
+Also noted: `GET /sms/2/sender-ids` 404s on this account, so the network half of
+part 3 establishes nothing. The offline checks carry that section.
+
+**Until a real text arrives on a real handset, "switched" means built, not
+working.**
+
 **OPEN — processing jurisdiction is undisclosed.** The policy states no
 processing or storage location for any vendor: §6 lists technical controls only
 and there is no international-transfer section. Nothing became false when the

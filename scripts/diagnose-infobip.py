@@ -188,8 +188,25 @@ def main():
     elif len(digits) < 10:
         print(f'  UNUSUAL {sender!r} has only {len(digits)} digits -- expected an')
         print('          E.164 number such as +1XXXXXXXXXX.\n')
+    elif not digits.startswith('1'):
+        # Numeric is necessary but NOT sufficient, and saying only "it is
+        # numeric" overstated what had been checked. An international long code
+        # sending into +1 is A2P cross-border traffic: Canadian and US carriers
+        # filter or drop it, and Infobip's own guidance is to originate locally.
+        cc = digits[:2] if digits[:2] in ('44', '49', '33', '61', '91') else digits[:1]
+        print(f'  WRONG   {sender} is a +{cc} number, but the recipients are +1.')
+        print('          A foreign long code sending into North America is')
+        print('          cross-border A2P traffic -- Canadian and US carriers')
+        print('          filter or drop it, hardest of all when the message')
+        print('          carries a link, which every message we send does.')
+        print('          It also breaks the copy: send-quote-sms falls back to')
+        print('          "Reply here" when no sender_phone is set, and a client')
+        print('          replying pays international rates to reach a UK handset.')
+        print('          Get a Canadian long code or toll-free number from')
+        print('          Infobip and use that.\n')
     else:
-        print(f'  OK      {sender} is numeric, which is what NANP destinations need\n')
+        print(f'  OK      {sender} is a numeric +1 number, which is what')
+        print('          Canadian destinations need\n')
     status, senders = get(f'{base}/sms/2/sender-ids', hdrs)
     if status == 200 and isinstance(senders, dict):
         known = [s.get('senderId') or s.get('sender')
