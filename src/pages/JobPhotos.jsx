@@ -211,7 +211,16 @@ export default function Jobs() {
               : "bg-transparent"
           }`}
         >
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/*
+            pt-* here because this header is the only page container in the app
+            with horizontal padding and no vertical padding: Clients uses
+            `px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8`, and the others wrap
+            their content the same way. This one leaned entirely on the fixed
+            h-16/h-20 below, which centres the row but leaves nothing above it,
+            so the title and the Filter/New buttons sat hard against the top
+            edge of the viewport while the stats below had room.
+          */}
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4">
             <div className="flex items-center justify-between h-16 sm:h-20">
               <div className="flex items-center gap-3 sm:gap-4">
                 <div className="relative group">

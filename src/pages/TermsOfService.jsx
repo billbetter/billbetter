@@ -7,6 +7,23 @@ import { ArrowLeft, FileText } from "lucide-react";
 import SEO from "@/components/seo/SEO";
 
 export default function TermsOfService() {
+  /*
+    audit:light-only — deliberately no dark: variants on this page.
+
+    TermsOfService is in Layout.jsx's `publicPages`, so it renders inside the
+    signed-out marketing shell, and that shell is light in both themes by an
+    explicit decision (see the audit:light-only marker at Layout.jsx:427):
+    visitors who are not signed in have expressed no theme preference.
+
+    Adding dark: variants here does not make the page dark -- it makes the BODY
+    dark while the marketing header above it stays white, which reads as a bug
+    rather than as dark mode. Measured, not guessed.
+
+    PrivacyPolicy is NOT in publicPages, so it renders standalone and IS
+    theme-aware. That asymmetry is real and is the reason the two legal pages
+    do not match. Resolving it means picking one side for both, which is a
+    product decision rather than a styling one.
+  */
   return (
     <div className="min-h-screen bg-surface-sunken py-12 px-4 sm:px-6 lg:px-8">
       <SEO
@@ -58,7 +75,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 1 */}
-              <h2 className="text-2xl font-black text-content dark:text-content-inverted mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 1. Description of the Service
               </h2>
               <p className="text-ink-700 dark:text-ink-300 mb-4">
@@ -91,7 +108,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 2 */}
-              <h2 className="text-2xl font-black text-content dark:text-content-inverted mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 2. Eligibility
               </h2>
               <p className="text-ink-700 dark:text-ink-300 mb-2">You must:</p>
@@ -107,7 +124,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 3 */}
-              <h2 className="text-2xl font-black text-content dark:text-content-inverted mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 3. Account Responsibility
               </h2>
               <p className="text-ink-700 dark:text-ink-300 mb-2">
@@ -128,7 +145,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 4 */}
-              <h2 className="text-2xl font-black text-content dark:text-content-inverted mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 4. Independent Contractor Relationship
               </h2>
               <p className="text-ink-700 dark:text-ink-300 mb-2">
@@ -145,7 +162,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 5 */}
-              <h2 className="text-2xl font-black text-content dark:text-content-inverted mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 5. No Guarantee of Payment or Revenue
               </h2>
               <p className="text-ink-700 dark:text-ink-300 mb-2">
@@ -175,7 +192,7 @@ export default function TermsOfService() {
               </ul>
 
               {/* Section 6 */}
-              <h2 className="text-2xl font-black text-content dark:text-content-inverted mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 6. Third-Party Services & Integrations
               </h2>
               <p className="text-ink-700 dark:text-ink-300 mb-4">
@@ -201,7 +218,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 7 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 7. Service Availability & Downtime
               </h2>
               <p className="text-ink-700 mb-4">
@@ -234,7 +251,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 8 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 8. Bugs, Errors, and Software Limitations
               </h2>
               <p className="text-ink-700 mb-2">You acknowledge that:</p>
@@ -259,7 +276,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 9 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 9. Data Storage & Loss
               </h2>
               <p className="text-ink-700 mb-4">
@@ -286,7 +303,7 @@ export default function TermsOfService() {
               </ul>
 
               {/* Section 10 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 10. User Content
               </h2>
               <p className="text-ink-700 mb-4">
@@ -311,7 +328,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 11 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 11. Prohibited Uses
               </h2>
               <p className="text-ink-700 mb-2">You may not:</p>
@@ -329,7 +346,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 12 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 12. Subscription Plans & Fees
               </h2>
               <p className="text-ink-700 mb-2">Paid plans may include:</p>
@@ -350,7 +367,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 13 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 13. No Refund Policy
               </h2>
               <p className="text-ink-700 mb-2">
@@ -366,7 +383,7 @@ export default function TermsOfService() {
               </ul>
 
               {/* Section 14 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 14. Intellectual Property
               </h2>
               <p className="text-ink-700 mb-4">
@@ -379,7 +396,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 15 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 15. Confidentiality
               </h2>
               <p className="text-ink-700 mb-2">You agree not to disclose:</p>
@@ -391,7 +408,7 @@ export default function TermsOfService() {
               </ul>
 
               {/* Section 16 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 16. Termination
               </h2>
               <p className="text-ink-700 mb-4">
@@ -409,7 +426,7 @@ export default function TermsOfService() {
               </ul>
 
               {/* Section 17 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 17. Disclaimer of Warranties
               </h2>
               <p className="text-ink-700 mb-4 font-semibold">
@@ -430,7 +447,7 @@ export default function TermsOfService() {
               </ul>
 
               {/* Section 18 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 18. Limitation of Liability
               </h2>
               <p className="text-ink-700 mb-4 font-semibold">
@@ -455,7 +472,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 19 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 19. Indemnification
               </h2>
               <p className="text-ink-700 mb-2">
@@ -473,7 +490,7 @@ export default function TermsOfService() {
               <p className="text-ink-700 mb-6">Including attorney fees.</p>
 
               {/* Section 20 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 20. Arbitration Agreement
               </h2>
               <p className="text-ink-700 mb-4">
@@ -491,7 +508,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 21 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 21. Class Action Waiver
               </h2>
               <p className="text-ink-700 mb-4">
@@ -505,7 +522,7 @@ export default function TermsOfService() {
               </ul>
 
               {/* Section 22 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 22. Force Majeure
               </h2>
               <p className="text-ink-700 mb-2">
@@ -522,7 +539,7 @@ export default function TermsOfService() {
               </ul>
 
               {/* Section 23 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 23. Modifications
               </h2>
               <p className="text-ink-700 mb-4">
@@ -533,7 +550,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 24 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 24. Governing Law
               </h2>
               <p className="text-ink-700 mb-6">
@@ -542,7 +559,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 25 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 25. Entire Agreement
               </h2>
               <p className="text-ink-700 mb-6">
@@ -551,7 +568,7 @@ export default function TermsOfService() {
               </p>
 
               {/* Section 26 */}
-              <h2 className="text-2xl font-black text-content mt-8 mb-4">
+              <h2 className="text-xl font-black text-content mt-10 mb-4 pb-2 border-b border-line">
                 26. Contact Information
               </h2>
               <p className="text-ink-700 mb-2 font-semibold">Invoicium Inc.</p>

@@ -553,7 +553,23 @@ Details: ${detail}` : " Please try again."),
   ];
 
   return (
-    <div className="fixed inset-0 z-[60] bg-surface-sunken dark:bg-surface-inverted-deep flex flex-col">
+    /*
+      Full-bleed backdrop, constrained column.
+
+      This flow was built phone-first and the shell was `fixed inset-0 ... flex
+      flex-col` -- no width limit. On a phone that is correct and is the whole
+      point. On a desktop it stretched every control across the full viewport:
+      at 1280px the client search box, the "Add new client" tile and the
+      Continue button were each 1240px wide, which is why the Quote and Invoice
+      shortcuts looked broken while every other page looked fine.
+
+      The backdrop stays edge to edge so the flow still covers the app behind
+      it; only the content column is capped and centred. max-w-xl because the
+      steps are a single column of stacked controls -- widening it past a
+      comfortable reading measure would not add information, just travel.
+    */
+    <div className="fixed inset-0 z-[60] bg-surface-sunken dark:bg-surface-inverted-deep flex justify-center">
+      <div className="flex flex-col w-full max-w-xl sm:border-x sm:border-line/60 sm:dark:border-ink-800/60">
       {/* Header */}
       <div
         className="flex items-center justify-between px-5 pb-3"
@@ -1156,6 +1172,7 @@ Details: ${detail}` : " Please try again."),
               </div>
             );
           })()}
+      </div>
       </div>
     </div>
   );
