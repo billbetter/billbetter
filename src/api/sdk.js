@@ -293,6 +293,7 @@ async function handleFunctionInvoke(name, payload = {}) {
     sendTestAnalyticsEmail: "send-test-analytics-email",
     stripeCreateSession: "stripe-create-session",
     getStripeCustomerPortal: "stripe-customer-portal",
+    cancelSubscription: "stripe-cancel-subscription",
     stripeCreateSubscription: "stripe-create-subscription",
     stripeValidatePromo: "stripe-validate-promo",
     createStripeConnectAccount: "stripe-connect-onboard",

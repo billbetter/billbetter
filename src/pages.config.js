@@ -52,6 +52,7 @@ import ApproveQuote from './pages/ApproveQuote';
 import Blog from './pages/Blog';
 import BlogPost from './pages/BlogPost';
 import Calendar from './pages/Calendar';
+import CancelSubscription from './pages/CancelSubscription';
 import Checkout from './pages/Checkout';
 import ChaseInvoice from './pages/ChaseInvoice';
 import Clients from './pages/Clients';
@@ -93,6 +94,7 @@ export const PAGES = {
     "Blog": Blog,
     "BlogPost": BlogPost,
     "Calendar": Calendar,
+    "CancelSubscription": CancelSubscription,
     "ChaseInvoice": ChaseInvoice,
     "Clients": Clients,
     "Contact": Contact,

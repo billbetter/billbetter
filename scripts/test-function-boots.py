@@ -39,6 +39,12 @@ CASES = [
     ('send-invoice-sms', {'to': '+15550000000'}, {401, 402, 403}),
     ('create-invoice-payment-link', {'invoice_id': 'x'}, {401, 402, 403}),
     ('invoke-llm', {'prompt': 'x'}, {401, 402, 403}),
+    # The anon key is a valid JWT, so it clears verify_jwt and reaches the
+    # function's own getUserFromAuthHeader, which has no user behind it. 401 is
+    # therefore proof the module loaded AND that the identity check runs before
+    # anything else -- action defaults to 'preview', so a booted-but-unguarded
+    # build would answer 200 or 400 here instead.
+    ('stripe-cancel-subscription', {'action': 'preview'}, {401}),
 ]
 
 

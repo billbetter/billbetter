@@ -41,6 +41,10 @@ FUNCTIONS = [
     ('stripe-validate-promo', True),
     ('stripe-connect-onboard', True),
     ('stripe-connect-status', True),
+    # Reads the caller's own Subscription row for the id it acts on, so it is
+    # safe against a forged body -- but it still needs verify_jwt, because
+    # getUserFromAuthHeader is what identifies whose row to read.
+    ('stripe-cancel-subscription', True),
     ('confirm-and-activate', True),
     ('accept-crew-invite', True),
     ('invoke-llm', True),

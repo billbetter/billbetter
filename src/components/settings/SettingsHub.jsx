@@ -38,8 +38,11 @@ const SECTIONS = [
       {
         tab: "security",
         icon: UserCog,
-        title: "Profile and password",
-        description: "Update your sign-in email and change your password.",
+        // Said "Update your sign-in email and change your password", and the
+        // panel has never let anyone change their email. Promising a control
+        // that is not there is how a settings page loses trust.
+        title: "Sign-in and password",
+        description: "See the email you sign in with, and change your password.",
       },
       {
         tab: "notifications",
