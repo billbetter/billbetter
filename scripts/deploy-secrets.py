@@ -43,6 +43,13 @@ SECRET_NAMES = [
     'TWILIO_ACCOUNT_SID',
     'TWILIO_AUTH_TOKEN',
     'TWILIO_PHONE_NUMBER',
+    # AI. _shared/llm.ts reads all three; without LLM_API_KEY every AI feature
+    # answers not_configured rather than guessing, which is the whole design.
+    # LLM_API_KEY is PROVIDER-SPECIFIC -- an OpenAI key sent to Anthropic (or
+    # the reverse) is a 401 that reads like a bad key.
+    'LLM_PROVIDER',
+    'LLM_API_KEY',
+    'LLM_MODEL',
     'STRIPE_SECRET_KEY',
     'STRIPE_WEBHOOK_SECRET',
     'STRIPE_CONNECT_WEBHOOK_SECRET',

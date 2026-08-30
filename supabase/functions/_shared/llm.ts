@@ -8,10 +8,11 @@
  *
  * -- Adding a provider ----------------------------------------------------
  *
- * One implementation exists (Anthropic). Adding another means writing a
+ * Two implementations exist (Anthropic, OpenAI). Adding another means writing a
  * Provider and registering it in PROVIDERS; nothing else changes, because
- * callers only ever see `complete()`. Deliberately NOT writing three adapters
- * up front -- two unused ones would be speculative work that rots.
+ * callers only ever see `complete()`. Deliberately NOT writing adapters for
+ * providers nobody has an account with -- unused ones are speculative work
+ * that rots.
  *
  * A provider must do two things:
  *   1. Constrain generation to the schema natively where it can (Anthropic
@@ -24,12 +25,18 @@
  *
  * -- Configuration --------------------------------------------------------
  *
- * LLM_PROVIDER  provider id, default "anthropic"
- * LLM_API_KEY   the key. Lives in Supabase secrets and never reaches the
- *               browser bundle: a key in client JS is a public key.
- * LLM_MODEL     optional model override
+ * LLM_PROVIDER  provider id: "anthropic" (default) or "openai"
+ * LLM_API_KEY   the key for whichever provider is selected. Lives in Supabase
+ *               secrets and never reaches the browser bundle: a key in client
+ *               JS is a public key.
+ * LLM_MODEL     optional model override. Defaults are claude-sonnet-5 and
+ *               gpt-4o respectively.
  *
- * Switching provider is a secret change, not a code change.
+ * Switching provider is a secret change, not a code change. Note that
+ * LLM_API_KEY is provider-specific -- switching LLM_PROVIDER without also
+ * swapping the key gets you a 401 that reads like a bad key, because it is one:
+ * an sk-... OpenAI key sent to Anthropic, or the reverse.
+ * scripts/diagnose-llm.py checks that pairing before anything is deployed.
  */
 import Ajv from "npm:ajv@8";
 
@@ -146,7 +153,118 @@ const anthropic: Provider = {
   },
 };
 
-const PROVIDERS: Record<string, Provider> = { anthropic };
+// ---------------------------------------------------------------------------
+// OpenAI
+// ---------------------------------------------------------------------------
+
+const OPENAI_DEFAULT_MODEL = "gpt-4o";
+
+/**
+ * Structured output via response_format: json_schema.
+ *
+ * -- Why strict is FALSE, deliberately ------------------------------------
+ *
+ * OpenAI's strict mode is the stronger guarantee and we cannot use it, because
+ * it requires every property to appear in `required` and every object to carry
+ * `additionalProperties: false`. Our schemas violate both on purpose:
+ *
+ *   src/lib/ai/schemas.js:60 omits the line total from `required` with the
+ *   reason written down -- "the total is derived and the model gets it wrong
+ *   often enough that requiring it would fail otherwise-good responses" -- and
+ *   the consumer recomputes quantity x rate anyway. LINE_ITEMS likewise leaves
+ *   `notes` optional.
+ *
+ * Turning strict on would mean forcing `total` and `notes` to be required,
+ * which reverses a documented product decision to make a provider happy. So the
+ * schema is still sent and still constrains generation, and `complete()`'s
+ * ajv validation plus its one repair retry stays the enforcement -- which is
+ * exactly the division of labour this file's header already describes.
+ *
+ * If someone later wants strict mode, the schemas have to change first, and
+ * that is a decision about what we require of the model, not a provider detail.
+ */
+const openai: Provider = {
+  id: "openai",
+  async run(req, { apiKey, model, repair }) {
+    let text = req.prompt;
+    if (repair) {
+      text +=
+        `\n\nYour previous response did not match the required schema:\n${repair}\n` +
+        `Return a corrected response. Do not explain the error, just return valid data.`;
+    }
+
+    // OpenAI takes text and images in one content array, image_url shaped
+    // differently from Anthropic's source/url.
+    const content: Record<string, unknown>[] = [{ type: "text", text }];
+    for (const url of req.imageUrls || []) {
+      content.push({ type: "image_url", image_url: { url } });
+    }
+
+    const res = await fetch("https://api.openai.com/v1/chat/completions", {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${apiKey}`,
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        model: model || OPENAI_DEFAULT_MODEL,
+        max_tokens: 4096,
+        response_format: {
+          type: "json_schema",
+          json_schema: { name: "respond", strict: false, schema: req.schema },
+        },
+        messages: [{ role: "user", content }],
+      }),
+    });
+
+    const body = await res.json().catch(() => null);
+    if (!res.ok) {
+      throw new LlmError(
+        "The AI provider rejected the request.",
+        "provider_error",
+        `${res.status}: ${body?.error?.message || "no detail"}`,
+      );
+    }
+
+    const message = body?.choices?.[0]?.message;
+
+    // A refusal is a successful HTTP call with no answer in it. Left as its own
+    // branch so the log says "refused" rather than "returned nothing", which
+    // are different problems with different fixes.
+    if (message?.refusal) {
+      throw new LlmError(
+        "The AI declined to answer.",
+        "invalid_response",
+        String(message.refusal).slice(0, 200),
+      );
+    }
+
+    const raw = message?.content;
+    if (typeof raw !== "string" || raw.trim() === "") {
+      throw new LlmError(
+        "The AI returned no structured result.",
+        "invalid_response",
+        `finish_reason=${body?.choices?.[0]?.finish_reason}`,
+      );
+    }
+
+    // Unlike Anthropic's tool-use, where the tool input arrives already parsed,
+    // OpenAI hands back a JSON STRING. A truncated response lands here as a
+    // parse error, so it is reported as one rather than surfacing later as a
+    // confusing schema failure.
+    try {
+      return JSON.parse(raw);
+    } catch {
+      throw new LlmError(
+        "The AI returned malformed JSON.",
+        "invalid_response",
+        `finish_reason=${body?.choices?.[0]?.finish_reason}, ${raw.slice(0, 120)}`,
+      );
+    }
+  },
+};
+
+const PROVIDERS: Record<string, Provider> = { anthropic, openai };
 
 // ---------------------------------------------------------------------------
 
