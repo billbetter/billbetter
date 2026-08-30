@@ -245,11 +245,39 @@ export default function PrivacyPolicy() {
                   "Used to send invoice emails, notification emails, and other transactional messages to you and your clients on your behalf.",
               },
               {
-                name: "Twilio",
+                /*
+                  Both are named because both are currently REACHABLE: SMS goes
+                  through Infobip by default, and _shared/sms.ts keeps a Twilio
+                  branch behind the SMS_PROVIDER switch so a bad rollout can be
+                  rolled back without a code revert.
+
+                  This list is not decorative -- the "How We Share" section below
+                  says data is shared with "the third-party services listed
+                  above", so an omission here is a false statement about where a
+                  contractor's clients' phone numbers actually go.
+
+                  Drop Twilio from this entry in the same commit that deletes the
+                  Twilio branch from _shared/sms.ts, and not before.
+                */
+                /*
+                  OPEN, and deliberately not answered here: this policy states
+                  no processing or storage JURISDICTION for any vendor. §6 lists
+                  technical controls only, and there is no international-transfer
+                  section. Infobip is EU-headquartered where Twilio is US, so
+                  this change adds a fourth jurisdiction (with Stripe, Resend and
+                  Supabase) to a disclosure that names none.
+
+                  Nothing here became false -- nothing was ever claimed. But a
+                  policy precise about the vendor and silent about where the data
+                  goes is worth a deliberate decision, not a default. Needs a
+                  human call on cross-border wording; not written into a
+                  provider-swap commit.
+                */
+                name: "Infobip and Twilio",
                 role: "SMS notifications",
-                link: "https://www.twilio.com/en-us/legal/privacy",
+                link: "https://www.infobip.com/policies/privacy-notice",
                 detail:
-                  "Used to send SMS notifications, including invoice delivery and review requests, to phone numbers you provide.",
+                  "Used to send SMS notifications, including invoice and quote delivery, to phone numbers you provide. Messages are sent through Infobip; Twilio remains configured as a fallback provider.",
               },
               {
                 name: "Google Calendar",

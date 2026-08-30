@@ -1,6 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
-import { sendSMS } from '../_shared/twilio.ts';
+import { sendSMS } from '../_shared/sms.ts';
 
 function money(v: unknown) {
   return `$${Number(v || 0).toFixed(2)}`;
@@ -49,10 +49,17 @@ Deno.serve(async (req) => {
 
     const body = lines.join('\n');
 
-    const data = await sendSMS({ to, body });
+    // Throws unless the provider ACCEPTED the message. With Infobip that is
+    // not the same as a 2xx -- a rejected message arrives as HTTP 200 with the
+    // refusal in the body -- so the check lives in _shared/sms.ts and this
+    // caller only has to care that it either returned or threw.
+    const result = await sendSMS({ to, body });
 
     return new Response(
-      JSON.stringify({ success: true, sid: data?.sid }),
+      // `id` rather than `sid`: sid was Twilio-shaped and would be undefined on
+      // Infobip, whose identifier is messages[0].messageId. Normalised in
+      // sms.ts so neither caller has to know which provider answered.
+      JSON.stringify({ success: true, id: result.id, provider: result.provider }),
       { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (err) {

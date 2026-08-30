@@ -1,6 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
-import { sendSMS } from '../_shared/twilio.ts';
+import { sendSMS } from '../_shared/sms.ts';
 import { db } from '../_shared/supabase-admin.ts';
 import { stampFeePercentOnSend } from '../_shared/stripe-session.ts';
 import { APP_URL } from '../_shared/app-url.ts';
@@ -43,7 +43,8 @@ Deno.serve(async (req) => {
 
     // Resolved server-side, not taken from the request body -- the body is
     // client-supplied and a stale token would send a link to nothing, with no
-    // error, because an SMS that reaches Twilio is a successful send.
+    // error, because a delivered SMS is a successful send whatever the link
+    // inside it points at. No provider validates a URL for us.
     let publicUrl: string | null = null;
     if (invoice_id) {
       const invoice = await db.getOne('Invoice', invoice_id);
@@ -78,10 +79,12 @@ Deno.serve(async (req) => {
 
     const body = lines.join('\n');
 
-    const data = await sendSMS({ to, body });
+    // Throws unless the provider ACCEPTED the message. See send-quote-sms and
+    // _shared/sms.ts -- an Infobip rejection is an HTTP 200.
+    const result = await sendSMS({ to, body });
 
     return new Response(
-      JSON.stringify({ success: true, sid: data?.sid }),
+      JSON.stringify({ success: true, id: result.id, provider: result.provider }),
       { headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' }, status: 200 }
     );
   } catch (err) {

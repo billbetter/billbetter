@@ -183,7 +183,7 @@ export default function TermsOfService() {
                 not limited to:
               </p>
               <ul className="list-disc pl-6 mb-4 space-y-2 text-ink-700 dark:text-ink-300">
-                <li>SMS providers (e.g., Twilio)</li>
+                <li>SMS providers (e.g., Infobip, Twilio)</li>
                 <li>email platforms</li>
                 <li>scheduling tools</li>
                 <li>payment processors</li>

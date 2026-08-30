@@ -14,9 +14,32 @@ REF = project_ref()
 
 # Names pushed to Supabase, each read from .env. SUPABASE_* names are reserved
 # and injected by the platform, so they are deliberately absent.
+#
+# THIS LIST IS ALL-OR-NOTHING. require() calls sys.exit() on the first name it
+# cannot find, so a name here that is missing from .env fails the ENTIRE push --
+# Resend and Stripe included, not just the missing one. Add the value to .env
+# before adding the name here.
+#
+# (The reverse is not true: removing a name never breaks the push, it just stops
+# that secret being updated. Which is the real reason the TWILIO_* names below
+# stay -- see them.)
 SECRET_NAMES = [
     'RESEND_API_KEY',
     'RESEND_FROM_EMAIL',
+    # Which SMS provider _shared/sms.ts uses: 'infobip' (default) or 'twilio'.
+    # Pushed rather than left to the code default so that rolling back is a
+    # one-line .env change plus this script, instead of an undocumented click in
+    # the Supabase dashboard.
+    'SMS_PROVIDER',
+    'INFOBIP_API_KEY',
+    # Account-specific host (https://<account>.api.infobip.com). Infobip does not
+    # serve every account from one hostname, and the shared api.infobip.com
+    # returns auth failures that read exactly like a bad key.
+    'INFOBIP_BASE_URL',
+    'INFOBIP_SENDER',
+    # Kept while SMS_PROVIDER can still be 'twilio'. These deployed values are
+    # what that branch reads, so dropping them from this list would leave the
+    # rollback path looking available and not working.
     'TWILIO_ACCOUNT_SID',
     'TWILIO_AUTH_TOKEN',
     'TWILIO_PHONE_NUMBER',

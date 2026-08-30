@@ -849,7 +849,90 @@ closed/suspended, or the SID and token do not belong to each other.
 form-encoded body — which is correct, and is the same helper the invoice SMS
 path uses, so **invoice SMS is dead for the same reason**.
 
-**This is a secret to replace, not a bug to fix.** Nothing further was done.
-Note that even once the credentials work, A2P 10DLC is still unregistered, so US
-carriers will filter link-bearing messages aggressively — SMS remains a
-convenience channel behind email, and nothing may depend on one arriving.
+**This was a secret to replace, not a bug to fix.**
+
+### 12.1 RESOLVED — the provider was replaced, not the token
+
+The token was never rotated back. The account was replaced instead: SMS now goes
+through **Infobip**, behind `_shared/sms.ts`.
+
+`_shared/twilio.ts` is gone. The seam kept its exact signature — `sendSMS({ to,
+body })` — so `send-quote-sms` and `send-invoice-sms` changed only their import
+path and the field they return. Nothing above that file knows which provider is
+in use.
+
+**Twilio stays reachable for one release.** `SMS_PROVIDER` selects the branch
+and defaults to `infobip`; setting it to `twilio` and redeploying is the whole
+rollback, with no code revert. That only works while the `TWILIO_*` secrets are
+still pushed, which is why they remain in `deploy-secrets.py`'s `SECRET_NAMES`.
+Delete the Twilio branch once Infobip has actually delivered messages — and take
+`InvoiceDetail.jsx:737-750`'s Twilio-trial help panel with it, since that panel
+is correct for this branch and goes dead at exactly that moment.
+
+**The thing that would have gone wrong.** Infobip is not a drop-in for Twilio's
+error contract. Twilio signals a rejected message with a non-2xx, so branching
+on `res.ok` was right *for Twilio*. Infobip returns **HTTP 200** and puts the
+rejection in the body:
+
+```json
+{ "messages": [ { "status": { "groupName": "REJECTED",
+                              "description": "Not enough credits" } } ] }
+```
+
+Porting the branch unchanged would have reported success for every rejected
+message — a contractor told their quote was texted when it never left. `sms.ts`
+checks three layers (HTTP, envelope, per-message status) and allowlists
+`PENDING`, `ACCEPTED`, `DELIVERED`, throwing on everything else *including
+unrecognised groups*, so a future status group fails closed rather than passing
+silently. `ACCEPTED` (groupId 0) is in the list because that, not `DELIVERED`,
+is what a good submit returns — `DELIVERED` only arrives later on a delivery
+report.
+
+`scripts/test-sms-provider.cjs` proves it: 25 checks, no credentials and no
+network, both providers stubbed. Verified it discriminates by running the naive
+port against it — that version returns
+`{"id":"M1","provider":"infobip","status":"REJECTED"}` as a success.
+
+`INFOBIP_BASE_URL` is its own secret because Infobip issues every account its
+own host; the shared `api.infobip.com` returns auth failures that read exactly
+like a bad key. `scripts/diagnose-infobip.py` checks that first, then the key,
+then the sender — all GETs, no SMS sent.
+
+The subprocessor disclosure in `PrivacyPolicy.jsx` now names both providers,
+because both are reachable and the "How We Share" section makes that list
+load-bearing.
+
+**`INFOBIP_SENDER` must be numeric.** Alphanumeric sender IDs ("BillBetter")
+are not supported for US or Canadian destinations — carriers reject them, and
+the rejection arrives as `groupName=REJECTED` inside an HTTP 200. So a brand
+string in that variable makes the *correct* layer-3 throw look like the new code
+failing, which is an hour spent reading the wrong file. `diagnose-infobip.py`
+checks it before any send is attempted.
+
+**OPEN — processing jurisdiction is undisclosed.** The policy states no
+processing or storage location for any vendor: §6 lists technical controls only
+and there is no international-transfer section. Nothing became false when the
+vendor changed, because nothing was ever claimed — but Infobip is
+EU-headquartered where Twilio is US, so this adds a fourth jurisdiction (with
+Stripe, Resend and Supabase) to a disclosure naming none. A policy precise about
+the vendor and silent about where the data goes deserves a deliberate decision.
+Needs a human call on cross-border wording; deliberately not written into a
+provider-swap change.
+
+### 12.2 STILL OPEN — A2P 10DLC, deferred and not solved
+
+**Switching providers does not touch this.** 10DLC is a US *carrier*
+registration requirement keyed on the **recipient**, not a Twilio one, and
+Infobip carries the identical obligation.
+
+It is not blocking today because the recipients are Canadian — the business is
+Toronto-based and prices in CAD, and Canadian carriers do not require 10DLC.
+(The `+1` numbers on the `Client` rows cannot establish this on their own: `+1`
+is the North American Numbering Plan, shared by both countries, and those rows
+are test data. The `America/Chicago` default in `BusinessSettings.timezone` is
+an untouched column default and signals nothing.)
+
+**It becomes blocking the moment a US contractor signs up**, and registration
+has weeks of lead time. So it wants starting when a US signup looks *plausible*,
+not when one lands. SMS stays a convenience channel behind email, and nothing in
+the design may depend on one arriving.
