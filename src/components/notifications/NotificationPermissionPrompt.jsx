@@ -1,8 +1,7 @@
 import React, { useState, useEffect } from "react";
-import { sdk } from "@/api/sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Bell, X, CheckCircle, Info } from "lucide-react";
+import { Bell, X, CheckCircle } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import {
   isBrowserNotificationSupported,

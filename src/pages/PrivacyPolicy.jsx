@@ -320,6 +320,50 @@ export default function PrivacyPolicy() {
               </div>
             ))}
           </div>
+
+          {/*
+            DRAFT — needs a human review before it can be relied on.
+
+            Added because this policy named its vendors precisely and said
+            nothing about WHERE they process data. Under PIPEDA, an organisation
+            that transfers personal information to a processor outside Canada is
+            expected to be transparent that the information may be processed
+            abroad and is subject to the laws of that jurisdiction. That
+            statement was missing entirely -- it did not become wrong when the
+            SMS provider changed, it was never there.
+
+            The wording below is deliberately modest: it says data is processed
+            outside Canada and names the general regions, without asserting
+            specific data-centre locations or contractual safeguards that nobody
+            has verified. Do not add claims about residency, adequacy decisions
+            or standard contractual clauses without checking them first -- a
+            precise-sounding claim that turns out to be wrong is worse than the
+            silence this replaces.
+
+            Confirm the regions against each provider's current terms before
+            publishing. Infobip in particular is EU-headquartered and offers
+            multiple processing regions; which one this account uses has not
+            been established.
+          */}
+          <div className="mt-6 p-4 bg-surface dark:bg-ink-800 rounded-xl border border-line dark:border-ink-700">
+            <h3 className="font-black text-content dark:text-content-inverted mb-2">
+              Where your information is processed
+            </h3>
+            <p className="text-sm text-content-body dark:text-content-subtle mb-2">
+              Invoicium is operated from Canada, but the third-party services
+              listed above operate internationally. This means your information —
+              and information you provide about your clients — may be
+              transmitted to, stored in, or processed in countries outside
+              Canada, including the United States and the European Union.
+            </p>
+            <p className="text-sm text-content-body dark:text-content-subtle">
+              While that information is in another country, it is subject to the
+              laws of that country, and may be accessible to its courts, law
+              enforcement, and regulatory authorities. We share only what each
+              provider needs to perform its function, and each is bound by its
+              own privacy commitments, linked above.
+            </p>
+          </div>
         </Section>
 
         {/* 5. Data Sharing */}

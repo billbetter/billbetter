@@ -7,7 +7,7 @@ import {
   DialogTitle,
   DialogDescription,
 } from "@/components/ui/dialog";
-import { Download, Share, Plus, MoreVertical } from "lucide-react";
+import { Download, Share, Plus } from "lucide-react";
 
 export default function InstallPWA({ className = "" }) {
   const [installPrompt, setInstallPrompt] = useState(null);

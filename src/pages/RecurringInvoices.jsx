@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { sdk } from "@/api/sdk";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
@@ -36,10 +35,7 @@ import {
   Pause,
   Play,
   Calendar,
-  Clock,
-  Sparkles,
   TrendingUp,
-  ArrowUpRight,
   Wallet,
   Receipt,
   AlertCircle,
@@ -49,7 +45,6 @@ import {
   ChevronRight,
   X,
   Search,
-  Filter,
   RotateCcw,
   FileText,
   DollarSign,
@@ -59,7 +54,6 @@ import { motion, AnimatePresence } from "framer-motion";
 
 import FeatureGate from "@/components/access/FeatureGate";
 import { canAccessFeature } from "@/components/utils/permissions";
-import { SPECIALTIES } from "@/components/onboarding/SpecialtySelector";
 
 export default function RecurringInvoices() {
   const [recurringInvoices, setRecurringInvoices] = useState([]);

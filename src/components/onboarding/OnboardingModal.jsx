@@ -23,7 +23,6 @@ import {
   BookOpen,
 } from "lucide-react";
 import FeatureTour from "./FeatureTour";
-import SpecialtySelector from "./SpecialtySelector";
 
 const TOTAL_STEPS = 5;
 

@@ -5,7 +5,7 @@ import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
-import { Mic, MicOff, Sparkles, Loader2, Volume2, X } from "lucide-react";
+import { Mic, Sparkles, Volume2, X } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 
 export default function GlobalVoiceAssistant({ onCommand }) {

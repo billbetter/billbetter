@@ -9,7 +9,6 @@ import {
   Mic,
   FileText,
   Zap,
-  DollarSign,
   Download,
   BarChart3,
   Users,

@@ -18,20 +18,17 @@ import {
   RefreshCw,
   Zap,
   Calendar as CalendarIcon,
-  Shield,
   ChevronDown,
   ChevronLeft,
   ChevronRight,
   Building2,
   CreditCard,
   ArrowLeft,
-  Search,
   Lock,
   Clock,
   UserCog,
 } from "lucide-react";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import {
   DropdownMenu,
   DropdownMenuContent,

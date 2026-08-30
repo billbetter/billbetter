@@ -8,7 +8,6 @@ import {
   Clock,
   User,
   Calendar,
-  CheckCircle,
   ArrowRight,
 } from "lucide-react";
 import SEO from "@/components/seo/SEO";

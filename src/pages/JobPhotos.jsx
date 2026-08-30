@@ -1,6 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { sdk } from "@/api/sdk";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
@@ -15,7 +14,6 @@ import {
   Plus,
   Search,
   Image as ImageIcon,
-  Loader2,
   Building2,
   User,
   Calendar,
@@ -23,12 +21,9 @@ import {
   ChevronRight,
   Filter,
   Briefcase,
-  MoreHorizontal,
   ArrowUpRight,
   X,
   SlidersHorizontal,
-  Sparkles,
-  TrendingUp,
   Clock,
   CheckCircle2,
   AlertCircle,

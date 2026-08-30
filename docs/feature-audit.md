@@ -68,6 +68,86 @@
 > `STRIPE_PRICES_UPDATED` stays `false` until the pricing table below is
 > settled.
 
+---
+
+## 13. Audit sweep — four open items closed
+
+### 13.1 `stripe-setup` / `stripe-worker` — NOT a vulnerability
+
+Raised earlier in the audit as two functions deployed with no source in the repo
+and `verify_jwt=false` — apparently reachable by anyone. Investigated to a
+conclusion: **it is not a hole, and they must not be deleted.**
+
+They are the **Supabase Stripe Sync Engine**, installed from the Supabase
+dashboard rather than written here, which is why no source exists locally and
+the Management API returns only a 20 MB compiled eszip. They are live and in
+use: the `stripe` schema holds 15+ tables with real subscription, invoice, price
+and customer data, and `_sync_obj_runs` shows over 1,500 completed runs.
+
+`verify_jwt=false` is deliberate. `cron.job` id 1 calls `stripe-worker` every
+minute with `Authorization: Bearer <stripe_sync_worker_secret>` read from
+Supabase Vault — a **shared secret, not a JWT**. Platform JWT verification would
+reject that bearer and break the sync every minute. The function authenticates
+its own callers instead, which was measured rather than assumed:
+
+```
+NO auth header at all    -> HTTP 401  Unauthorized
+a bogus bearer           -> HTTP 403  Forbidden: Invalid worker secret
+```
+
+Recorded in `deploy-functions.py` so the finding is not re-raised.
+
+### 13.2 `Quote.status` CHECK constraint — APPLIED
+
+`20260829120000_quote_status_check.sql`. Constrains status to `draft`, `sent`,
+`approved`, `declined`, `converted`. `NOT VALID` then `VALIDATE`, so the
+exclusive lock is catalogue-only — the form matters more than the row count
+here, because this is the shape somebody copies onto a large table later.
+
+`rejected` is deliberately excluded. It was read in two places, written by none,
+and allowing it would keep the split writable that let a client approve an
+already-declined quote. Proven to bite against a scratch row:
+
+```
+rejected   -> REJECTED  23514 violates check constraint
+garbage    -> REJECTED  23514 violates check constraint
+declined   -> ACCEPTED
+```
+
+**It broke `test-quote-decline.py`, correctly.** That test seeded a row at
+`status='rejected'` to prove approve-quote tolerated the retired spelling; the
+database now refuses to write it. The test asserts the constraint instead — the
+guarantee moved down a layer and got stronger. The app's `|| 'rejected'` synonym
+check is now belt-and-braces for data that cannot exist: a constraint makes the
+split *unrepeatable*, where the synonym check only made it *survivable*.
+
+### 13.3 Lint baseline — CLEARED
+
+101 errors → 0, all one rule (`unused-imports/no-unused-imports`) across 31
+files. 78 `no-unused-vars` warnings deliberately left: not mechanically safe in
+the same way.
+
+`eslint --fix` also stripped two `eslint-disable` directives it judged unused
+and left trailing whitespace in their place. Both restored — an unused directive
+still documents intent, and losing an `exhaustive-deps` suppression silently is
+exactly what bites when someone enables that rule later.
+
+Verified by build, `npm run check`, and all six suites, not by the lint count.
+
+### 13.4 Processing jurisdiction — DRAFTED, needs review
+
+A "Where your information is processed" block now sits at the end of §4 of the
+privacy policy, marked in-code as a draft. It states that data may be processed
+outside Canada, names the regions in general terms, and says foreign law applies
+while it is there.
+
+Deliberately modest: it asserts no data-centre locations, adequacy decisions or
+contractual safeguards, because none have been verified. Infobip is
+EU-headquartered and offers multiple processing regions; which one this account
+uses is not established. **A precise-sounding claim that turns out to be wrong
+is worse than the silence it replaces** — this needs a human to confirm the
+regions against each provider's current terms before it can be relied on.
+
 Every claim traced to code. **Traced, not run** — reading is dispositive when the
 code plainly does not contain the thing; live proof is for when the code *claims*
 to do it and might still fail (the `approve-quote` case, where the bug was in a

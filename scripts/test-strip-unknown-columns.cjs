@@ -82,7 +82,7 @@ async function main() {
   // `import.meta.env.DEV` is Vite-only syntax; swap it for a plain flag so the
   // same source runs here.
   const fnSource = m[0].replace(/import\.meta\.env\.DEV/g, "IS_DEV");
-  // eslint-disable-next-line no-new-func
+   
   const stripUnknownColumns = new Function(
     "ENTITY_COLUMNS",
     "console",

@@ -226,20 +226,47 @@ def main():
         # approvable by any client holding the link.
         # ------------------------------------------------------------------
         print('\nthe guard, seeded directly (fails on the original build):')
-        for spelling in ('declined', 'rejected'):
-            s = make_quote(owner, f'ZZ-DEC-GUARD-{spelling}')
-            made.append(s['id'])
-            sql(f"""update public."Quote" set status = '{spelling}'
-                     where id = '{s['id']}'""")
-            status, body = call('approve-quote', {
-                'public_id': s['public_id'], 'action': 'approve',
-                'responder_name': 'Dana Marchetti',
-            })
-            check(f"approve on a quote seeded as '{spelling}' is refused",
-                  body.get('success') is not True and body.get('already_declined') is True,
-                  f'{status} {body}')
-            check(f"the '{spelling}' row was not flipped to approved",
-                  row(s['id'])['status'] == spelling, str(row(s['id'])))
+        s = make_quote(owner, 'ZZ-DEC-GUARD-declined')
+        made.append(s['id'])
+        sql(f"""update public."Quote" set status = 'declined'
+                 where id = '{s['id']}'""")
+        status, body = call('approve-quote', {
+            'public_id': s['public_id'], 'action': 'approve',
+            'responder_name': 'Dana Marchetti',
+        })
+        check("approve on a quote seeded as 'declined' is refused",
+              body.get('success') is not True and body.get('already_declined') is True,
+              f'{status} {body}')
+        check("the 'declined' row was not flipped to approved",
+              row(s['id'])['status'] == 'declined', str(row(s['id'])))
+
+        # ------------------------------------------------------------------
+        # 3c. 'rejected' is now unwritable at the DATABASE level.
+        #
+        # This used to seed a row at status='rejected' to prove approve-quote
+        # tolerated the retired spelling. It cannot any more, and that is the
+        # point: 20260829120000_quote_status_check.sql constrains status to the
+        # five values the UI can render, deliberately excluding 'rejected'.
+        #
+        # So the guarantee got STRONGER and moved down a layer. The app's
+        # `|| 'rejected'` synonym check is now belt-and-braces for data that
+        # cannot exist, and what is worth asserting is the constraint itself --
+        # because a constraint is what makes the vocabulary split unrepeatable,
+        # where the synonym check only made it survivable.
+        # ------------------------------------------------------------------
+        print("\n'rejected' cannot be written at all any more:")
+        r2 = make_quote(owner, 'ZZ-DEC-GUARD-vocab')
+        made.append(r2['id'])
+        st, body_raw = run_sql(
+            f"""update public."Quote" set status = 'rejected' where id = '{r2['id']}'""")
+        check('the database REFUSES the retired spelling', st >= 300, f'HTTP {st}')
+        check('and it fails on the status constraint by name',
+              'quote_status_known' in str(body_raw), str(body_raw)[:160])
+        check('the row is untouched', row(r2['id'])['status'] == 'sent')
+
+        st, _ = run_sql(
+            f"""update public."Quote" set status = 'declined' where id = '{r2['id']}'""")
+        check("but 'declined' still writes fine", st < 300, f'HTTP {st}')
 
         # ------------------------------------------------------------------
         # 4. A DRAFT quote cannot be responded to, by either action.

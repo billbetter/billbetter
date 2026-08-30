@@ -62,9 +62,28 @@ FUNCTIONS = [
     ('google-calendar-callback', False),  # Google OAuth redirect
 ]
 
-# Deployed on the project but NOT managed here, because there is no local source
-# for them (the Management API only returns compiled eszip bundles):
-#   stripe-setup, stripe-worker   -- both live with verify_jwt=False
+# Deployed on the project but NOT managed here, and deliberately left alone:
+#
+#   stripe-setup, stripe-worker
+#
+# These are the SUPABASE STRIPE SYNC ENGINE, installed from the Supabase
+# dashboard rather than written here -- which is why no source exists in this
+# repo and why the Management API only returns their compiled eszip.
+#
+# DO NOT DELETE THEM. They are live and in use: the `stripe` schema holds 15+
+# tables with real subscription, invoice and price data, and _sync_obj_runs
+# shows over 1500 completed runs.
+#
+# DO NOT "FIX" verify_jwt=False ON THEM EITHER. It looks like an unauthenticated
+# endpoint and is not. A pg_cron job (cron.job id 1, every minute) calls
+# stripe-worker with `Authorization: Bearer <stripe_sync_worker_secret>` read
+# from Supabase Vault -- a shared secret, NOT a JWT. Platform JWT verification
+# would reject that bearer and break the sync every minute. The function
+# authenticates its own callers instead; probed directly, no header returns
+# 401 Unauthorized and a wrong secret returns 403 "Invalid worker secret".
+#
+# Recorded because this was raised as a possible security hole during the audit
+# and investigated to a conclusion: it is not one.
 
 ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 SHARED_DIR = os.path.join(ROOT, 'supabase', 'functions', '_shared')

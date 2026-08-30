@@ -26,7 +26,6 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
@@ -53,11 +52,9 @@ import {
   HardHat,
   Wrench,
   ClipboardList,
-  Camera,
   Calendar,
   X,
   FileText,
-  DollarSign,
   Upload,
   Camera as CameraIcon,
   Receipt,

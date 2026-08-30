@@ -1,9 +1,7 @@
 import React, { useEffect, useState } from "react";
 import { sdk } from "@/api/sdk";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import {
   Dialog,
   DialogContent,
@@ -23,9 +21,7 @@ import {
   Trash2,
   Loader2,
   Edit,
-  Star,
 } from "lucide-react";
-import { createPageUrl } from "@/utils";
 import PhoneInput from "../components/ui/PhoneInput";
 import PullToRefresh from "@/components/utils/PullToRefresh";
 

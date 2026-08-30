@@ -1,7 +1,5 @@
 import React, { useState, useEffect } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
-import { Client } from "@/entities/Client";
-import { BusinessSettings } from "@/entities/BusinessSettings";
 import { createPageUrl } from "@/utils";
 import { sdk } from "@/api/sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -21,7 +19,6 @@ import {
   Loader2,
   Mail,
   MessageSquare,
-  MoreVertical,
   Send,
   Trash2,
   User,

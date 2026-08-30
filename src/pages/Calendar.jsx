@@ -4,7 +4,6 @@ import { Button } from "@/components/ui/button";
 import {
   Calendar as CalendarIcon,
   ExternalLink,
-  AlertCircle,
   Loader2,
   RefreshCw,
   Filter as FilterIcon,
@@ -13,8 +12,6 @@ import {
   MapPin,
   Clock,
   User,
-  ChevronLeft,
-  ChevronRight,
   Grid3X3,
   List,
   CalendarDays,
@@ -28,13 +25,6 @@ import {
   isWithinInterval,
   set,
   format,
-  startOfMonth,
-  endOfMonth,
-  startOfWeek,
-  endOfWeek,
-  eachDayOfInterval,
-  isSameDay,
-  isSameMonth,
 } from "date-fns";
 import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";

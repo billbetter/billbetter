@@ -5,7 +5,7 @@ import {
   setShaderBackgroundEnabled,
 } from "@/lib/appearance";
 import { supabase } from "@/api/supabaseClient";
-import { BusinessSettings } from "@/entities/BusinessSettings"; // This import is not directly used in the new logic but kept for safety.
+// This import is not directly used in the new logic but kept for safety.
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,13 +15,8 @@ import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import SettingsHub from "@/components/settings/SettingsHub";
 import { ArrowLeft } from "lucide-react";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+
+
 import {
   Dialog,
   DialogContent,
@@ -37,8 +32,6 @@ import {
   FileText,
   Mail,
   MessageSquare,
-  Eye,
-  Sparkles,
   Info,
   File,
   RotateCcw,
@@ -48,26 +41,18 @@ import {
   ExternalLink,
   ArrowRight,
   BookOpen,
-  Play,
-  Users,
-  Shield,
-  Calendar as CalendarIcon,
   Download,
   Clock,
-  Send,
-  Bell,
   Moon,
   Sun,
   Monitor,
-  Search,
   Lock,
 } from "lucide-react";
 import TemplatePreviewModal from "../components/invoice/TemplatePreviewModal";
 import PdfTemplateSettings from "../components/settings/PdfTemplateSettings";
 import FeatureTour from "../components/onboarding/FeatureTour";
-import SpecialtySelector, {
-  SPECIALTIES,
-} from "../components/onboarding/SpecialtySelector";
+
+
 import NotificationSettings from "../components/notifications/NotificationSettings";
 import CalendarSettings from "../components/settings/CalendarSettings";
 

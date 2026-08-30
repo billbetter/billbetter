@@ -23,16 +23,11 @@ import {
 import {
   Dialog,
   DialogContent,
-  DialogDescription,
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+
+
 import {
   Sparkles,
   Mic,
@@ -42,24 +37,16 @@ import {
   CheckCircle,
   AlertCircle,
   FileText,
-  MoreVertical,
-  Edit,
   Download,
-  HardHat,
   Wrench,
   ClipboardList,
-  Camera,
-  Calendar,
   X,
-  DollarSign,
   Upload,
   Camera as CameraIcon,
   Quote,
-  Save,
 } from "lucide-react";
 import { format, addDays } from "date-fns";
 import VoiceInput from "../components/invoice/VoiceInput";
-import AIAssistant from "../components/invoice/AIAssistant";
 import ServiceAutofill from "../components/invoice/ServiceAutofill";
 import { generateQuotePDF } from "@/functions/generateQuotePDF";
 

@@ -20,7 +20,6 @@ import {
   ShieldCheck,
   Camera,
   Upload,
-  Image as ImageIcon,
   Trash2,
   Calendar as CalendarIcon,
   Send,

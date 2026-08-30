@@ -3,12 +3,10 @@ import React, {
   useEffect,
   useRef,
   useCallback,
-  useMemo,
 } from "react";
 import { sdk } from "@/api/sdk";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Button } from "@/components/ui/button";
 import { Search, Plus } from "lucide-react";
 import { SPECIALTIES } from "../onboarding/SpecialtySelector";
 
