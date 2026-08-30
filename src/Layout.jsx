@@ -4,7 +4,7 @@ import { createPageUrl } from "@/utils";
 import { hasAppAccess, resolveAppAccess } from "@/lib/access";
 import { supabase } from "@/api/supabaseClient";
 import { canAccessFeature } from "@/components/utils/permissions";
-import { useShaderBackground } from "@/lib/appearance";
+import { useShaderAppearance } from "@/lib/appearance";
 import { ShaderBackground } from "@/components/ui/waves-shader";
 import { sdk } from "@/api/sdk";
 import {
@@ -49,7 +49,8 @@ export default function Layout({ children, currentPageName }) {
   // it, and it stays owner-only. null means "not asked yet"; the database
   // answers via my_app_access(). See lib/access.js resolveAppAccess.
   const [crewAccess, setCrewAccess] = useState(null);
-  const shaderBackground = useShaderBackground();
+  const { enabled: shaderBackground, chosen: shaderChosen } =
+    useShaderAppearance();
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -821,13 +822,18 @@ export default function Layout({ children, currentPageName }) {
               className="pointer-events-none sticky top-0 z-0 h-0 overflow-visible"
             >
               <div className="h-[100dvh] w-full opacity-30 dark:opacity-40">
-                {/* The toggle is the consent: someone who switched on a
-                    setting called "Animated background" has asked for motion,
-                    so the OS-wide default does not override it here. It still
-                    pauses when the tab is hidden or scrolled out of view. */}
+                {/* The toggle is the consent -- and ONLY the toggle. Someone
+                    who switched on a setting called "Animated background" has
+                    asked for motion, so the OS-wide default does not override
+                    their specific choice. The background is now on by default
+                    though, and a default is nobody's consent, so anyone who
+                    has not touched the switch still gets prefers-reduced-motion
+                    honoured: one static frame, same palette, no animation.
+                    Either way it pauses when the tab is hidden or scrolled out
+                    of view. */}
                 <ShaderBackground
                   className="h-full w-full"
-                  respectReducedMotion={false}
+                  respectReducedMotion={!shaderChosen}
                 />
               </div>
             </div>
