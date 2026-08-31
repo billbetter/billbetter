@@ -64,6 +64,7 @@ import {
   sendInvoiceBatch,
   draftsNowSent,
 } from "@/lib/invoiceBatch";
+import { dueReminders, reminderSentPatch } from "@/lib/reminders";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import PullToRefresh from "@/components/utils/PullToRefresh";
@@ -340,6 +341,11 @@ export default function Invoices() {
   const allSelectableChosen =
     selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
 
+  // Overdue invoices the ladder says are due a chase today. Computed from the
+  // invoice rows themselves rather than from a stored queue, so it is always
+  // current and there is no second thing to keep in step.
+  const remindersDue = dueReminders(filteredInvoices);
+
   const toggleOne = (id) =>
     setSelectedIds((prev) => {
       const next = new Set(prev);
@@ -378,14 +384,30 @@ export default function Invoices() {
       (done) => setBatchProgress({ done, total: rows.length }),
     );
 
-    const toFlip = draftsNowSent(rows, summary.results);
-    for (const id of toFlip) {
+    const toFlip = new Set(draftsNowSent(rows, summary.results));
+    const delivered = new Set(
+      summary.results.filter((r) => r.emailed || r.texted).map((r) => r.id),
+    );
+
+    for (const { invoice } of rows) {
+      if (!delivered.has(invoice.id)) continue;
+
+      // An overdue invoice going out again IS a reminder, however it was
+      // triggered -- so the ladder is advanced here rather than in a separate
+      // "send reminders" path. One code path means the count cannot disagree
+      // with what the client actually received.
+      const patch = toFlip.has(invoice.id) ? { status: "sent" } : {};
+      if (String(invoice.status || "").toLowerCase() === "overdue") {
+        Object.assign(patch, reminderSentPatch(invoice));
+      }
+      if (!Object.keys(patch).length) continue;
+
       try {
-        await sdk.entities.Invoice.update(id, { status: "sent" });
+        await sdk.entities.Invoice.update(invoice.id, patch);
       } catch (err) {
         // The mail is already gone; failing to record that is worth a line in
         // the console but must not be reported to the user as a failed send.
-        console.error("Sent, but could not update status for", id, err);
+        console.error("Sent, but could not record it for", invoice.id, err);
       }
     }
 
@@ -813,6 +835,48 @@ export default function Invoices() {
               </div>
             </div>
           </div>
+
+          {/* Reminders that are due today.
+              Nothing sends on its own -- this only says which invoices the
+              ladder thinks are ready, and hands them to the same batch send
+              the contractor already uses. Reviewing means selecting exactly
+              these and nothing else, so the decision to mail a client is
+              always a click someone made. */}
+          {remindersDue.length > 0 && !selectMode && (
+            <div className="rounded-xl border border-caution-200 bg-caution-50 p-4 shadow-sm dark:border-caution-800 dark:bg-caution-900/20">
+              <div className="flex flex-wrap items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <p className="font-bold text-caution-900 dark:text-caution-200">
+                    {remindersDue.length}{" "}
+                    {remindersDue.length === 1 ? "reminder is" : "reminders are"}{" "}
+                    due
+                  </p>
+                  <p className="mt-1 text-sm text-caution-800 dark:text-caution-300">
+                    {remindersDue
+                      .slice(0, 3)
+                      .map(
+                        (r) =>
+                          `${r.invoice.invoice_number || "Invoice"} · ${r.invoice.client_name || "client"} · ${r.status.daysOverdue} days over`,
+                      )
+                      .join(" — ")}
+                    {remindersDue.length > 3
+                      ? ` — and ${remindersDue.length - 3} more`
+                      : ""}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => {
+                    setSelectedIds(new Set(remindersDue.map((r) => r.invoice.id)));
+                    setSelectMode(true);
+                  }}
+                  className="flex-shrink-0 bg-brand hover:bg-brand-hover text-content-inverted"
+                >
+                  <Send className="mr-2 h-4 w-4" />
+                  Review {remindersDue.length}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Batch sending.
               Off until asked for: checkboxes on every row turn a list you
