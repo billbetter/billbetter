@@ -12,6 +12,7 @@ import {
   normalizeHex,
   resolveInvoiceTheme,
 } from "@/lib/invoiceTheme";
+import { PDF_FONT_OPTIONS, resolvePdfFont } from "@/lib/invoiceBrand";
 
 const initialCustomTemplateConfig = {
   show_logo: true,
@@ -503,45 +504,52 @@ export default function PdfTemplateSettings({
               )}
             </div>
 
+            {/* Three families, not seven.
+                This offered Helvetica, Arial, Times, Courier, Georgia, Verdana
+                and Palatino. A PDF has three standard families -- Helvetica,
+                Times and Courier -- and anything else has to be embedded as a
+                font file; this app ships one, Inter. So four of those seven
+                could never have rendered as themselves, and the setting was
+                read by no template at all, so none of them rendered as anything.
+                The retired names still resolve (see PDF_FONT_ALIASES), and the
+                select shows what the row actually resolves to. */}
             <div>
               <Label className="text-ink-700 dark:text-ink-300">
-                Company Name Font
+                Document font
               </Label>
               <select
-                value={formData.font_family}
+                value={resolvePdfFont(formData).id}
                 onChange={(e) =>
                   setFormData({ ...formData, font_family: e.target.value })
                 }
                 className="w-full px-3 py-2 border border-line-strong dark:border-ink-700 rounded-md focus:outline-none focus:ring-2 focus:ring-success-500 bg-surface dark:bg-ink-800 text-content dark:text-content-inverted"
               >
-                <option value="helvetica">Helvetica (Modern & Clean)</option>
-                <option value="arial">Arial (Simple & Professional)</option>
-                <option value="times">Times New Roman (Classic)</option>
-                <option value="courier">Courier (Typewriter Style)</option>
-                <option value="georgia">Georgia (Elegant Serif)</option>
-                <option value="verdana">Verdana (Clear & Readable)</option>
-                <option value="palatino">
-                  Palatino (Classic & Sophisticated)
-                </option>
+                {PDF_FONT_OPTIONS.map((f) => (
+                  <option key={f.id} value={f.id}>
+                    {f.label}
+                  </option>
+                ))}
               </select>
+              <p className="text-xs text-content-muted dark:text-content-subtle mt-1.5">
+                {PDF_FONT_OPTIONS.find(
+                  (f) => f.id === resolvePdfFont(formData).id,
+                )?.hint}{" "}
+                Applies to the whole document, on invoices and quotes.
+              </p>
               <div className="mt-3 p-4 bg-surface-sunken dark:bg-ink-800 rounded-lg border dark:border-ink-700">
                 <p className="text-xs text-content-muted dark:text-content-subtle mb-2">
                   Preview:
                 </p>
                 <p
                   style={{
+                    // The browser stand-ins for the three PDF families. Inter
+                    // is the app's own face and is already loaded.
                     fontFamily:
-                      formData.font_family === "times"
-                        ? "Times New Roman, serif"
-                        : formData.font_family === "courier"
-                          ? "Courier New, monospace"
-                          : formData.font_family === "georgia"
-                            ? "Georgia, serif"
-                            : formData.font_family === "verdana"
-                              ? "Verdana, sans-serif"
-                              : formData.font_family === "palatino"
-                                ? "Palatino, serif"
-                                : "Helvetica, Arial, sans-serif",
+                      resolvePdfFont(formData).id === "times"
+                        ? "'Times New Roman', Times, serif"
+                        : resolvePdfFont(formData).id === "courier"
+                          ? "'Courier New', Courier, monospace"
+                          : "Inter, Helvetica, Arial, sans-serif",
                     fontSize: "18px",
                     fontWeight: "bold",
                   }}
@@ -556,6 +564,10 @@ export default function PdfTemplateSettings({
               <Label className="text-ink-700 dark:text-ink-300">
                 Footer Message
               </Label>
+              <p className="text-xs text-content-muted dark:text-content-subtle mb-2">
+                Printed at the bottom of every invoice and quote, in place of
+                "Thank you for your business."
+              </p>
               <Textarea
                 value={formData.pdf_footer_text}
                 onChange={(e) =>
@@ -571,7 +583,13 @@ export default function PdfTemplateSettings({
               <input
                 type="checkbox"
                 id="show_pdf_branding"
-                checked={formData.show_pdf_branding !== false}
+                /* `=== true`, not `!== false`. This read as ticked on every
+                   account with a null column while nothing printed the line --
+                   so rendering it as labelled would have put our name on every
+                   existing customer's invoices, on documents already going to
+                   their clients, without anyone choosing it. Off unless
+                   somebody switches it on. */
+                checked={formData.show_pdf_branding === true}
                 onChange={(e) =>
                   setFormData({
                     ...formData,
@@ -588,8 +606,8 @@ export default function PdfTemplateSettings({
                   Show "Powered By Invoicium" on PDFs
                 </Label>
                 <p className="text-xs text-content-muted dark:text-content-subtle mt-0.5">
-                  Display Invoicium branding at the bottom of invoices and
-                  quotes
+                  Off by default. Tick this to add a small "Powered by
+                  Invoicium" line at the bottom of your invoices and quotes.
                 </p>
               </div>
             </div>

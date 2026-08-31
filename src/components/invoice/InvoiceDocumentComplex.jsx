@@ -15,7 +15,7 @@
 // schema grows to carry them.
 
 import React from "react";
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { resolveInvoiceTheme } from "@/lib/invoiceTheme";
 import "@/lib/invoicePdfFont";
 
@@ -24,10 +24,12 @@ import "@/lib/invoicePdfFont";
 //   onPrimaryColor -> text sitting on those bars, auto black or white
 //   accentColor    -> strong structural borders, falls back when primary is pale
 //   subtleFill     -> the tinted table-head band
-const makeStyles = (t) =>
+const makeStyles = (t, fontFamily = "Inter") =>
   StyleSheet.create({
     page: {
-      fontFamily: "Inter",
+      // Per-business; Inter is the previous hardcoded value, so an untouched
+      // row renders exactly as before.
+      fontFamily,
       fontSize: 8.5,
       color: t.textColor,
       backgroundColor: t.pageFill,
@@ -46,6 +48,8 @@ const makeStyles = (t) =>
       marginBottom: 6,
     },
     logoText: { fontSize: 7, color: t.mutedTextColor, textAlign: "center" },
+    // The real logo, when there is one. Height-only so the aspect ratio holds.
+    logo: { height: 46, maxWidth: 170, objectFit: "contain", marginBottom: 6 },
     brand: { fontSize: 15, fontWeight: "bold" },
     small: { fontSize: 8, color: t.mutedTextColor, marginTop: 1 },
 
@@ -159,6 +163,19 @@ const makeStyles = (t) =>
       paddingTop: 6,
     },
     footerText: { fontSize: 7, color: t.mutedTextColor },
+    // The business's own footer message, above the fixed page-number bar.
+    ownFooter: {
+      marginTop: 18,
+      fontSize: 8,
+      color: t.mutedTextColor,
+      textAlign: "center",
+    },
+    poweredBy: {
+      marginTop: 4,
+      fontSize: 7,
+      color: t.mutedTextColor,
+      textAlign: "center",
+    },
   });
 
 /**
@@ -217,7 +234,7 @@ const lineTotal = (li) => Number(li?.qty || 0) * Number(li?.rate || 0);
 
 /** @param {ComplexInvoiceData} data */
 export const InvoiceDocumentComplex = (data) => {
-  const styles = makeStyles(resolveInvoiceTheme(data.theme));
+  const styles = makeStyles(resolveInvoiceTheme(data.theme), data.fontFamily);
 
   const sections = Array.isArray(data.sections) ? data.sections : [];
   const taxes = Array.isArray(data.taxes) ? data.taxes : [];
@@ -241,9 +258,12 @@ export const InvoiceDocumentComplex = (data) => {
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
-            <View style={styles.logoBox}>
-              <Text style={styles.logoText}>LOGO</Text>
-            </View>
+            {/* The real logo when one is uploaded. This was a bordered box
+                containing the word "LOGO" -- printed on the actual PDF a client
+                received, not a design placeholder someone forgot in a mock.
+                With no logo it now renders nothing rather than an empty box
+                announcing the absence. */}
+            {data.logo ? <Image style={styles.logo} src={data.logo} /> : null}
             <Text style={styles.brand}>{data.businessName}</Text>
             <Text style={styles.small}>{data.businessAddress}</Text>
             <Text style={styles.small}>{data.businessContact}</Text>
@@ -253,10 +273,10 @@ export const InvoiceDocumentComplex = (data) => {
           </View>
 
           <View>
-            <Text style={styles.infoTitle}>INVOICE</Text>
+            <Text style={styles.infoTitle}>{data.documentTitle || "INVOICE"}</Text>
             <View style={styles.infoBox}>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Invoice #</Text>
+                <Text style={styles.infoLabel}>{data.documentLabel || "Invoice"} #</Text>
                 <Text style={styles.infoValue}>{data.invoiceNumber}</Text>
               </View>
               <View style={styles.infoRow}>
@@ -264,7 +284,7 @@ export const InvoiceDocumentComplex = (data) => {
                 <Text style={styles.infoValue}>{data.invoiceDate}</Text>
               </View>
               <View style={styles.infoRow}>
-                <Text style={styles.infoLabel}>Due</Text>
+                <Text style={styles.infoLabel}>{data.dueDateLabel || "Due"}</Text>
                 <Text style={styles.infoValue}>{data.dueDate}</Text>
               </View>
               {data.poNumber ? (
@@ -360,7 +380,7 @@ export const InvoiceDocumentComplex = (data) => {
               </View>
             ))}
             <View style={styles.grandRow}>
-              <Text style={styles.grandLabel}>Total Due</Text>
+              <Text style={styles.grandLabel}>{data.totalLabel || "Total Due"}</Text>
               <Text style={styles.grandValue}>{money(total)}</Text>
             </View>
           </View>
@@ -386,9 +406,16 @@ export const InvoiceDocumentComplex = (data) => {
           </View>
         ) : null}
 
+        {data.footerText ? (
+          <Text style={styles.ownFooter}>{data.footerText}</Text>
+        ) : null}
+        {data.showPoweredBy ? (
+          <Text style={styles.poweredBy}>Powered by Invoicium</Text>
+        ) : null}
+
         <View style={styles.footer} fixed>
           <Text style={styles.footerText}>
-            {data.businessName} — Invoice {data.invoiceNumber}
+            {data.businessName} — {data.documentLabel || "Invoice"} {data.invoiceNumber}
           </Text>
           <Text
             style={styles.footerText}

@@ -425,6 +425,20 @@ export default function Settings() {
     const file = e.target.files[0];
     if (!file) return;
 
+    // Checked here as well as in the accept attribute, because accept is a
+    // filter in the file picker and not a guarantee -- a drag-drop or a
+    // "All Files" selection walks straight past it. A logo the PDF renderer
+    // cannot embed has to be refused at upload, where the person can see why,
+    // rather than at render time where it fails an invoice.
+    if (!["image/png", "image/jpeg"].includes(file.type)) {
+      setSaveMessage(
+        "Logos must be a PNG or JPEG. Other formats cannot be placed in a PDF.",
+      );
+      setTimeout(() => setSaveMessage(null), 5000);
+      e.target.value = "";
+      return;
+    }
+
     setLogoFile(file); // Store the file object itself
     setFormData((prev) => ({ ...prev, logo_url: URL.createObjectURL(file) })); // Create a temporary URL for immediate preview
   };
@@ -1036,9 +1050,17 @@ export default function Settings() {
                           </div>
                         )}
                         <label className="cursor-pointer">
+                          {/* PNG and JPEG only, not image/*.
+                              The logo is embedded in the PDF, and react-pdf can
+                              embed those two formats and no others. An SVG or
+                              WebP makes the renderer throw mid-render, which
+                              fails the WHOLE invoice -- so accepting one here
+                              would let a contractor break their own invoicing
+                              with a logo upload, and find out at the point they
+                              tried to bill someone. */}
                           <input
                             type="file"
-                            accept="image/*"
+                            accept="image/png,image/jpeg"
                             onChange={handleLogoUpload}
                             className="hidden"
                           />

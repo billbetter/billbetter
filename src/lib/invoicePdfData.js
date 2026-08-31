@@ -17,6 +17,7 @@
 
 import { format, isValid, parseISO } from "date-fns";
 import { resolveInvoiceTheme } from "@/lib/invoiceTheme";
+import { resolveBrand } from "@/lib/invoiceBrand";
 
 /**
  * Format a timestamptz / ISO string the way the template wants it: "Aug 20, 2026".
@@ -117,7 +118,22 @@ export function mapInvoiceToPdfData(invoice = {}, settings = {}, options = {}) {
   }));
 
   return {
-    businessName: settings.business_name || "Invoicium",
+    // Everything from the branding settings that is not colour: the logo, the
+    // font, the footer line, and whether our name appears at all. resolveBrand
+    // also supplies businessName, which the Professional template used to
+    // print in 9pt grey under a hardcoded 17pt "INVOICIUM".
+    ...resolveBrand(settings, { logo: options.logo }),
+
+    // What kind of document this is. Defaulted here rather than inside each
+    // template, so a quote reuses all three layouts by overriding four strings
+    // -- see mapQuoteToPdfData below.
+    documentTitle: "INVOICE",
+    documentLabel: "Invoice",
+    dueDateLabel: "Due",
+    totalLabel: "Total Due",
+
+    // businessName deliberately NOT repeated here -- resolveBrand above owns
+    // it. Two lines computing the same name is how one of them gets changed.
     businessAddress: settings.address || "",
     businessContact: contactLine([
       settings.phone,
@@ -230,6 +246,77 @@ export function mapInvoiceToComplexPdfData(invoice = {}, settings = {}, options 
     terms: base.terms,
     requireSignature: Boolean(requireSignature),
   };
+}
+
+
+/**
+ * Map a "Quote" row onto the same shape, so quotes render through the same
+ * three templates as invoices.
+ *
+ * -- Why a quote is mapped THROUGH the invoice mapper ----------------------
+ *
+ * Quote PDFs were built separately: a pdf-lib renderer in the
+ * generate-quote-pdf Edge Function, with its colours hardcoded as
+ * rgb(0.06, 0.72, 0.51) -- #10b981, this app's RETIRED brand green. So a
+ * contractor who set their brand colour, uploaded a logo and chose a layout got
+ * all of it on their invoices and none of it on their quotes, which went out in
+ * a green nobody had chosen since the rebrand.
+ *
+ * Rather than port the theming into a second renderer, a quote is reshaped into
+ * the fields the invoice mapper already understands and delegated. Every rule
+ * that matters -- the jsonb items that might be a string, tax_rate as a percent
+ * not a fraction, the midnight-UTC date that renders a day early west of
+ * Greenwich -- is written once and applies to both. A second implementation is
+ * a second place for those to be got wrong.
+ *
+ * The four document strings are the entire difference.
+ *
+ * @param {object}  quote     a row from public."Quote"
+ * @param {object}  settings  a row from public."BusinessSettings"
+ * @param {object} [options]  as mapInvoiceToPdfData, plus { logo }
+ */
+export function mapQuoteToPdfData(quote = {}, settings = {}, options = {}) {
+  const { client = null } = options;
+
+  const asInvoice = {
+    items: quote.items,
+    tax_rate: quote.tax_rate,
+    invoice_number: quote.quote_number,
+    // A quote's issue date is its own column; created_at is the fallback for
+    // rows written before date_issued was set.
+    created_at: quote.date_issued || quote.created_at,
+    due_date: quote.expiry_date,
+    client_name: quote.client_name,
+    client_email: quote.client_email,
+    // "Quote" carries no client_phone or client_address columns -- unlike
+    // "Invoice", which denormalises both onto the row. They can only come from
+    // the Client, so a caller that does not pass one gets a quote with a name
+    // and an email, which is what the old renderer produced too.
+    client_phone: client?.phone,
+    client_address: client?.address,
+    notes: quote.notes,
+  };
+
+  return {
+    ...mapInvoiceToPdfData(asInvoice, settings, options),
+    documentTitle: "QUOTE",
+    documentLabel: "Quote",
+    // Not "Due". A quote has an expiry, and telling a client that a quote is
+    // "due" on a date invites them to think they owe money for it.
+    dueDateLabel: "Valid until",
+    totalLabel: "Quote Total",
+  };
+}
+
+/** The Complex layout, for a quote. Same delegation, same four overrides. */
+export function mapQuoteToComplexPdfData(quote = {}, settings = {}, options = {}) {
+  const flat = mapQuoteToPdfData(quote, settings, options);
+  const complex = mapInvoiceToComplexPdfData(
+    { items: quote.items, tax_rate: quote.tax_rate },
+    settings,
+    options,
+  );
+  return { ...complex, ...flat, sections: complex.sections, taxes: complex.taxes };
 }
 
 export default mapInvoiceToPdfData;

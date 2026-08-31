@@ -12,6 +12,7 @@ import {
   Page,
   View,
   Text,
+  Image,
   StyleSheet,
   Font,
 } from "@react-pdf/renderer";
@@ -35,10 +36,13 @@ Font.registerHyphenationCallback((word) => [word]);
 // Colours come from the business's theme rather than module constants, so the
 // StyleSheet has to be built per-render instead of once at module load. Layout,
 // spacing and type sizes are untouched -- only colour is themeable.
-const makeStyles = (t) =>
+const makeStyles = (t, fontFamily = "Inter") =>
   StyleSheet.create({
     page: {
-      fontFamily: "Inter",
+      // Per-business. Inter unless the row says otherwise, which is what every
+      // PDF rendered as before the font setting was wired to anything -- so a
+      // business that never chose one is unchanged.
+      fontFamily,
       fontSize: 9.5,
       color: t.textColor,
       backgroundColor: t.pageFill,
@@ -49,6 +53,10 @@ const makeStyles = (t) =>
       justifyContent: "space-between",
     },
     brand: { fontSize: 17, fontWeight: "bold" },
+    // Height only: react-pdf scales the width to match, so a wide wordmark and
+    // a square badge both come out the right shape. maxWidth stops a banner
+    // logo running under the invoice number on the right.
+    logo: { height: 34, maxWidth: 180, objectFit: "contain", marginBottom: 6 },
     small: { fontSize: 9, color: t.mutedTextColor, marginTop: 2 },
     invoiceTitle: { fontSize: 17, fontWeight: "bold", textAlign: "right" },
     metaRow: { fontSize: 9, textAlign: "right", marginTop: 3 },
@@ -126,6 +134,12 @@ const makeStyles = (t) =>
       color: t.mutedTextColor,
       fontStyle: "italic",
     },
+    poweredBy: {
+      marginTop: 6,
+      textAlign: "center",
+      fontSize: 7.5,
+      color: t.mutedTextColor,
+    },
 });
 
 /**
@@ -169,7 +183,7 @@ const money = (n) =>
 export const InvoiceDocument = (data) => {
   // resolveInvoiceTheme fills every missing or malformed field from the default
   // theme, so an unthemed business renders exactly as it did before.
-  const styles = makeStyles(resolveInvoiceTheme(data.theme));
+  const styles = makeStyles(resolveInvoiceTheme(data.theme), data.fontFamily);
 
   const lineItems = Array.isArray(data.lineItems) ? data.lineItems : [];
   const subtotal = lineItems.reduce(
@@ -185,15 +199,20 @@ export const InvoiceDocument = (data) => {
         {/* Header */}
         <View style={styles.headerRow}>
           <View>
-            <Text style={styles.brand}>INVOICIUM</Text>
-            <Text style={styles.small}>{data.businessName}</Text>
+            {/* The contractor's logo and the contractor's name.
+                This block used to read "INVOICIUM" at 17pt with the business
+                name beneath it in 9pt grey -- so the default template, the one
+                most invoices use, was branded for us rather than for the person
+                whose work it bills. */}
+            {data.logo ? <Image style={styles.logo} src={data.logo} /> : null}
+            <Text style={styles.brand}>{data.businessName}</Text>
             <Text style={styles.small}>{data.businessAddress}</Text>
             <Text style={styles.small}>{data.businessContact}</Text>
           </View>
           <View>
-            <Text style={styles.invoiceTitle}>INVOICE</Text>
+            <Text style={styles.invoiceTitle}>{data.documentTitle || "INVOICE"}</Text>
             <Text style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Invoice #: </Text>
+              <Text style={styles.metaLabel}>{data.documentLabel || "Invoice"} #: </Text>
               <Text style={styles.metaValue}>{data.invoiceNumber}</Text>
             </Text>
             <Text style={styles.metaRow}>
@@ -201,7 +220,7 @@ export const InvoiceDocument = (data) => {
               {data.invoiceDate}
             </Text>
             <Text style={styles.metaRow}>
-              <Text style={styles.metaLabel}>Due: </Text>
+              <Text style={styles.metaLabel}>{data.dueDateLabel || "Due"}: </Text>
               {data.dueDate}
             </Text>
           </View>
@@ -263,7 +282,7 @@ export const InvoiceDocument = (data) => {
             </View>
           ) : null}
           <View style={styles.grandTotalRow}>
-            <Text style={styles.grandTotalLabel}>Total Due</Text>
+            <Text style={styles.grandTotalLabel}>{data.totalLabel || "Total Due"}</Text>
             <Text style={styles.grandTotalValue}>{money(total)}</Text>
           </View>
         </View>
@@ -284,7 +303,15 @@ export const InvoiceDocument = (data) => {
           ) : null}
         </View>
 
-        <Text style={styles.footer}>Thank you for your business.</Text>
+        {/* The business's own footer line, from the Footer Message setting --
+            a field that existed, saved, and was read by nothing. Falls back to
+            the line this template always printed. */}
+        <Text style={styles.footer}>
+          {data.footerText || "Thank you for your business."}
+        </Text>
+        {data.showPoweredBy ? (
+          <Text style={styles.poweredBy}>Powered by Invoicium</Text>
+        ) : null}
       </Page>
     </Document>
   );

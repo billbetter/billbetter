@@ -11,14 +11,16 @@
 // mapInvoiceToPdfData feeds both without a second mapper.
 
 import React from "react";
-import { Document, Page, View, Text, StyleSheet } from "@react-pdf/renderer";
+import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { resolveInvoiceTheme } from "@/lib/invoiceTheme";
 import "@/lib/invoicePdfFont";
 
-const makeStyles = (t) =>
+const makeStyles = (t, fontFamily = "Inter") =>
   StyleSheet.create({
     page: {
-      fontFamily: "Inter",
+      // Per-business; Inter is what this rendered as before the setting was
+      // wired up, so an untouched row is unchanged.
+      fontFamily,
       fontSize: 10,
       color: t.textColor,
       backgroundColor: t.pageFill,
@@ -30,6 +32,9 @@ const makeStyles = (t) =>
       alignItems: "flex-start",
     },
     brand: { fontSize: 14, fontWeight: "bold", letterSpacing: 0.5 },
+    // Height only so react-pdf keeps the aspect ratio; maxWidth keeps a wide
+    // wordmark from colliding with the meta block on the right.
+    logo: { height: 30, maxWidth: 170, objectFit: "contain", marginBottom: 6 },
     metaBlock: { alignItems: "flex-end" },
     metaTitle: { fontSize: 13, fontWeight: "bold" },
     metaLine: { fontSize: 9, color: t.mutedTextColor, marginTop: 2 },
@@ -92,6 +97,7 @@ const makeStyles = (t) =>
 
     footer: { marginTop: 50, fontSize: 8.5, color: t.mutedTextColor },
     footerLine: { marginTop: 2 },
+    poweredBy: { marginTop: 8, fontSize: 7.5, color: t.mutedTextColor },
   });
 
 const money = (n) =>
@@ -104,7 +110,7 @@ const money = (n) =>
  * @param {import("./InvoiceDocument").InvoiceData} data
  */
 export const InvoiceDocumentSimple = (data) => {
-  const styles = makeStyles(resolveInvoiceTheme(data.theme));
+  const styles = makeStyles(resolveInvoiceTheme(data.theme), data.fontFamily);
 
   const lineItems = Array.isArray(data.lineItems) ? data.lineItems : [];
   const subtotal = lineItems.reduce(
@@ -119,16 +125,20 @@ export const InvoiceDocumentSimple = (data) => {
       <Page size="LETTER" style={styles.page}>
         <View style={styles.headerRow}>
           <View>
+            {data.logo ? <Image style={styles.logo} src={data.logo} /> : null}
             <Text style={styles.brand}>{data.businessName}</Text>
             <Text style={styles.metaLine}>{data.businessContact}</Text>
           </View>
           <View style={styles.metaBlock}>
-            <Text style={styles.metaTitle}>Invoice {data.invoiceNumber}</Text>
+            <Text style={styles.metaTitle}>
+              {data.documentLabel || "Invoice"} {data.invoiceNumber}
+            </Text>
             <Text style={styles.metaLine}>
               Issued <Text style={styles.metaLineValue}>{data.invoiceDate}</Text>
             </Text>
             <Text style={styles.metaLine}>
-              Due <Text style={styles.metaLineValue}>{data.dueDate}</Text>
+              {data.dueDateLabel || "Due"}{" "}
+              <Text style={styles.metaLineValue}>{data.dueDate}</Text>
             </Text>
           </View>
         </View>
@@ -172,7 +182,7 @@ export const InvoiceDocumentSimple = (data) => {
             </View>
           ) : null}
           <View style={styles.totalRowFinal}>
-            <Text style={styles.totalLabelFinal}>Total</Text>
+            <Text style={styles.totalLabelFinal}>{data.totalLabel || "Total"}</Text>
             <Text style={styles.totalValueFinal}>{money(total)}</Text>
           </View>
         </View>
@@ -182,7 +192,10 @@ export const InvoiceDocumentSimple = (data) => {
             <Text style={styles.footerLine}>{data.paymentDetails}</Text>
           ) : null}
           {data.notes ? <Text style={styles.footerLine}>{data.notes}</Text> : null}
-          <Text style={styles.footerLine}>Thank you.</Text>
+          <Text style={styles.footerLine}>{data.footerText || "Thank you."}</Text>
+          {data.showPoweredBy ? (
+            <Text style={styles.poweredBy}>Powered by Invoicium</Text>
+          ) : null}
         </View>
       </Page>
     </Document>

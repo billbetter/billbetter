@@ -1,10 +1,15 @@
-// Browser-side invoice PDF rendering.
+// Browser-side invoice AND quote PDF rendering.
 //
-// Replaces the generateInvoicePDF Supabase Edge Function for invoices. That
-// function rendered with pdf-lib server-side; @react-pdf/renderer needs Node
-// internals (fontkit, streams, zlib) that do not exist in Deno Deploy, and this
-// app has no Node server -- vercel.json ships a static Vite build. So the render
-// happens on the client instead.
+// Replaces the generateInvoicePDF and generate-quote-pdf Supabase Edge
+// Functions. Those rendered with pdf-lib server-side; @react-pdf/renderer needs
+// Node internals (fontkit, streams, zlib) that do not exist in Deno Deploy, and
+// this app has no Node server -- vercel.json ships a static Vite build. So the
+// render happens on the client instead.
+//
+// Quotes joined invoices here so there is ONE renderer. While there were two,
+// the quote one drew in a hardcoded #10b981 -- the app's retired brand green --
+// and none of the theme, logo, font or footer settings reached it. A contractor
+// branded their invoices and their quotes went out in a colour nobody chose.
 //
 // The output contract is deliberately unchanged: a
 // `data:application/pdf;base64,...` URL, exactly what the old function returned.
@@ -16,7 +21,10 @@
 import {
   mapInvoiceToPdfData,
   mapInvoiceToComplexPdfData,
+  mapQuoteToPdfData,
+  mapQuoteToComplexPdfData,
 } from "@/lib/invoicePdfData";
+import { loadLogoDataUrl } from "@/lib/invoiceBrand";
 
 // Which layout each BusinessSettings.invoice_template value renders.
 //
@@ -74,14 +82,64 @@ function loadRenderer(templateId) {
  */
 export async function renderInvoicePdfBlob(invoice, settings, options = {}) {
   const templateId = options.templateId || resolveTemplateId(settings);
-  const { pdf, Template } = await loadRenderer(templateId);
+
+  // The logo is fetched HERE, not handed to react-pdf as a URL.
+  //
+  // <Image src="https://..."> makes the renderer fetch it mid-render, and any
+  // failure -- CORS, a deleted object, a slow network, a logo that turns out to
+  // be an SVG -- throws and takes the whole PDF with it. loadLogoDataUrl never
+  // throws and answers null instead, so the worst case is an unbranded invoice
+  // rather than no invoice. This is the one async boundary the render already
+  // had, so it costs no new structure.
+  //
+  // Both fetched in parallel with the renderer chunk, which is the slower of
+  // the two on a first render.
+  const [{ pdf, Template }, logo] = await Promise.all([
+    loadRenderer(templateId),
+    loadLogoDataUrl(settings?.logo_url),
+  ]);
+
+  const withLogo = { ...options, logo };
 
   // The detailed layout takes a different shape -- grouped sections and an array
   // of tax lines -- so it needs its own mapper, not the flat one.
   const data =
     templateId === "detailed"
-      ? mapInvoiceToComplexPdfData(invoice, settings, options)
-      : mapInvoiceToPdfData(invoice, settings, options);
+      ? mapInvoiceToComplexPdfData(invoice, settings, withLogo)
+      : mapInvoiceToPdfData(invoice, settings, withLogo);
+
+  return await pdf(Template(data)).toBlob();
+}
+
+/**
+ * Render a QUOTE, through the same templates, the same theme and the same
+ * branding as an invoice.
+ *
+ * Quotes used to render in the generate-quote-pdf Edge Function with pdf-lib
+ * and a hardcoded palette. See mapQuoteToPdfData for why that had to go: the
+ * colour was #10b981, this app's retired brand green, so every quote went out
+ * in a colour nobody had chosen and none of the branding settings reached it.
+ *
+ * Deliberately the same function shape as renderInvoicePdfBlob, because the
+ * two differ by exactly which mapper they call.
+ *
+ * @param {object} quote     row from public."Quote"
+ * @param {object} settings  row from public."BusinessSettings"
+ * @param {object} [options] { client, templateId }
+ */
+export async function renderQuotePdfBlob(quote, settings, options = {}) {
+  const templateId = options.templateId || resolveTemplateId(settings);
+
+  const [{ pdf, Template }, logo] = await Promise.all([
+    loadRenderer(templateId),
+    loadLogoDataUrl(settings?.logo_url),
+  ]);
+
+  const withLogo = { ...options, logo };
+  const data =
+    templateId === "detailed"
+      ? mapQuoteToComplexPdfData(quote, settings, withLogo)
+      : mapQuoteToPdfData(quote, settings, withLogo);
 
   return await pdf(Template(data)).toBlob();
 }
@@ -105,6 +163,20 @@ function blobToDataUrl(blob) {
  */
 export async function generateInvoicePDF({ invoice, settings, ...options }) {
   const blob = await renderInvoicePdfBlob(invoice, settings || {}, options);
+  const pdf_url = await blobToDataUrl(blob);
+  return { data: { pdf_url, success: true } };
+}
+
+/**
+ * Drop-in replacement for `sdk.functions.invoke("generateQuotePDF", ...)`.
+ *
+ * Same `{ data: { pdf_url } }` envelope the edge function returned, so
+ * CreateQuote and QuickBillFlow keep passing the result straight to
+ * send-quote-email, which splits the base64 off and attaches it. Nothing
+ * downstream of the render changes.
+ */
+export async function generateQuotePDF({ quote, settings, ...options }) {
+  const blob = await renderQuotePdfBlob(quote, settings || {}, options);
   const pdf_url = await blobToDataUrl(blob);
   return { data: { pdf_url, success: true } };
 }
