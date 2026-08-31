@@ -7,6 +7,8 @@ import { Quote } from "@/entities/Quote";
 import { Job } from "@/entities/Job";
 import { JobPhoto } from "@/entities/JobPhoto";
 import { JobMaterial } from "@/entities/JobMaterial";
+import { JobExpense } from "@/entities/JobExpense";
+import { PaymentPlan } from "@/entities/PaymentPlan";
 import { JobNote } from "@/entities/JobNote";
 import { BusinessSettings } from "@/entities/BusinessSettings";
 import { Subscription } from "@/entities/Subscription";
@@ -729,7 +731,9 @@ export const sdk = {
     Job,
     JobPhoto,
     JobMaterial,
+    JobExpense,
     JobNote,
+    PaymentPlan,
     BusinessSettings,
     Subscription,
     RecurringInvoice,
@@ -748,11 +752,6 @@ export const sdk = {
         Promise.resolve([{ user_id: null, primary_specialty: "general" }]),
       create: (p) => localDataEngine.create("UserSpecialty", p),
       update: (id, p) => localDataEngine.update("UserSpecialty", id, p),
-    },
-    JobExpense: {
-      filter: () => Promise.resolve([]),
-      create: (p) => localDataEngine.create("JobExpense", p),
-      update: (id, p) => localDataEngine.update("JobExpense", id, p),
     },
     Notification: {
       filter: () => Promise.resolve([]),

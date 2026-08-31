@@ -9,10 +9,18 @@
 --
 --     HTTP 404  PGRST205  Could not find the table 'public.JobExpense'
 --
--- So receipts scanned into a job are discarded, the expense count is always 0,
--- and the invoice panel that would bill those expenses never appears. The UI
--- swallows the error (`catch (e) {}`), which is why it looks merely empty
--- rather than broken.
+-- The precise failure is worth stating, because it is not the obvious one.
+-- localDataEngine catches a missing-table error and falls back to
+-- localStorage, so writes were not thrown away -- they were saved to the one
+-- browser that made them. Reads never saw them anyway: sdk.entities.JobExpense
+-- was declared as `filter: () => Promise.resolve([])`, hardcoded to return
+-- nothing without querying at all. So an expense could be entered, appear to
+-- save, and be unreadable from that moment on, on that device and every other.
+--
+-- That stub is now removed and JobExpense is a real entity like Job and
+-- JobMaterial. Until this migration runs it will read and write localStorage,
+-- which is per-device; running it moves the feature onto the server where the
+-- rest of the product lives.
 --
 -- -- Why not point the code at JobMaterial instead --------------------------
 --

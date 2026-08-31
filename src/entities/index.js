@@ -4,6 +4,8 @@ export * as Quote from "./Quote";
 export * as Job from "./Job";
 export * as JobPhoto from "./JobPhoto";
 export * as JobMaterial from "./JobMaterial";
+export * as JobExpense from "./JobExpense";
+export * as PaymentPlan from "./PaymentPlan";
 export * as JobNote from "./JobNote";
 export * as BusinessSettings from "./BusinessSettings";
 export * as Subscription from "./Subscription";
