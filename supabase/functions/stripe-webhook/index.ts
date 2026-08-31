@@ -1,7 +1,7 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserContact } from '../_shared/supabase-admin.ts';
 import { notify } from '../_shared/notify.ts';
-import { connectAccountStatus, stripeGet } from '../_shared/stripe.ts';
+import { connectAccountStatus, stripeGet, subscriptionPeriodEnd } from '../_shared/stripe.ts';
 import { PLAN_LIMITS, limitsForPlan } from '../_shared/plan-limits.ts';
 
 // A cancelled subscription drops the user back to the free tier rather than
@@ -253,9 +253,7 @@ Deno.serve(async (req) => {
           previousPlanName: row.plan_name || null,
           // Stripe keeps access to the end of the paid period on a scheduled
           // cancel; fall back to now for an immediate one.
-          effectiveDate: sub.current_period_end
-            ? new Date(sub.current_period_end * 1000).toISOString()
-            : endedAt,
+          effectiveDate: subscriptionPeriodEnd(sub) || endedAt,
           billingUrl: `${APP_URL}/Pricing`,
         });
       } else {
@@ -284,8 +282,13 @@ Deno.serve(async (req) => {
           patch.status = 'active';
         }
 
-        if (sub.current_period_end) {
-          patch.next_billing_date = new Date(sub.current_period_end * 1000).toISOString();
+        // Resolved once: the plan-change email and the status-change email
+        // below both report this same date, and Settings renders what is
+        // stored. Left alone when Stripe gives no date, so an event that
+        // carries none cannot blank a date already on the row.
+        const periodEnd = subscriptionPeriodEnd(sub);
+        if (periodEnd) {
+          patch.next_billing_date = periodEnd;
         }
         if (sub.trial_end) {
           patch.trial_end_date = new Date(sub.trial_end * 1000).toISOString();
@@ -336,9 +339,7 @@ Deno.serve(async (req) => {
             change: rank(newPlan) >= rank(row.plan_name) ? 'upgraded' : 'downgraded',
             planName: pretty(newPlan),
             previousPlanName: pretty(row.plan_name),
-            effectiveDate: sub.current_period_end
-              ? new Date(sub.current_period_end * 1000).toISOString()
-              : null,
+            effectiveDate: periodEnd,
             billingUrl: `${APP_URL}/Settings`,
           });
         }
@@ -356,11 +357,7 @@ Deno.serve(async (req) => {
             change,
             planName: (patch.plan_name as string) || row.plan_name || 'your plan',
             previousPlanName: null,
-            effectiveDate:
-              (patch.next_billing_date as string) ||
-              (sub.current_period_end
-                ? new Date(sub.current_period_end * 1000).toISOString()
-                : null),
+            effectiveDate: periodEnd,
             billingUrl: `${APP_URL}/Pricing`,
           });
         }

@@ -124,6 +124,40 @@ export function applyCoupon(amount: number, coupon: Record<string, any>): number
   return amount;
 }
 
+// When a subscription's paid period actually ends, as an ISO string, or null.
+//
+// Stripe moved current_period_start/end OFF the subscription and onto each
+// subscription ITEM in API version 2025-04-30.basil, and this account is on
+// 2026-04-22.dahlia -- so a direct read of /subscriptions no longer carries the
+// top-level field. That is measured, not assumed: a live read of this account's
+// own subscription returns the date only on items.data[0], with the top-level
+// key absent entirely. A webhook event still can, because events are delivered at
+// the version pinned on the ENDPOINT rather than the account default, and that
+// version is not ours to assume. Both shapes are real, so both are tried.
+//
+// Returns null rather than a guess when none of them is there. Every caller
+// uses this date to tell a customer when their access or their billing changes,
+// and a wrong date is worse than no date: it is the single fact they plan
+// around. Callers show nothing, or fall back to something they actually know.
+//
+// Shared rather than copied because stripe-webhook, stripe-cancel-subscription
+// and confirm-and-activate all report this same date, and three copies would
+// drift. There is a harder reason too: deploy-functions.py inlines _shared/*
+// into ONE top-level scope, so a private copy under this name alongside the
+// import would be a duplicate declaration -- a SyntaxError, a BOOT_ERROR, and a
+// deploy that still prints Done.
+export function subscriptionPeriodEnd(sub: Record<string, any>): string | null {
+  const seconds =
+    sub?.items?.data?.[0]?.current_period_end ??
+    sub?.current_period_end ??
+    sub?.cancel_at ??
+    (sub?.status === 'trialing' ? sub?.trial_end : null);
+
+  if (typeof seconds !== 'number' || !Number.isFinite(seconds)) return null;
+  const date = new Date(seconds * 1000);
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+}
+
 // The one place a Stripe account object becomes the status the app stores.
 //
 // Shared so stripe-connect-status (polled by Settings) and the webhook's

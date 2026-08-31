@@ -29,6 +29,9 @@ const fs = require("fs");
 const os = require("os");
 const path = require("path");
 const esbuild = require("esbuild");
+// The one mirror of deploy-functions.py's flattening, shared with the other
+// edge-function suites so a second copy cannot drift from what we deploy.
+const { inlineShared } = require("./_inline-shared.cjs");
 
 const ROOT = path.join(__dirname, "..");
 const FN = path.join(ROOT, "supabase", "functions", "stripe-cancel-subscription", "index.ts");
@@ -38,22 +41,6 @@ let passed = 0, failed = 0;
 function check(label, cond, detail) {
   if (cond) { passed++; console.log(`  PASS  ${label}`); }
   else { failed++; console.log(`  FAIL  ${label}${detail !== undefined ? ` -- ${detail}` : ""}`); }
-}
-
-// Mirrors deploy-functions.py inline_shared: same import shape, same recursion,
-// same "already inlined" skip. If that script's rule changes, this stops
-// matching and the test is testing a bundle we do not ship.
-const IMPORT_RE = /^import\s+(?:type\s+)?\{[^}]+\}\s+from\s+['"](?:\.\.\/_shared|\.)\/([^'"]+)['"]\s*;?\s*$/;
-function inlineShared(source, visited = new Set()) {
-  return source.split("\n").map((line) => {
-    const m = IMPORT_RE.exec(line.trim());
-    if (!m) return line;
-    if (visited.has(m[1])) return "";
-    visited.add(m[1]);
-    const p = path.join(SHARED, m[1]);
-    if (!fs.existsSync(p)) return line;
-    return inlineShared(fs.readFileSync(p, "utf8"), visited);
-  }).join("\n");
 }
 
 // ---------------------------------------------------------------------------
@@ -96,7 +83,7 @@ const SUBS = {
 const iso = (s) => new Date(s * 1000).toISOString();
 
 async function main() {
-  let ts = inlineShared(fs.readFileSync(FN, "utf8"));
+  let ts = inlineShared(fs.readFileSync(FN, "utf8"), SHARED);
   // Capture the handler rather than starting a server.
   ts = ts.replace(/Deno\.serve\(/, "export const __handler = (");
   const { code } = await esbuild.transform(ts, { loader: "ts", format: "esm", target: "es2022" });

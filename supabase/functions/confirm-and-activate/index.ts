@@ -1,7 +1,7 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 import { notify } from '../_shared/notify.ts';
-import { stripeGet, stripePost, stripeDelete } from '../_shared/stripe.ts';
+import { stripeGet, stripePost, stripeDelete, subscriptionPeriodEnd } from '../_shared/stripe.ts';
 import { PLAN_LIMITS, limitsForPlan } from '../_shared/plan-limits.ts';
 
 
@@ -264,9 +264,7 @@ Deno.serve(async (req) => {
         change: rank(planName) >= rank(existing.plan_name) ? 'upgraded' : 'downgraded',
         planName: pretty(planName),
         previousPlanName: pretty(existing.plan_name),
-        effectiveDate: subscription.current_period_end
-          ? new Date(subscription.current_period_end * 1000).toISOString()
-          : null,
+        effectiveDate: subscriptionPeriodEnd(subscription),
         billingUrl: `${Deno.env.get('APP_BASE_URL') || 'https://www.invoicium.ca'}/Settings`,
       });
     }

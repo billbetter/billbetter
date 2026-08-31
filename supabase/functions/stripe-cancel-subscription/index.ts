@@ -26,38 +26,11 @@
 // anyone's plan by guessing an id.
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
-import { stripeGet, stripePost } from '../_shared/stripe.ts';
+import { stripeGet, stripePost, subscriptionPeriodEnd } from '../_shared/stripe.ts';
 
 type Action = 'preview' | 'cancel' | 'resume';
 
 const ACTIONS: Action[] = ['preview', 'cancel', 'resume'];
-
-/**
- * When paid access actually ends, as an ISO string, or null.
- *
- * Stripe moved current_period_start/end OFF the subscription and onto each
- * subscription ITEM in API version 2025-04-30.basil. This account is on
- * 2026-04-22.dahlia (see _shared/stripe.ts), so the top-level field that
- * stripe-webhook still reads is not guaranteed to be present on a direct read
- * -- webhook events are delivered at the version pinned on the endpoint, which
- * is not the account default.
- *
- * So every place the date legitimately lives is tried, and null is returned
- * rather than a guess. The page renders no date at all in that case. A wrong
- * date here is worse than no date: it is the single fact the customer will
- * plan around.
- */
-function resolveAccessUntil(sub: Record<string, any>): string | null {
-  const seconds =
-    sub?.items?.data?.[0]?.current_period_end ??
-    sub?.current_period_end ??
-    sub?.cancel_at ??
-    (sub?.status === 'trialing' ? sub?.trial_end : null);
-
-  if (typeof seconds !== 'number' || !Number.isFinite(seconds)) return null;
-  const date = new Date(seconds * 1000);
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-}
 
 /** The subscription as the cancel page needs to see it. */
 function describe(sub: Record<string, any>, planName: string | null) {
@@ -69,7 +42,7 @@ function describe(sub: Record<string, any>, planName: string | null) {
     // because that is what the cancellation acts on.
     status: sub?.status ?? null,
     cancel_at_period_end: Boolean(sub?.cancel_at_period_end),
-    access_until: resolveAccessUntil(sub),
+    access_until: subscriptionPeriodEnd(sub),
     // For "you are giving up $X a month". Null when the price is missing
     // rather than 0, which would read as free.
     amount: typeof price?.unit_amount === 'number' ? price.unit_amount / 100 : null,
