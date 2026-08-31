@@ -2,6 +2,7 @@ import { db } from './supabase-admin.ts';
 import { stripePost, applicationFeeCents } from './stripe.ts';
 import { feePercentForSubscription } from './plan-limits.ts';
 import { APP_URL } from './app-url.ts';
+import { invoiceBalance } from './invoice-balance.ts';
 
 /**
  * The one place a Checkout session for an invoice is built.
@@ -129,15 +130,44 @@ export async function buildInvoiceCheckoutSession(
 
   const businessName = settings?.business_name || 'Invoicium';
   const currency = String(settings?.currency || 'CAD').toLowerCase();
-  const totalCents = Math.round(total * 100);
+
+  // THE BALANCE, not the total.
+  //
+  // `total` used to be the amount due, and this function said so. Once a
+  // contractor can record a $200 cash deposit against a $500 invoice, charging
+  // the total takes that $200 a second time -- from the client, on the
+  // contractor's own Stripe account, with nothing in the app saying it
+  // happened. Both callers pass through here, so the balance is charged
+  // whichever button was pressed.
+  const balance = await invoiceBalance(invoice);
+  if (balance.settled) {
+    return {
+      ok: false,
+      reason: 'already_paid',
+      error: 'This invoice has already been paid in full.',
+      status: 409,
+    };
+  }
+  const totalCents = balance.dueCents;
+
+  // The platform fee follows what is actually CHARGED, not the invoice total.
+  // The fee is taken out of this charge; charging a $150 balance and taking a
+  // fee calculated on $500 would take a fee larger than the transaction can
+  // support and Stripe would reject the whole payment.
   const feePercent = await feePercentForInvoice(invoice);
   const feeCents = applicationFeeCents(totalCents, feePercent);
+
+  // Named so the client can see this is a balance rather than the whole
+  // invoice, on the Checkout page and afterwards on their card statement.
+  const partPaid = balance.paidCents > 0;
+  const lineName = partPaid
+    ? `${businessName} Invoice ${invoice.invoice_number || ''} (balance)`.trim()
+    : `${businessName} Invoice ${invoice.invoice_number || ''}`.trim();
 
   const form: Record<string, string> = {
     mode: 'payment',
     'line_items[0][price_data][currency]': currency,
-    'line_items[0][price_data][product_data][name]':
-      `${businessName} Invoice ${invoice.invoice_number || ''}`.trim(),
+    'line_items[0][price_data][product_data][name]': lineName,
     'line_items[0][price_data][unit_amount]': String(totalCents),
     'line_items[0][quantity]': '1',
     success_url: `${APP_URL}/InvoicePaymentSuccess?invoice_id=${invoice.id}&session_id={CHECKOUT_SESSION_ID}`,

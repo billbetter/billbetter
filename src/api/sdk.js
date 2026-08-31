@@ -9,6 +9,8 @@ import { JobPhoto } from "@/entities/JobPhoto";
 import { JobMaterial } from "@/entities/JobMaterial";
 import { JobExpense } from "@/entities/JobExpense";
 import { PaymentPlan } from "@/entities/PaymentPlan";
+import { InvoicePayment } from "@/entities/InvoicePayment";
+import { InvoiceEvent } from "@/entities/InvoiceEvent";
 import { JobNote } from "@/entities/JobNote";
 import { BusinessSettings } from "@/entities/BusinessSettings";
 import { Subscription } from "@/entities/Subscription";
@@ -734,6 +736,8 @@ export const sdk = {
     JobExpense,
     JobNote,
     PaymentPlan,
+    InvoicePayment,
+    InvoiceEvent,
     BusinessSettings,
     Subscription,
     RecurringInvoice,

@@ -65,11 +65,20 @@ const APP_URL = Deno.env.get('APP_BASE_URL') || 'https://www.invoicium.ca';
 async function recordInvoicePayment(
   invoiceId: string,
   fields: Record<string, unknown>,
+  payment?: { amountCents: number; intentId: string | null; paidAt: string },
 ): Promise<{ paid: boolean; invoice: Record<string, any> | null }> {
   const invoice = await db.getOne('Invoice', invoiceId).catch(() => null);
 
   // Both signals, matching isVoided() in src/lib/invoiceVoid.js.
   const voided = Boolean(invoice) && (String(invoice.status || '') === 'void' || invoice.voided_at);
+
+  // A row in "InvoicePayment" for the money that arrived, so an online payment
+  // sits in the same ledger as a cheque and the balance is right whichever way
+  // the client paid. Recorded even for a voided invoice: the money is real and
+  // the contractor has to be able to see it.
+  if (payment && invoice) {
+    await insertStripePayment(invoice, payment);
+  }
 
   if (voided) {
     console.warn(`stripe-webhook: payment received for VOIDED invoice ${invoiceId}; status left as void`);
@@ -79,6 +88,60 @@ async function recordInvoicePayment(
 
   await db.update('Invoice', invoiceId, { status: 'paid', ...fields });
   return { paid: true, invoice };
+}
+
+/**
+ * Write one "InvoicePayment" row for a Stripe payment, at most once.
+ *
+ * -- Why the guard is not optional ----------------------------------------
+ *
+ * Stripe retries a delivery until it is acknowledged, and this function
+ * handles BOTH checkout.session.completed and payment_intent.succeeded -- two
+ * events for ONE payment, each of them retryable. Without a guard a single
+ * $500 card payment becomes two, three or four rows, the balance goes
+ * negative, and the invoice shows a credit the client never paid.
+ *
+ * Guarded twice on purpose. The lookup catches the ordinary case; the partial
+ * unique index on stripe_payment_intent_id catches the race between two
+ * deliveries arriving at once, which a lookup cannot. A duplicate-key error is
+ * therefore the guard WORKING, and is swallowed rather than logged as a
+ * failure.
+ *
+ * Never throws. A payment row that could not be written must not fail the
+ * webhook -- an unacknowledged delivery is retried, and the retry would try to
+ * mark the invoice paid all over again.
+ */
+async function insertStripePayment(
+  invoice: Record<string, any>,
+  payment: { amountCents: number; intentId: string | null; paidAt: string },
+): Promise<void> {
+  if (!payment.amountCents) return;
+
+  try {
+    if (payment.intentId) {
+      const existing = await db.findOne('InvoicePayment', {
+        stripe_payment_intent_id: payment.intentId,
+      });
+      if (existing) return;
+    }
+
+    await db.insert('InvoicePayment', {
+      user_id: invoice.user_id,
+      invoice_id: invoice.id,
+      amount: payment.amountCents / 100,
+      paid_at: payment.paidAt.slice(0, 10),
+      method: 'Card',
+      stripe_payment_intent_id: payment.intentId,
+      // No recorded_by: nobody recorded this, Stripe did. A name here would
+      // claim a person entered a payment they never touched.
+      recorded_by_name: 'Stripe',
+    });
+  } catch (err) {
+    const message = err instanceof Error ? err.message : String(err);
+    // 23505 is the unique index doing its job on a concurrent retry.
+    if (message.includes('23505') || message.toLowerCase().includes('duplicate key')) return;
+    console.error('insertStripePayment failed (ignored):', message);
+  }
 }
 
 // Stripe status -> the change we describe to the user. Mirrors the status
@@ -206,10 +269,21 @@ Deno.serve(async (req) => {
       const session = event.data.object;
       const invoiceId = session.metadata?.invoice_id;
       if (invoiceId) {
-        await recordInvoicePayment(invoiceId, {
-          paid_date: new Date().toISOString(),
-          stripe_payment_intent_id: session.payment_intent || null,
-        });
+        const paidAt = new Date().toISOString();
+        await recordInvoicePayment(
+          invoiceId,
+          {
+            paid_date: paidAt,
+            stripe_payment_intent_id: session.payment_intent || null,
+          },
+          {
+            // What Stripe actually collected, which is the BALANCE when the
+            // invoice was part paid -- not invoice.total.
+            amountCents: Number(session.amount_total) || 0,
+            intentId: session.payment_intent ? String(session.payment_intent) : null,
+            paidAt,
+          },
+        );
       }
     }
 
@@ -222,10 +296,18 @@ Deno.serve(async (req) => {
         // void) and handed back, so the notification below reuses it rather
         // than fetching the same invoice a second time. The values are as of
         // just before the write, which is fine -- nothing used here changes.
-        const { invoice } = await recordInvoicePayment(invoiceId, {
-          paid_date: paidAt,
-          stripe_payment_intent_id: pi.id,
-        });
+        const { invoice } = await recordInvoicePayment(
+          invoiceId,
+          {
+            paid_date: paidAt,
+            stripe_payment_intent_id: pi.id,
+          },
+          {
+            amountCents: Number(pi.amount_received) || Number(pi.amount) || 0,
+            intentId: pi.id ? String(pi.id) : null,
+            paidAt,
+          },
+        );
 
         // Tell the contractor they got paid. Sent even when the invoice was
         // voided: money arriving is the urgent fact and they need it today,

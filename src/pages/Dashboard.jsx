@@ -45,6 +45,7 @@ import {
 } from "recharts";
 import PullToRefresh from "@/components/utils/PullToRefresh";
 import DailyDigest from "@/components/dashboard/DailyDigest";
+import { indexPaymentsByInvoice, revenueDate } from "@/lib/invoicePayments";
 
 // Stat Card Component
 const StatCard = ({
@@ -268,6 +269,7 @@ const QUICK_ACTIONS = [
 export default function Dashboard() {
   const navigate = useNavigate();
   const [invoices, setInvoices] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [clients, setClients] = useState([]);
   const [recurringInvoices, setRecurringInvoices] = useState([]);
@@ -295,6 +297,7 @@ export default function Dashboard() {
         settingsData,
         recurringData,
         subscriptionData,
+        paymentData,
       ] = await Promise.all([
         sdk.entities.Invoice.filter(
           { user_id: currentUser.id },
@@ -318,9 +321,15 @@ export default function Dashboard() {
           20,
         ),
         sdk.entities.Subscription.filter({ user_id: currentUser.id }),
+        // Payments, so revenue is dated by when the money arrived rather than
+        // by when the invoice was raised. Allowed to fail on its own:
+        // revenueDate() then falls back to paid_date and finally to the
+        // creation date, which is what this chart used for everything before.
+        sdk.entities.InvoicePayment.filter({ user_id: currentUser.id }).catch(() => []),
       ]);
 
       setInvoices(invoiceData);
+      setPayments(paymentData || []);
       setQuotes(quoteData);
       setClients(clientData);
       setSettings(settingsData.length > 0 ? settingsData[0] : null);
@@ -333,16 +342,23 @@ export default function Dashboard() {
         const monthStart = startOfMonth(month);
         const monthEnd = endOfMonth(month);
 
-        const monthInvoices = invoiceData.filter((inv) => {
-          const invDate = new Date(inv.created_date);
-          return invDate >= monthStart && invDate <= monthEnd;
-        });
-
-        const paid = monthInvoices
+        // Paid is bucketed by when the money arrived; pending by when the
+        // invoice was raised, because an unpaid invoice has no payment date to
+        // be bucketed by. See revenueDate().
+        const byInvoice = indexPaymentsByInvoice(paymentData || []);
+        const paid = invoiceData
           .filter((inv) => inv.status === "paid")
+          .filter((inv) => {
+            const d = revenueDate(inv, byInvoice.get(inv.id) || []);
+            return d >= monthStart && d <= monthEnd;
+          })
           .reduce((sum, inv) => sum + (inv.total || 0), 0);
-        const pending = monthInvoices
+        const pending = invoiceData
           .filter((inv) => inv.status === "sent")
+          .filter((inv) => {
+            const invDate = new Date(inv.created_date);
+            return invDate >= monthStart && invDate <= monthEnd;
+          })
           .reduce((sum, inv) => sum + (inv.total || 0), 0);
 
         return {
@@ -435,10 +451,21 @@ export default function Dashboard() {
     const thisMonthStart = startOfMonth(now);
     const thisMonthEnd = endOfMonth(now);
 
+    const byInvoice = indexPaymentsByInvoice(payments);
+
+    // "This month" for a COUNT of invoices is still when they were raised --
+    // that is what the label means. Revenue below is dated by payment.
     const thisMonthInvoices = invoices.filter((inv) => {
       const date = new Date(inv.created_date);
       return date >= thisMonthStart && date <= thisMonthEnd;
     });
+
+    const paidThisMonth = invoices
+      .filter((inv) => inv.status === "paid")
+      .filter((inv) => {
+        const d = revenueDate(inv, byInvoice.get(inv.id) || []);
+        return d >= thisMonthStart && d <= thisMonthEnd;
+      });
 
     const overdueInvoices = invoices.filter((inv) => {
       if (inv.status === "overdue") return true;
@@ -456,9 +483,7 @@ export default function Dashboard() {
         .reduce((sum, inv) => sum + (inv.total || 0), 0),
       totalInvoices: invoices.length,
       paidInvoices: invoices.filter((inv) => inv.status === "paid").length,
-      thisMonthRevenue: thisMonthInvoices
-        .filter((inv) => inv.status === "paid")
-        .reduce((sum, inv) => sum + (inv.total || 0), 0),
+      thisMonthRevenue: paidThisMonth.reduce((sum, inv) => sum + (inv.total || 0), 0),
       thisMonthCount: thisMonthInvoices.length,
       overdueCount: overdueInvoices.length,
       overdueAmount: overdueInvoices.reduce(
@@ -466,7 +491,7 @@ export default function Dashboard() {
         0,
       ),
     };
-  }, [invoices]);
+  }, [invoices, payments]);
 
   const transactionStats = useMemo(() => {
     const used = subscription?.transactions_used_this_month || 0;

@@ -67,6 +67,17 @@ import {
   draftsNowSent,
 } from "@/lib/invoiceBatch";
 import { canDeleteInvoice, isVoided, VOID_STATUS } from "@/lib/invoiceVoid";
+import RecordPaymentDialog from "@/components/invoice/RecordPaymentDialog";
+import {
+  formatMoney,
+  indexPaymentsByInvoice,
+  paymentRecord,
+  paymentSummary,
+  paymentsSupported,
+  settledDate,
+  statusChangeEvent,
+  statusFromPayments,
+} from "@/lib/invoicePayments";
 import { dueReminders, reminderSentPatch } from "@/lib/reminders";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -100,6 +111,11 @@ export default function Invoices() {
   // Selection is off until asked for. Checkboxes on every row by default turn
   // a list you mostly READ into a form, and the common action here is opening
   // one invoice, not mailing twelve.
+  const [payments, setPayments] = useState([]);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [paymentFor, setPaymentFor] = useState(null);
+  const [recordingPayment, setRecordingPayment] = useState(false);
+  const [paymentError, setPaymentError] = useState(null);
   const [selectMode, setSelectMode] = useState(false);
   const [selectedIds, setSelectedIds] = useState(() => new Set());
   const [batchRunning, setBatchRunning] = useState(false);
@@ -119,13 +135,20 @@ export default function Invoices() {
 
     try {
       const user = await sdk.auth.me();
+      setCurrentUser(user);
 
-      const [invoiceData, settingsData] = await Promise.all([
+      // Payments are loaded alongside the invoices so each row can show what
+      // is still owed on it. Allowed to fail on its own: without them every
+      // invoice reads as fully unpaid, which is what the list showed before
+      // this feature and is a worse outcome than no list at all.
+      const [invoiceData, settingsData, paymentData] = await Promise.all([
         sdk.entities.Invoice.filter({ user_id: user.id }, "-created_date"),
         sdk.entities.BusinessSettings.filter({ user_id: user.id }),
+        sdk.entities.InvoicePayment.filter({ user_id: user.id }).catch(() => []),
       ]);
 
       setInvoices(invoiceData);
+      setPayments(paymentData || []);
       if (settingsData.length > 0) {
         setSettings(settingsData[0]);
       }
@@ -135,6 +158,58 @@ export default function Invoices() {
 
     setLoading(false);
     setRefreshing(false);
+  };
+
+  /**
+   * Record a payment from the list.
+   *
+   * Same ordering as InvoiceDetail: the payment row is created FIRST and the
+   * invoice is marked paid only once it exists. The reverse leaves an invoice
+   * marked paid with nothing behind it if the second write fails, which is the
+   * exact state this feature exists to abolish.
+   */
+  const handleRecordPayment = async (form) => {
+    const invoice = paymentFor;
+    if (!invoice) return;
+
+    setRecordingPayment(true);
+    setPaymentError(null);
+    try {
+      const existing = paymentsByInvoice.get(invoice.id) || [];
+      const created = await sdk.entities.InvoicePayment.create(
+        paymentRecord({ invoice, user: currentUser, ...form }),
+      );
+      const next = [...existing, created];
+
+      const nextStatus = statusFromPayments(invoice, next);
+      if (nextStatus) {
+        await sdk.entities.Invoice.update(invoice.id, {
+          status: nextStatus,
+          paid_date: settledDate(invoice, next),
+        });
+        try {
+          await sdk.entities.InvoiceEvent.create(
+            statusChangeEvent({
+              invoice,
+              from: invoice.status,
+              to: nextStatus,
+              detail: "Settled in full",
+              user: currentUser,
+            }),
+          );
+        } catch (err) {
+          // A history entry that failed must not fail the payment it describes.
+          console.error("Could not record history entry (ignored):", err);
+        }
+      }
+
+      setPaymentFor(null);
+      await loadData(true);
+    } catch (err) {
+      console.error("Error recording payment:", err);
+      setPaymentError(err?.message || "Could not record that payment.");
+    }
+    setRecordingPayment(false);
   };
 
   const handleDelete = async () => {
@@ -163,6 +238,20 @@ export default function Invoices() {
     // recording the undo.
     const target = invoices.find((inv) => inv.id === invoiceId);
     if (isVoided(target) || newStatus === VOID_STATUS) return;
+
+    // Choosing "paid" opens the payment dialog rather than writing the status.
+    //
+    // This dropdown was the ONLY way to mark an offline payment, and it wrote
+    // `{ status: 'paid' }` and nothing else -- no date, no amount, no method,
+    // no actor. paid_date stayed null, so the invoice could never say when it
+    // was paid and the revenue charts fell back to the date it was raised.
+    // The dialog is prefilled with today and the full balance, so the one-click
+    // habit still costs two clicks rather than a form.
+    if (newStatus === "paid" && target && paymentsSupported()) {
+      setPaymentError(null);
+      setPaymentFor(target);
+      return;
+    }
 
     const prevInvoices = invoices;
     // Optimistic: update UI immediately
@@ -330,6 +419,11 @@ export default function Invoices() {
   });
 
   // -- Batch sending: derived state and the run itself ---------------------
+
+  // Built once per render rather than filtered per row: the list renders every
+  // invoice on the account, and a linear scan inside the loop is quadratic on
+  // exactly the accounts where it would be felt.
+  const paymentsByInvoice = indexPaymentsByInvoice(payments);
 
   /** Eligibility for every visible invoice, keyed by id. */
   const eligibility = new Map(
@@ -1180,6 +1274,22 @@ export default function Invoices() {
                           <p className="font-bold text-content dark:text-content-inverted text-base">
                             ${invoice.total?.toFixed(2)}
                           </p>
+                          {/* Only when a PART of it has been paid. A fully
+                              unpaid invoice already says what is owed -- the
+                              total -- and repeating it on every row would bury
+                              the handful where it differs. */}
+                          {(() => {
+                            const s = paymentSummary(
+                              invoice,
+                              paymentsByInvoice.get(invoice.id) || [],
+                            );
+                            if (s.count === 0 || s.settled) return null;
+                            return (
+                              <p className="text-xs font-semibold text-alert-700 dark:text-alert-400 mt-0.5">
+                                {formatMoney(s.balance)} still owed
+                              </p>
+                            );
+                          })()}
                         </TableCell>
 
                         <TableCell className="py-4 px-6">
@@ -1408,6 +1518,18 @@ export default function Invoices() {
                             <p className="font-bold text-content dark:text-content-inverted text-lg">
                               ${invoice.total?.toFixed(2)}
                             </p>
+                            {(() => {
+                              const s = paymentSummary(
+                                invoice,
+                                paymentsByInvoice.get(invoice.id) || [],
+                              );
+                              if (s.count === 0 || s.settled) return null;
+                              return (
+                                <p className="text-xs font-semibold text-alert-700 dark:text-alert-400 mt-0.5">
+                                  {formatMoney(s.balance)} owed
+                                </p>
+                              );
+                            })()}
                           </div>
                         </div>
 
@@ -1674,7 +1796,19 @@ export default function Invoices() {
             )}
           </AnimatePresence>
 
-          {/* What the batch actually did.
+          <RecordPaymentDialog
+        open={Boolean(paymentFor)}
+        onOpenChange={(open) => {
+          if (!open) setPaymentFor(null);
+        }}
+        invoice={paymentFor}
+        payments={paymentFor ? paymentsByInvoice.get(paymentFor.id) || [] : []}
+        saving={recordingPayment}
+        error={paymentError}
+        onRecord={handleRecordPayment}
+      />
+
+      {/* What the batch actually did.
               Named per invoice rather than summarised as "3 of 5 sent",
               because the only useful next action is retrying the specific ones
               that failed, and a contractor cannot do that from a count. */}

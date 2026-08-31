@@ -209,7 +209,17 @@ export default function PublicInvoice() {
   }
 
   const { invoice, client, business, capabilities } = data;
-  const isPaid = invoice.status === "paid";
+
+  // Both default to a number rather than trusting the field to be present: an
+  // older deployment of get-public-invoice sends neither, and this page has to
+  // render on a five-year-old phone against whatever the server happens to be.
+  // Falling back to "nothing paid, the whole total due" reproduces exactly what
+  // this page showed before partial payments existed.
+  const amountPaid = Number(invoice.amount_paid) || 0;
+  const balanceDue = Number.isFinite(Number(invoice.balance_due))
+    ? Number(invoice.balance_due)
+    : Number(invoice.total) || 0;
+  const isPaid = invoice.status === "paid" || (Number(invoice.total) > 0 && balanceDue <= 0);
   const issued = safeDate(invoice.issue_date, "PP");
   const due = safeDate(invoice.due_date, "PP");
 
@@ -312,9 +322,26 @@ export default function PublicInvoice() {
                 <span>{money(invoice.tax_amount, invoice.currency)}</span>
               </div>
             )}
-            <div className="flex justify-between text-2xl font-bold text-content pt-2">
-              <span>{isPaid ? "Total" : "Amount Due"}</span>
+            <div className="flex justify-between text-content-body pt-2 border-t border-line-subtle">
+              <span>Total</span>
               <span>{money(invoice.total, invoice.currency)}</span>
+            </div>
+
+            {/* Only shown when something HAS been paid. An invoice with no
+                payments against it shows the total and the amount due as the
+                same figure twice, which reads as a mistake rather than as
+                information. amount_paid is a number the server always sends;
+                `> 0` is what decides, not its presence. */}
+            {amountPaid > 0 && (
+              <div className="flex justify-between text-content-body">
+                <span>Already paid</span>
+                <span>-{money(amountPaid, invoice.currency)}</span>
+              </div>
+            )}
+
+            <div className="flex justify-between text-2xl font-bold text-content pt-2">
+              <span>{isPaid ? "Paid in full" : "Amount Due"}</span>
+              <span>{money(isPaid ? invoice.total : balanceDue, invoice.currency)}</span>
             </div>
           </div>
 
@@ -346,7 +373,7 @@ export default function PublicInvoice() {
                   ) : (
                     <CreditCard className="w-5 h-5 mr-2" />
                   )}
-                  Pay {money(invoice.total, invoice.currency)}
+                  Pay {money(balanceDue, invoice.currency)}
                 </Button>
               )}
               {capabilities.can_download_pdf && (

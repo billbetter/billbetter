@@ -1,6 +1,7 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { db } from '../_shared/supabase-admin.ts';
 import { docByToken, dedupeHash, isBotRequest, isRateLimited, recordHit, advanceViewCounters, LINK_UNAVAILABLE } from '../_shared/public-link.ts';
+import { invoiceBalance } from '../_shared/invoice-balance.ts';
 
 /**
  * Serve one invoice to somebody who has no account, addressed only by its
@@ -159,7 +160,8 @@ Deno.serve(async (req) => {
     const stripeReady =
       Boolean(settings?.stripe_account_id) && settings?.stripe_account_status === 'active';
     const total = Number(invoice.total) || 0;
-    const isPaid = String(invoice.status || '') === 'paid';
+    const balance = await invoiceBalance(invoice);
+    const isPaid = String(invoice.status || '') === 'paid' || balance.settled;
 
     return new Response(
       JSON.stringify({
@@ -183,9 +185,22 @@ Deno.serve(async (req) => {
           tax_rate: Number(invoice.tax_rate) || 0,
           tax_amount: Number(invoice.tax_amount) || 0,
           total,
-          // No amount_paid / balance_due (decision 5): Stripe Checkout cannot
-          // produce a partial payment, so total IS the amount due and status
-          // alone separates unpaid from paid.
+
+          // amount_paid / balance_due SUPERSEDE decision 5.
+          //
+          // That decision left both fields out on the grounds that Stripe
+          // Checkout cannot produce a partial payment, so `total` was the
+          // amount due and `status` alone separated unpaid from paid. That is
+          // no longer true: a contractor can record a cash deposit or a cheque
+          // against an invoice, and a client shown the full total would either
+          // pay twice or write in to ask why the figure is wrong.
+          //
+          // Only the two totals are published, never the payments themselves.
+          // A payment carries a method, a reference and the name of whoever
+          // entered it -- the contractor's own bookkeeping, none of it the
+          // client's business.
+          amount_paid: balance.paidCents / 100,
+          balance_due: Math.max(0, balance.dueCents) / 100,
         },
         client: {
           name: invoice.client_name || '',
@@ -200,7 +215,9 @@ Deno.serve(async (req) => {
           website: settings?.website || '',
         },
         capabilities: {
-          can_pay_online: stripeReady && total > 0 && !isPaid,
+          // Gated on the BALANCE, not the total: an invoice settled entirely
+          // by cash must not still offer a card payment.
+          can_pay_online: stripeReady && balance.dueCents > 0 && !isPaid,
           can_download_pdf: String(invoice.pdf_url || '').startsWith('data:application/pdf'),
         },
       }),

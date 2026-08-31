@@ -38,6 +38,7 @@ import { motion } from "framer-motion";
 import SmartInsights from "@/components/analytics/SmartInsights";
 import DateRangeFilter from "@/components/analytics/DateRangeFilter";
 import ChaseInvoiceBanner from "@/components/invoice/ChaseInvoiceBanner";
+import { indexPaymentsByInvoice, revenueDate } from "@/lib/invoicePayments";
 
 /* ─── Animation wrapper ──────────────────────────────────────── */
 const FadeIn = ({ children, delay = 0, className = "" }) => (
@@ -229,6 +230,7 @@ const ChartTooltip = ({ active, payload, label }) => {
  ═══════════════════════════════════════════════════════════════ */
 export default function Analytics() {
   const [invoices, setInvoices] = useState([]);
+  const [payments, setPayments] = useState([]);
   const [clients, setClients] = useState([]);
   const [quotes, setQuotes] = useState([]);
   const [jobs, setJobs] = useState([]);
@@ -247,14 +249,20 @@ export default function Analytics() {
   const loadData = async () => {
     try {
       const user = await sdk.auth.me();
-      const [invoiceData, clientData, quoteData, jobData] = await Promise.all([
-        sdk.entities.Invoice.filter({ user_id: user.id }, "-created_date"),
-        sdk.entities.Client.filter({ user_id: user.id }, "-created_date"),
-        sdk.entities.Quote.filter({ user_id: user.id }, "-created_date"),
-        sdk.entities.Job.filter({ user_id: user.id }, "-created_date"),
-      ]);
+      const [invoiceData, clientData, quoteData, jobData, paymentData] =
+        await Promise.all([
+          sdk.entities.Invoice.filter({ user_id: user.id }, "-created_date"),
+          sdk.entities.Client.filter({ user_id: user.id }, "-created_date"),
+          sdk.entities.Quote.filter({ user_id: user.id }, "-created_date"),
+          sdk.entities.Job.filter({ user_id: user.id }, "-created_date"),
+          // Allowed to fail on its own: revenueDate() then falls back to
+          // paid_date and finally to the creation date, which is exactly what
+          // every chart here used before.
+          sdk.entities.InvoicePayment.filter({ user_id: user.id }).catch(() => []),
+        ]);
 
       setInvoices(invoiceData);
+      setPayments(paymentData || []);
       setClients(clientData);
       setQuotes(quoteData);
       setJobs(jobData);
@@ -275,6 +283,7 @@ export default function Analytics() {
   };
 
   /* ── Derived data ── */
+  const paymentsByInvoice = indexPaymentsByInvoice(payments);
   const filteredInvoices = filterByDateRange(invoices);
   const paidInvoices = filteredInvoices.filter((inv) => inv.status === "paid");
   const pendingInvoices = filteredInvoices.filter(
@@ -304,20 +313,40 @@ export default function Analytics() {
       ? Math.round((paidInvoices.length / filteredInvoices.length) * 100)
       : 0;
 
+  // Revenue is bucketed by WHEN THE MONEY ARRIVED, not by when the invoice was
+  // raised.
+  //
+  // Every chart here used `created_date` for both, so an invoice sent in
+  // January and paid in April counted as January revenue -- the chart was
+  // labelled revenue and was showing invoicing. revenueDate() prefers
+  // paid_date, then the last recorded payment, and only falls back to the
+  // creation date for a historic invoice marked paid by hand with no date on
+  // it at all, which is the best that can be said about those.
+  //
+  // Money in and work invoiced are genuinely different questions, so `pending`
+  // stays bucketed by creation date: an unpaid invoice has no payment date to
+  // be bucketed by.
   const monthlyData = Array.from({ length: 12 }, (_, i) => {
     const month = subMonths(new Date(), 11 - i);
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
-    const monthInvoices = invoices.filter((inv) => {
-      const invDate = new Date(inv.created_date);
-      return invDate >= monthStart && invDate <= monthEnd;
-    });
-    const paid = monthInvoices
+
+    const paid = invoices
       .filter((inv) => inv.status === "paid")
+      .filter((inv) => {
+        const d = revenueDate(inv, paymentsByInvoice.get(inv.id) || []);
+        return d >= monthStart && d <= monthEnd;
+      })
       .reduce((sum, inv) => sum + (inv.total || 0), 0);
-    const pending = monthInvoices
+
+    const pending = invoices
       .filter((inv) => inv.status === "sent")
+      .filter((inv) => {
+        const d = new Date(inv.created_date);
+        return d >= monthStart && d <= monthEnd;
+      })
       .reduce((sum, inv) => sum + (inv.total || 0), 0);
+
     return {
       month: format(month, "MMM"),
       paid,
@@ -334,10 +363,9 @@ export default function Analytics() {
     const monthStart = startOfMonth(month);
     const monthEnd = endOfMonth(month);
     const monthInvoices = invoices.filter((inv) => {
-      const invDate = new Date(inv.created_date);
-      return (
-        invDate >= monthStart && invDate <= monthEnd && inv.status === "paid"
-      );
+      if (inv.status !== "paid") return false;
+      const d = revenueDate(inv, paymentsByInvoice.get(inv.id) || []);
+      return d >= monthStart && d <= monthEnd;
     });
     return {
       month: format(month, "MMM"),
