@@ -62,6 +62,7 @@ import CreateQuote from './pages/CreateQuote';
 import Dashboard from './pages/Dashboard';
 import Features from './pages/Features';
 import Home from './pages/Home';
+import BatchInvoices from './pages/BatchInvoices';
 import InvoiceDetail from './pages/InvoiceDetail';
 import InvoicePaymentSuccess from './pages/InvoicePaymentSuccess';
 import Invoices from './pages/Invoices';
@@ -104,6 +105,7 @@ export const PAGES = {
     "Dashboard": Dashboard,
     "Features": Features,
     "Home": Home,
+    "BatchInvoices": BatchInvoices,
     "InvoiceDetail": InvoiceDetail,
     "InvoicePaymentSuccess": InvoicePaymentSuccess,
     "Invoices": Invoices,

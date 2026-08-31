@@ -58,6 +58,7 @@ import {
   Send,
   CheckSquare,
   Ban,
+  FileSpreadsheet,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -714,6 +715,18 @@ export default function Invoices() {
                       >
                         <Download className="w-4 h-4 mr-2 text-content-body dark:text-content-subtle" />
                         Export CSV
+                      </DropdownMenuItem>
+                      {/* Sits beside Export CSV on purpose: exporting and
+                          importing are the same shape of task, and this is
+                          where someone who has just exported will look. */}
+                      <DropdownMenuItem asChild>
+                        <Link
+                          to={createPageUrl("BatchInvoices")}
+                          className="rounded-lg dark:text-ink-300 dark:focus:bg-ink-700"
+                        >
+                          <FileSpreadsheet className="w-4 h-4 mr-2 text-content-body dark:text-content-subtle" />
+                          Batch / import
+                        </Link>
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>
