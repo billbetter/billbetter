@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { sdk } from "@/api/sdk";
+import { buildJobInvoicePrefill } from "@/lib/jobInvoice";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -40,6 +41,7 @@ export default function JobDetailView({ job, onBack, onUpdate }) {
   const [activeTab, setActiveTab] = useState("photos");
   const [user, setUser] = useState(null);
   const [expenseCount, setExpenseCount] = useState(0);
+  const [buildingInvoice, setBuildingInvoice] = useState(false);
 
   useEffect(() => {
     loadPhotos();
@@ -82,11 +84,51 @@ export default function JobDetailView({ job, onBack, onUpdate }) {
     setShowDetailModal(true);
   };
 
-  const handleCreateInvoice = () => {
-    navigate(
+  /**
+   * Open an invoice with the job's own figures already in it.
+   *
+   * This used to navigate with clientId and jobName in the query string, and
+   * CreateInvoice read neither -- its prefill effect only ever handled
+   * fromQuote. So the button opened a blank form beside a screen that already
+   * knew the client, the hours and the rate.
+   *
+   * The jobId stays in the URL as well as in the state. State is what carries
+   * the line items, but it does not survive a refresh, whereas the save path
+   * reads the jobId from either -- so a refreshed form still links itself back
+   * to the job even though the prefill is gone.
+   */
+  const handleCreateInvoice = async () => {
+    setBuildingInvoice(true);
+    const url =
       createPageUrl("CreateInvoice") +
-        `?clientId=${job.client_id}&clientName=${encodeURIComponent(job.client_name)}&jobId=${job.id}&jobName=${encodeURIComponent(job.job_title)}`,
-    );
+      `?clientId=${job.client_id || ""}&jobId=${job.id}`;
+    try {
+      // Everything the figures can come from, fetched together. Each is
+      // allowed to fail on its own: a missing client costs the contact
+      // details, a missing quote falls back to the job's own numbers, and
+      // neither should block opening the form.
+      const [client, quote, materials, settings] = await Promise.all([
+        job.client_id
+          ? sdk.entities.Client.filter({ id: job.client_id }).then((r) => r[0] || null).catch(() => null)
+          : Promise.resolve(null),
+        job.linked_quote_id
+          ? sdk.entities.Quote.filter({ id: job.linked_quote_id }).then((r) => r[0] || null).catch(() => null)
+          : Promise.resolve(null),
+        sdk.entities.JobMaterial.filter({ job_id: job.id }).catch(() => []),
+        sdk.entities.BusinessSettings.filter({ user_id: job.user_id }).then((r) => r[0] || null).catch(() => null),
+      ]);
+
+      const prefillData = buildJobInvoicePrefill({ job, client, materials, quote, settings });
+      // Null means there was nothing to prefill. Opening the ordinary empty
+      // form is the honest outcome -- better than a form that looks filled in
+      // and is not.
+      navigate(url, prefillData ? { state: { prefillData } } : undefined);
+    } catch (error) {
+      console.error("Could not assemble invoice from job:", error);
+      navigate(url);
+    } finally {
+      setBuildingInvoice(false);
+    }
   };
 
   const getCategoryColor = (category) => {
@@ -176,8 +218,20 @@ export default function JobDetailView({ job, onBack, onUpdate }) {
               <Share2 className="w-4 h-4 mr-2" />
               Share
             </Button>
-            <Button onClick={handleCreateInvoice} variant="outline">
-              <FileText className="w-4 h-4 mr-2" />
+            {/* Deliberately not restricted to completed jobs. Billing a job
+                part-way through is ordinary trade practice, and the button was
+                already available at every status -- narrowing it now would
+                remove something contractors can do today. */}
+            <Button
+              onClick={handleCreateInvoice}
+              variant="outline"
+              disabled={buildingInvoice}
+            >
+              {buildingInvoice ? (
+                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+              ) : (
+                <FileText className="w-4 h-4 mr-2" />
+              )}
               Create Invoice
             </Button>
             <Button

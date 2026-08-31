@@ -55,7 +55,15 @@ import {
   TrendingUp,
   Wallet,
   Receipt,
+  Send,
+  CheckSquare,
 } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import {
+  batchSendEligibility,
+  sendInvoiceBatch,
+  draftsNowSent,
+} from "@/lib/invoiceBatch";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import PullToRefresh from "@/components/utils/PullToRefresh";
@@ -82,6 +90,17 @@ export default function Invoices() {
   });
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const [mobileStatusPicker, setMobileStatusPicker] = useState(null); // invoiceId
+
+  // -- Batch sending ------------------------------------------------------
+  //
+  // Selection is off until asked for. Checkboxes on every row by default turn
+  // a list you mostly READ into a form, and the common action here is opening
+  // one invoice, not mailing twelve.
+  const [selectMode, setSelectMode] = useState(false);
+  const [selectedIds, setSelectedIds] = useState(() => new Set());
+  const [batchRunning, setBatchRunning] = useState(false);
+  const [batchProgress, setBatchProgress] = useState({ done: 0, total: 0 });
+  const [batchResult, setBatchResult] = useState(null);
 
   useEffect(() => {
     loadData();
@@ -297,6 +316,84 @@ export default function Invoices() {
       statusFilter === "all" || invoice.status === statusFilter;
     return matchesSearch && matchesStatus;
   });
+
+  // -- Batch sending: derived state and the run itself ---------------------
+
+  /** Eligibility for every visible invoice, keyed by id. */
+  const eligibility = new Map(
+    filteredInvoices.map((inv) => [inv.id, batchSendEligibility(inv)]),
+  );
+
+  // Selection is kept as ids, so filtering or searching mid-selection cannot
+  // silently drop an invoice from the batch. But only what is currently
+  // VISIBLE and eligible can actually be sent -- sending something the user
+  // can no longer see would be the worse surprise.
+  const selectableIds = filteredInvoices
+    .filter((inv) => eligibility.get(inv.id)?.ok)
+    .map((inv) => inv.id);
+  const chosen = filteredInvoices.filter(
+    (inv) => selectedIds.has(inv.id) && eligibility.get(inv.id)?.ok,
+  );
+  const resendCount = chosen.filter(
+    (inv) => eligibility.get(inv.id)?.kind === "resend",
+  ).length;
+  const allSelectableChosen =
+    selectableIds.length > 0 && selectableIds.every((id) => selectedIds.has(id));
+
+  const toggleOne = (id) =>
+    setSelectedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
+
+  const toggleAll = () =>
+    setSelectedIds((prev) =>
+      allSelectableChosen ? new Set() : new Set([...prev, ...selectableIds]),
+    );
+
+  const exitSelectMode = () => {
+    setSelectMode(false);
+    setSelectedIds(new Set());
+  };
+
+  /**
+   * Send everything selected, one at a time.
+   *
+   * Only invoices that were drafts AND actually went out are flipped to
+   * 'sent'. A re-sent overdue invoice keeps its status: rewriting it to 'sent'
+   * would erase the fact that it is late, which is the one thing that status
+   * is carrying.
+   */
+  const handleBatchSend = async () => {
+    if (!chosen.length || batchRunning) return;
+    setBatchRunning(true);
+    setBatchProgress({ done: 0, total: chosen.length });
+
+    const rows = chosen.map((invoice) => ({ invoice }));
+    const summary = await sendInvoiceBatch(
+      rows,
+      sdk.functions.invoke,
+      (done) => setBatchProgress({ done, total: rows.length }),
+    );
+
+    const toFlip = draftsNowSent(rows, summary.results);
+    for (const id of toFlip) {
+      try {
+        await sdk.entities.Invoice.update(id, { status: "sent" });
+      } catch (err) {
+        // The mail is already gone; failing to record that is worth a line in
+        // the console but must not be reported to the user as a failed send.
+        console.error("Sent, but could not update status for", id, err);
+      }
+    }
+
+    setBatchRunning(false);
+    setBatchResult(summary);
+    exitSelectMode();
+    loadData(true);
+  };
 
   const statusConfig = {
     draft: {
@@ -717,6 +814,101 @@ export default function Invoices() {
             </div>
           </div>
 
+          {/* Batch sending.
+              Off until asked for: checkboxes on every row turn a list you
+              mostly read into a form, and the usual action here is opening one
+              invoice. Once on, the bar states plainly how many are re-sends,
+              because mailing a client a second copy of the same invoice is a
+              different act from sending it for the first time. */}
+          {selectableIds.length > 0 && (
+            <div className="bg-surface dark:bg-surface-inverted rounded-xl border border-line-subtle dark:border-ink-800 p-3 sm:p-4 shadow-sm">
+              {!selectMode ? (
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                  <p className="text-sm text-content-body dark:text-content-subtle">
+                    {selectableIds.length}{" "}
+                    {selectableIds.length === 1 ? "invoice" : "invoices"} can be
+                    sent or re-sent.
+                  </p>
+                  <Button
+                    variant="outline"
+                    onClick={() => setSelectMode(true)}
+                    className="dark:border-ink-700 dark:text-ink-300 dark:hover:bg-ink-800"
+                  >
+                    <CheckSquare className="w-4 h-4 mr-2" />
+                    Select invoices
+                  </Button>
+                </div>
+              ) : (
+                <div className="space-y-3">
+                  <div className="flex flex-wrap items-center justify-between gap-3">
+                    <button
+                      type="button"
+                      onClick={toggleAll}
+                      disabled={batchRunning}
+                      className="text-sm font-semibold text-brand-700 hover:underline dark:text-brand-300"
+                    >
+                      {allSelectableChosen
+                        ? "Clear selection"
+                        : `Select all ${selectableIds.length}`}
+                    </button>
+                    <div className="flex items-center gap-2">
+                      <Button
+                        variant="ghost"
+                        onClick={exitSelectMode}
+                        disabled={batchRunning}
+                        className="text-content-body dark:text-content-subtle"
+                      >
+                        Cancel
+                      </Button>
+                      <Button
+                        onClick={handleBatchSend}
+                        disabled={batchRunning || chosen.length === 0}
+                        className="bg-brand hover:bg-brand-hover text-content-inverted"
+                      >
+                        {batchRunning ? (
+                          <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                        ) : (
+                          <Send className="w-4 h-4 mr-2" />
+                        )}
+                        {batchRunning
+                          ? `Sending ${batchProgress.done} of ${batchProgress.total}...`
+                          : `Send ${chosen.length}`}
+                      </Button>
+                    </div>
+                  </div>
+
+                  {chosen.length > 0 && !batchRunning && (
+                    <p className="text-xs text-content-muted dark:text-content-subtle">
+                      {resendCount > 0 ? (
+                        <>
+                          <span className="font-semibold text-caution-700 dark:text-caution-400">
+                            {resendCount} of these{" "}
+                            {resendCount === 1 ? "has" : "have"} already been
+                            sent
+                          </span>{" "}
+                          — your client will get a second copy.{" "}
+                        </>
+                      ) : null}
+                      Each client gets an email or text with a link to view and
+                      pay. No PDF is attached.
+                    </p>
+                  )}
+
+                  {batchRunning && (
+                    <div className="h-1.5 w-full overflow-hidden rounded-full bg-ink-100 dark:bg-ink-800">
+                      <div
+                        className="h-full rounded-full bg-brand transition-all"
+                        style={{
+                          width: `${batchProgress.total ? (batchProgress.done / batchProgress.total) * 100 : 0}%`,
+                        }}
+                      />
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Desktop Table */}
           <div className="hidden lg:block bg-surface dark:bg-surface-inverted rounded-xl border border-line-subtle dark:border-ink-800 overflow-hidden shadow-sm">
             {filteredInvoices.length === 0 ? (
@@ -747,6 +939,16 @@ export default function Invoices() {
               <Table>
                 <TableHeader>
                   <TableRow className="bg-surface-sunken/50 dark:bg-ink-800/50 border-b border-line dark:border-ink-700">
+                    {selectMode && (
+                      <TableHead className="h-12 w-[52px] pl-6 pr-0">
+                        <Checkbox
+                          checked={allSelectableChosen}
+                          onCheckedChange={toggleAll}
+                          disabled={batchRunning}
+                          aria-label="Select all sendable invoices"
+                        />
+                      </TableHead>
+                    )}
                     <TableHead className="h-12 px-6 text-xs font-bold text-content-muted dark:text-content-subtle uppercase tracking-wider w-[180px]">
                       <div className="flex items-center gap-2">
                         <FileText className="w-3.5 h-3.5" />
@@ -796,6 +998,23 @@ export default function Invoices() {
                         key={invoice.id}
                         className="border-b border-line-subtle dark:border-ink-700 hover:bg-surface-sunken/50 dark:hover:bg-ink-700/50 transition-colors group"
                       >
+                        {selectMode && (
+                          <TableCell className="py-4 pl-6 pr-0">
+                            {/* Ineligible rows show a disabled box with the
+                                reason on hover rather than an empty cell, so
+                                "why can't I pick this one" is answered where
+                                it is asked. */}
+                            <Checkbox
+                              checked={selectedIds.has(invoice.id)}
+                              onCheckedChange={() => toggleOne(invoice.id)}
+                              disabled={
+                                batchRunning || !eligibility.get(invoice.id)?.ok
+                              }
+                              title={eligibility.get(invoice.id)?.reason || ""}
+                              aria-label={`Select invoice ${invoice.invoice_number || ""}`}
+                            />
+                          </TableCell>
+                        )}
                         <TableCell className="py-4 px-6">
                           <div className="flex items-center gap-3">
                             <div
@@ -1011,6 +1230,22 @@ export default function Invoices() {
                         <div className="flex justify-between items-start mb-3">
                           <div className="flex-1 min-w-0 pr-4">
                             <div className="flex items-center gap-2 mb-1">
+                              {/* Same control as the desktop table. Batch
+                                  sending on a phone is the case that matters
+                                  most -- it is where a contractor sits at the
+                                  end of a day with a list of finished work. */}
+                              {selectMode && (
+                                <Checkbox
+                                  checked={selectedIds.has(invoice.id)}
+                                  onCheckedChange={() => toggleOne(invoice.id)}
+                                  disabled={
+                                    batchRunning ||
+                                    !eligibility.get(invoice.id)?.ok
+                                  }
+                                  aria-label={`Select invoice ${invoice.invoice_number || ""}`}
+                                  className="h-5 w-5"
+                                />
+                              )}
                               <span className="font-bold text-content dark:text-content-inverted text-sm">
                                 {invoice.invoice_number ||
                                   `#${invoice.id.slice(0, 8)}`}
@@ -1284,6 +1519,57 @@ export default function Invoices() {
               </>
             )}
           </AnimatePresence>
+
+          {/* What the batch actually did.
+              Named per invoice rather than summarised as "3 of 5 sent",
+              because the only useful next action is retrying the specific ones
+              that failed, and a contractor cannot do that from a count. */}
+          <Dialog
+            open={Boolean(batchResult)}
+            onOpenChange={(open) => !open && setBatchResult(null)}
+          >
+            <DialogContent className="sm:max-w-md rounded-2xl border border-line dark:border-ink-700 p-6 shadow-2xl dark:bg-ink-800">
+              <DialogHeader className="space-y-3">
+                <DialogTitle className="text-lg font-bold text-content dark:text-content-inverted">
+                  {batchResult?.failed === 0
+                    ? `Sent ${batchResult?.sent} ${batchResult?.sent === 1 ? "invoice" : "invoices"}`
+                    : `Sent ${batchResult?.sent} of ${batchResult?.total}`}
+                </DialogTitle>
+                <DialogDescription className="text-content-body dark:text-content-subtle">
+                  {batchResult?.failed === 0
+                    ? "Every client has been contacted."
+                    : `${batchResult?.failed} could not be delivered. Nothing else was affected.`}
+                </DialogDescription>
+              </DialogHeader>
+
+              {batchResult?.failed > 0 && (
+                <div className="mt-2 max-h-56 space-y-2 overflow-y-auto">
+                  {batchResult.results
+                    .filter((r) => !r.emailed && !r.texted)
+                    .map((r) => (
+                      <div
+                        key={r.id}
+                        className="rounded-lg border border-danger-200 bg-danger-50 p-3 text-sm dark:border-danger-800 dark:bg-danger-900/20"
+                      >
+                        <p className="font-semibold text-danger-800 dark:text-danger-300">
+                          {r.invoice_number || r.id}
+                        </p>
+                        <p className="text-xs text-danger-700 dark:text-danger-400">
+                          {r.errors[0] || "Failed to send"}
+                        </p>
+                      </div>
+                    ))}
+                </div>
+              )}
+
+              <Button
+                onClick={() => setBatchResult(null)}
+                className="mt-4 w-full bg-brand hover:bg-brand-hover text-content-inverted"
+              >
+                Done
+              </Button>
+            </DialogContent>
+          </Dialog>
 
           {/* Delete Dialog */}
           <Dialog
