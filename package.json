@@ -10,7 +10,8 @@
     "check:functions": "node check-functions.cjs",
     "check:imports": "node check-imports.cjs",
     "check:plans": "node check-plan-parity.cjs",
-    "check": "npm run check:functions && npm run check:imports && npm run check:plans",
+    "check:bundles": "node check-function-bundles.cjs",
+    "check": "npm run check:functions && npm run check:imports && npm run check:plans && npm run check:bundles",
     "lint:fix": "eslint . --fix",
     "typecheck": "tsc -p ./jsconfig.json",
     "preview": "vite preview"
@@ -93,6 +94,7 @@
     "@vitejs/plugin-react": "^4.3.4",
     "autoprefixer": "^10.4.20",
     "baseline-browser-mapping": "^2.8.32",
+    "esbuild": "^0.25.10",
     "eslint": "^9.19.0",
     "eslint-plugin-react": "^7.37.4",
     "eslint-plugin-react-hooks": "^5.0.0",
