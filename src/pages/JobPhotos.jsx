@@ -29,8 +29,16 @@ import {
   AlertCircle,
   Zap,
   Layers,
+  Receipt,
 } from "lucide-react";
 import { format } from "date-fns";
+import {
+  BILLING_STATE,
+  indexInvoices,
+  jobBillingState,
+  jobsRequiringInvoicing,
+  requiresInvoicingSummary,
+} from "@/lib/jobBilling";
 import CreateJobModal from "../components/jobPhotos/CreateJobModal";
 import JobDetailView from "../components/jobPhotos/JobDetailView";
 import PullToRefresh from "@/components/utils/PullToRefresh";
@@ -39,6 +47,7 @@ export default function Jobs() {
   const [loading, setLoading] = useState(true);
   const [jobs, setJobs] = useState([]);
   const [clients, setClients] = useState([]);
+  const [invoices, setInvoices] = useState([]);
   const [photoCounts, setPhotoCounts] = useState({});
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
@@ -67,11 +76,21 @@ export default function Jobs() {
       const currentUser = await sdk.auth.me();
       setUser(currentUser);
 
-      const [jobsData, clientsData, allPhotos] = await Promise.all([
+      // Invoices are loaded here so every job on this page can say where it
+      // stands with billing. list() drops pdf_url, which is the column that
+      // makes an Invoice row expensive, so this is a cheap read.
+      //
+      // Allowed to fail on its own: without it every job reads as "not
+      // invoiced", which would flag finished jobs that were billed weeks ago.
+      // An empty list is resolved as "unknown", not as "needs invoicing" --
+      // see the header of src/lib/jobBilling.js.
+      const [jobsData, clientsData, allPhotos, invoiceData] = await Promise.all([
         sdk.entities.Job.filter({ user_id: currentUser.id }),
         sdk.entities.Client.filter({ user_id: currentUser.id }),
         sdk.entities.JobPhoto.filter({ user_id: currentUser.id }),
+        sdk.entities.Invoice.filter({ user_id: currentUser.id }).catch(() => []),
       ]);
+      setInvoices(invoiceData || []);
 
       setJobs(
         jobsData.sort(
@@ -141,6 +160,15 @@ export default function Jobs() {
     selectedClientFilter !== "all",
   ].filter(Boolean).length;
 
+  // Worked out from the job and its invoice on every render rather than
+  // stored on the row. See src/lib/jobBilling.js for why: a stored flag has
+  // five paths that must clear it, and the one that gets missed tells a
+  // contractor to bill a client who has already been billed.
+  const invoiceIndex = indexInvoices(invoices);
+  const needsInvoicing = jobsRequiringInvoicing(jobs, invoices);
+  const needsInvoicingIds = new Set(needsInvoicing.map((r) => r.job.id));
+  const invoicingSummary = requiresInvoicingSummary(needsInvoicing);
+
   const stats = {
     total: jobs.length,
     inProgress: jobs.filter((j) => j.status === "in_progress").length,
@@ -155,7 +183,17 @@ export default function Jobs() {
         job.description?.toLowerCase().includes(searchQuery.toLowerCase())
       : true;
 
-    const matchesStatus = statusFilter === "all" || job.status === statusFilter;
+    // "needs_invoicing" is not a job status -- it is a fact about the job AND
+    // its invoice. Kept in the same control because it is the same question a
+    // contractor is asking ("show me the ones I care about"), but matched
+    // against the derived set rather than against job.status, which would
+    // never equal it.
+    const matchesStatus =
+      statusFilter === "all"
+        ? true
+        : statusFilter === "needs_invoicing"
+          ? needsInvoicingIds.has(job.id)
+          : job.status === statusFilter;
     const matchesClient =
       selectedClientFilter === "all" || job.client_id === selectedClientFilter;
 
@@ -419,6 +457,9 @@ export default function Jobs() {
                     <SelectItem value="in_progress">In Progress</SelectItem>
                     <SelectItem value="completed">Completed</SelectItem>
                     <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="needs_invoicing">
+                      Needs invoicing
+                    </SelectItem>
                   </SelectContent>
                 </Select>
 
@@ -435,6 +476,46 @@ export default function Jobs() {
               </div>
             </div>
           </div>
+
+          {/* Finished work nobody has billed for.
+              Shown only when the filter is not already narrowed to it, so the
+              banner does not sit above a list it just produced. */}
+          {invoicingSummary && statusFilter !== "needs_invoicing" && (
+            <div className="mb-6 rounded-2xl border border-alert-200 dark:border-alert-800 bg-alert-50 dark:bg-alert-900/20 p-4 sm:p-5">
+              <div className="flex flex-col sm:flex-row sm:items-center gap-4">
+                <div className="w-11 h-11 rounded-xl bg-alert-100 dark:bg-alert-900/40 flex items-center justify-center flex-shrink-0">
+                  <Receipt className="w-5 h-5 text-alert-600 dark:text-alert-400" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="font-black text-content dark:text-content-inverted">
+                    {invoicingSummary.label}
+                  </p>
+                  <p className="text-sm text-content-body dark:text-ink-300 mt-0.5">
+                    {invoicingSummary.value > 0 ? (
+                      <>
+                        {/* "About", because this is the job's own cost figure,
+                            not a summed invoice. The exact number appears when
+                            the form opens. */}
+                        About $
+                        {invoicingSummary.value.toLocaleString(undefined, {
+                          maximumFractionDigits: 0,
+                        })}{" "}
+                        of work, going by what the jobs are costed at.
+                      </>
+                    ) : (
+                      "No figures recorded on them yet."
+                    )}
+                  </p>
+                </div>
+                <Button
+                  onClick={() => setStatusFilter("needs_invoicing")}
+                  className="bg-brand hover:bg-brand-hover text-content-inverted font-semibold h-11 px-5 rounded-xl flex-shrink-0"
+                >
+                  Show {invoicingSummary.count}
+                </Button>
+              </div>
+            </div>
+          )}
 
           {/* Content */}
           {filteredJobs.length === 0 ? (
@@ -489,12 +570,33 @@ export default function Jobs() {
                 >
                   <div className="p-5 sm:p-6">
                     <div className="flex items-start justify-between mb-4">
-                      <Badge
-                        className={`${getStatusColor(job.status)} border text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5`}
-                      >
-                        {getStatusIcon(job.status)}
-                        {getStatusLabel(job.status)}
-                      </Badge>
+                      <div className="flex flex-wrap items-center gap-2">
+                        <Badge
+                          className={`${getStatusColor(job.status)} border text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5`}
+                        >
+                          {getStatusIcon(job.status)}
+                          {getStatusLabel(job.status)}
+                        </Badge>
+
+                        {/* The flag. Two states are worth a badge and the rest
+                            are not: work that is unbilled, and work that has
+                            been paid for. "Sent and waiting" is the ordinary
+                            middle of an invoice's life and needs no badge on a
+                            jobs page. */}
+                        {needsInvoicingIds.has(job.id) && (
+                          <Badge className="bg-alert-50 dark:bg-alert-900/30 text-alert-700 dark:text-alert-400 border border-alert-200 dark:border-alert-800 text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                            <Receipt className="w-3.5 h-3.5" />
+                            Needs invoicing
+                          </Badge>
+                        )}
+                        {jobBillingState(job, invoiceIndex).state ===
+                          BILLING_STATE.PAID && (
+                          <Badge className="bg-success-50 dark:bg-success-900/30 text-success-700 dark:text-success-300 border border-success-200 dark:border-success-800 text-xs font-semibold px-3 py-1.5 rounded-full flex items-center gap-1.5">
+                            <CheckCircle2 className="w-3.5 h-3.5" />
+                            Paid
+                          </Badge>
+                        )}
+                      </div>
 
                       <div className="w-8 h-8 rounded-full bg-surface-sunken dark:bg-surface-inverted flex items-center justify-center group-hover:bg-success-50 dark:group-hover:bg-success-900/30 transition-colors">
                         <ArrowUpRight className="w-4 h-4 text-content-subtle dark:text-content-muted group-hover:text-success-600 dark:group-hover:text-success-400 transition-colors" />

@@ -1,6 +1,12 @@
 import React, { useState, useEffect } from "react";
 import { sdk } from "@/api/sdk";
 import { buildJobInvoicePrefill } from "@/lib/jobInvoice";
+import {
+  BILLING_STATE,
+  daysAwaitingInvoice,
+  indexInvoices,
+  jobBillingState,
+} from "@/lib/jobBilling";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -42,12 +48,35 @@ export default function JobDetailView({ job, onBack, onUpdate }) {
   const [user, setUser] = useState(null);
   const [expenseCount, setExpenseCount] = useState(0);
   const [buildingInvoice, setBuildingInvoice] = useState(false);
+  const [linkedInvoice, setLinkedInvoice] = useState(null);
 
   useEffect(() => {
     loadPhotos();
     loadUser();
     loadExpenseCount();
+    loadLinkedInvoice();
   }, [job.id]);
+
+  /**
+   * The invoice this job points at, if it has one.
+   *
+   * One row by id, not a list. jobBillingState() needs the invoice's status --
+   * a linked invoice that was voided leaves the job unbilled again, and
+   * without reading it this screen would keep saying "Invoiced" for an invoice
+   * that no longer stands.
+   */
+  const loadLinkedInvoice = async () => {
+    if (!job.linked_invoice_id) {
+      setLinkedInvoice(null);
+      return;
+    }
+    try {
+      const rows = await sdk.entities.Invoice.filter({ id: job.linked_invoice_id });
+      setLinkedInvoice(rows?.[0] || null);
+    } catch (e) {
+      setLinkedInvoice(null);
+    }
+  };
 
   const loadUser = async () => {
     try {
@@ -163,6 +192,14 @@ export default function JobDetailView({ job, onBack, onUpdate }) {
     { value: "other", label: "Other" },
   ];
 
+  // Derived the same way the jobs list derives it, from the same module, so
+  // the badge on the card and the line on this screen cannot disagree.
+  const billing = jobBillingState(
+    job,
+    indexInvoices(linkedInvoice ? [linkedInvoice] : []),
+  );
+  const waitingDays = daysAwaitingInvoice(job);
+
   const filteredPhotos = photos.filter((photo) => {
     const matchesSearch = searchQuery
       ? photo.caption?.toLowerCase().includes(searchQuery.toLowerCase()) ||
@@ -197,6 +234,32 @@ export default function JobDetailView({ job, onBack, onUpdate }) {
               <Badge className={getStatusColor(job.status)}>
                 {job.status.replace("_", " ")}
               </Badge>
+              {billing.state === BILLING_STATE.REQUIRES_INVOICING && (
+                <Badge className="bg-alert-50 dark:bg-alert-900/30 text-alert-700 dark:text-alert-400 border border-alert-200 dark:border-alert-800 flex items-center gap-1.5">
+                  <Receipt className="w-3.5 h-3.5" />
+                  Needs invoicing
+                </Badge>
+              )}
+              {billing.state === BILLING_STATE.PAID && (
+                <Badge className="bg-success-50 dark:bg-success-900/30 text-success-700 dark:text-success-300 border border-success-200 dark:border-success-800">
+                  Paid
+                </Badge>
+              )}
+            </div>
+
+            {/* The sentence under the badges. A badge says WHAT; this says
+                why, which is the part that decides what to do next -- "its
+                invoice was voided" and "it was never invoiced" look identical
+                on a badge and are not the same problem. */}
+            <p className="text-sm text-content-body dark:text-ink-300 mt-2">
+              {billing.detail}
+              {billing.state === BILLING_STATE.REQUIRES_INVOICING &&
+                waitingDays !== null &&
+                waitingDays > 0 &&
+                ` Finished ${waitingDays} day${waitingDays === 1 ? "" : "s"} ago.`}
+            </p>
+
+            <div className="flex flex-wrap items-center gap-3 mt-2">
               <div className="flex items-center gap-1 text-sm text-content-body dark:text-ink-300">
                 <User className="w-4 h-4" />
                 {job.client_name}
@@ -224,7 +287,19 @@ export default function JobDetailView({ job, onBack, onUpdate }) {
                 remove something contractors can do today. */}
             <Button
               onClick={handleCreateInvoice}
-              variant="outline"
+              /* Filled rather than outlined once this is the outstanding thing
+                 to do on the job, so the page's own emphasis matches what the
+                 jobs list is flagging. Same button, same action. */
+              variant={
+                billing.state === BILLING_STATE.REQUIRES_INVOICING
+                  ? "default"
+                  : "outline"
+              }
+              className={
+                billing.state === BILLING_STATE.REQUIRES_INVOICING
+                  ? "bg-brand hover:bg-brand-hover text-content-inverted"
+                  : undefined
+              }
               disabled={buildingInvoice}
             >
               {buildingInvoice ? (
@@ -232,7 +307,10 @@ export default function JobDetailView({ job, onBack, onUpdate }) {
               ) : (
                 <FileText className="w-4 h-4 mr-2" />
               )}
-              Create Invoice
+              {billing.state === BILLING_STATE.INVOICED ||
+              billing.state === BILLING_STATE.PAID
+                ? "New Invoice"
+                : "Create Invoice"}
             </Button>
             <Button
               onClick={() => setShowUploadModal(true)}
