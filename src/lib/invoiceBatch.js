@@ -29,8 +29,17 @@
  * legible: each invoice has one outcome, and a failure stops nothing else.
  */
 
-/** Statuses that may never be batch-sent, whatever the caller asks. */
-const NEVER_SEND = new Set(["paid", "cancelled", "canceled"]);
+import { isVoided } from "@/lib/invoiceVoid";
+
+/**
+ * Statuses that may never be batch-sent, whatever the caller asks.
+ *
+ * `void` is here rather than relying on the UI to filter voided invoices out
+ * of the selection. A voided invoice mailed to a client is a demand for money
+ * the contractor has already withdrawn, sent under a number they retired --
+ * so the refusal belongs at the point of sending, where every caller passes.
+ */
+const NEVER_SEND = new Set(["paid", "cancelled", "canceled", "void", "voided"]);
 
 /** Statuses that have already been delivered once, so sending again is a reminder. */
 const RESEND_STATUSES = new Set(["sent", "overdue"]);
@@ -49,7 +58,14 @@ export function batchSendEligibility(invoice, client = null) {
   // Drafts ARE eligible -- a batch is how you send them for the first time.
   // Only money already settled is off limits: re-mailing a paid invoice reads
   // to the client as a second demand for money they have handed over.
-  if (NEVER_SEND.has(status)) {
+  //
+  // isVoided() as well as the status set, because it also catches a row whose
+  // voided_at is stamped while its status says something else -- a status
+  // edited by hand in the dashboard, or a write that half landed. For a check
+  // whose failure mode is mailing a client a demand for money that was
+  // withdrawn, the restrictive answer is the right one.
+  if (NEVER_SEND.has(status) || isVoided(invoice)) {
+    if (isVoided(invoice)) return { ok: false, reason: "Voided" };
     return { ok: false, reason: `Already ${status}` };
   }
 

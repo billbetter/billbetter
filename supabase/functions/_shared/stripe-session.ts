@@ -30,7 +30,7 @@ import { APP_URL } from './app-url.ts';
 
 export type SessionResult =
   | { ok: true; url: string; session_id: string; platform_fee: number; currency: string }
-  | { ok: false; reason: 'not_connected' | 'zero_total' | 'already_paid'; error: string; status: number; stripe_account_status?: string };
+  | { ok: false; reason: 'not_connected' | 'zero_total' | 'already_paid' | 'voided'; error: string; status: number; stripe_account_status?: string };
 
 /**
  * Resolve the platform fee rate for an invoice.
@@ -89,6 +89,26 @@ export async function buildInvoiceCheckoutSession(
   }
   if (String(invoice.status || '') === 'paid') {
     return { ok: false, reason: 'already_paid', error: 'This invoice has already been paid.', status: 409 };
+  }
+
+  // A voided invoice can never be charged for, by either caller.
+  //
+  // This is the single choke point both payment routes go through -- the
+  // contractor generating a link and the client paying from the public page --
+  // so the refusal is written once and cannot be true on one route and false
+  // on the other. Voiding also revokes the public token, which stops
+  // pay-public-invoice a step earlier at docByToken(); this is the check that
+  // still holds when a token is not involved at all.
+  //
+  // Both signals, matching isVoided() in src/lib/invoiceVoid.js: `status` is
+  // what the app writes, `voided_at` is what survives a status edited by hand.
+  if (String(invoice.status || '') === 'void' || invoice.voided_at) {
+    return {
+      ok: false,
+      reason: 'voided',
+      error: 'This invoice has been voided and can no longer be paid.',
+      status: 409,
+    };
   }
 
   const settings = await db.findOne('BusinessSettings', { user_id: String(invoice.user_id) });

@@ -109,6 +109,24 @@ Deno.serve(async (req) => {
     }
 
     const invoice = found.row;
+
+    // A voided invoice is unavailable, and says so in exactly the words a
+    // revoked or unknown link gets.
+    //
+    // Voiding already sets public_link_revoked_at, so docByToken() normally
+    // stops this a step earlier -- this catches the case where the revocation
+    // was lifted afterwards, which the UI no longer offers but a hand-edit
+    // still could. The SAME LINK_UNAVAILABLE body is returned rather than a
+    // new "voided" answer: three outcomes are deliberately indistinguishable
+    // here (see the constant), and a fourth that named itself would be a new
+    // information channel for the sake of a case nobody can reach.
+    if (String(invoice.status || '') === 'void' || invoice.voided_at) {
+      return new Response(JSON.stringify(LINK_UNAVAILABLE.body), {
+        status: LINK_UNAVAILABLE.status,
+        headers,
+      });
+    }
+
     const settings = await db.findOne('BusinessSettings', { user_id: String(invoice.user_id) });
 
     if (action === 'record_view') {

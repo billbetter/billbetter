@@ -60,6 +60,27 @@ Deno.serve(async (req) => {
     let canPayOnline = false;
     if (invoice_id) {
       const invoice = await db.getOne('Invoice', invoice_id);
+
+      // A voided invoice is never mailed, whoever asks.
+      //
+      // The UI already hides every route to here for a voided invoice, but
+      // hiding a button is presentation and this function is reachable with an
+      // invoice_id and nothing else. Emailing one would be a demand for money
+      // the contractor has already withdrawn, under a number they retired --
+      // and the client, not the contractor, is the one who reads it.
+      //
+      // Both signals, matching isVoided() in src/lib/invoiceVoid.js.
+      if (invoice && (String(invoice.status || '') === 'void' || invoice.voided_at)) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            reason: 'voided',
+            error: 'This invoice has been voided and cannot be sent.',
+          }),
+          { status: 409, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
+        );
+      }
+
       if (invoice) {
         // Decision 4: lock the fee rate to the plan they are on right now.
         await stampFeePercentOnSend(invoice);

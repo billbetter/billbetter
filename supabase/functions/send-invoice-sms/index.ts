@@ -48,6 +48,22 @@ Deno.serve(async (req) => {
     let publicUrl: string | null = null;
     if (invoice_id) {
       const invoice = await db.getOne('Invoice', invoice_id);
+
+      // Same refusal as send-invoice-email, for the same reason: the UI hides
+      // every route here for a voided invoice, but this function is reachable
+      // with an invoice_id alone, and the person who reads the text is the
+      // client rather than the contractor who made the mistake.
+      if (invoice && (String(invoice.status || '') === 'void' || invoice.voided_at)) {
+        return new Response(
+          JSON.stringify({
+            success: false,
+            reason: 'voided',
+            error: 'This invoice has been voided and cannot be sent.',
+          }),
+          { status: 409, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
+        );
+      }
+
       if (invoice) {
         await stampFeePercentOnSend(invoice);
         if (invoice.public_token && !invoice.public_link_revoked_at) {

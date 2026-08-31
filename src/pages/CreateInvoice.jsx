@@ -62,6 +62,7 @@ import {
 } from "lucide-react";
 import { format, addDays, addWeeks, addMonths, addYears } from "date-fns";
 import { markStageReleased } from "@/lib/paymentPlan";
+import { canEditInvoice } from "@/lib/invoiceVoid";
 import VoiceInput from "../components/invoice/VoiceInput";
 import ServiceAutofill from "../components/invoice/ServiceAutofill";
 import InvoiceSuccessDialog from "../components/invoice/InvoiceSuccessDialog";
@@ -505,6 +506,18 @@ export default function CreateInvoice() {
       const invoices = await sdk.entities.Invoice.filter({ id: invoiceId });
       if (invoices.length > 0) {
         const invoice = invoices[0];
+
+        // Refused before the form is populated, not on save. A voided invoice
+        // loaded into an editable form is a screen that invites work which
+        // will be thrown away -- and the URL is hand-editable, so the check
+        // has to be here rather than only on the buttons that link to it.
+        const editable = canEditInvoice(invoice);
+        if (!editable.ok) {
+          alert(editable.reason);
+          navigate(createPageUrl("InvoiceDetail") + `?id=${invoice.id}`);
+          return;
+        }
+
         const totals = calculateTotals(invoice.items, invoice.tax_rate || 0);
         setFormData({
           ...invoice,

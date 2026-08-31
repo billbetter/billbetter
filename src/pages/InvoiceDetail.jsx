@@ -21,8 +21,10 @@ import {
   Loader2,
   Mail,
   MessageSquare,
+  Ban,
   RefreshCw, // Added for regenerate button
   Send,
+  ShieldAlert,
   Trash2,
   User,
 } from "lucide-react";
@@ -35,10 +37,21 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { useAuth } from "@/lib/AuthContext";
+import {
+  canDeleteInvoice,
+  isVoided,
+  paidAfterVoid,
+  voidAuditLine,
+  voidEligibility,
+  voidPatch,
+} from "@/lib/invoiceVoid";
 
 export default function InvoiceDetail() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const { user } = useAuth();
   const invoiceId = searchParams.get("id");
 
   const [invoice, setInvoice] = useState(null);
@@ -50,6 +63,10 @@ export default function InvoiceDetail() {
   const [deleting, setDeleting] = useState(false);
   const [notificationResult, setNotificationResult] = useState(null);
   const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false); // Changed from generatingLink, removed linkCopied
+  const [voidDialog, setVoidDialog] = useState(false);
+  const [voidReason, setVoidReason] = useState("");
+  const [voiding, setVoiding] = useState(false);
+  const [voidError, setVoidError] = useState(null);
 
   useEffect(() => {
     if (invoiceId) {
@@ -229,6 +246,15 @@ export default function InvoiceDetail() {
   };
 
   const handleDelete = async () => {
+    // Re-checked here and not only where the button is drawn. Hiding a control
+    // is presentation; this is the last line before the row is gone, and a
+    // voided invoice must not be deletable by any route that reaches it.
+    const allowed = canDeleteInvoice(invoice);
+    if (!allowed.ok) {
+      setDeleteDialog(false);
+      alert(allowed.reason);
+      return;
+    }
     setDeleting(true);
     try {
       await Invoice.delete(invoice.id);
@@ -238,6 +264,43 @@ export default function InvoiceDetail() {
       alert("Failed to delete invoice");
     }
     setDeleting(false);
+  };
+
+  /**
+   * Void this invoice.
+   *
+   * The whole patch comes from voidPatch() rather than being assembled here,
+   * so there is exactly one shape of a voided invoice and no way for this
+   * screen to produce a partial one -- a void with a status but no timestamp
+   * would be worse than no void at all.
+   *
+   * The invoice in state is replaced with the server's answer rather than
+   * merged optimistically. If the write only half landed, the screen shows
+   * what actually happened.
+   */
+  const handleVoid = async () => {
+    const allowed = voidEligibility(invoice);
+    if (!allowed.ok) {
+      setVoidError(allowed.reason);
+      return;
+    }
+
+    setVoiding(true);
+    setVoidError(null);
+    try {
+      await Invoice.update(invoice.id, voidPatch(invoice, { reason: voidReason, user }));
+      const rows = await Invoice.filter({ id: invoice.id });
+      const saved = rows?.[0] || null;
+      if (saved) setInvoice(saved);
+      setVoidDialog(false);
+      setVoidReason("");
+    } catch (error) {
+      console.error("Error voiding invoice:", error);
+      setVoidError(
+        error?.message || "Could not void this invoice. Nothing has been changed.",
+      );
+    }
+    setVoiding(false);
   };
 
   const copyToClipboard = (text) => {
@@ -250,7 +313,18 @@ export default function InvoiceDetail() {
     paid: "bg-success-100 text-success-800",
     overdue: "bg-danger-100 text-danger-800",
     cancelled: "bg-ink-100 text-content-body",
+    // Struck through as well as greyed. Colour alone is not a status for a
+    // contractor reading this in a van in daylight, and this is the one status
+    // where mistaking it for "sent" means chasing money nobody owes.
+    void: "bg-ink-200 text-ink-700 line-through dark:bg-ink-700 dark:text-ink-200",
   };
+
+  // Null-safe on every one of these, so they can sit above the loading guards
+  // rather than being recomputed inside three separate branches.
+  const voided = isVoided(invoice);
+  const canVoid = voidEligibility(invoice);
+  const auditLine = voidAuditLine(invoice, (d) => format(new Date(d), "d MMM yyyy"));
+  const paidDespiteVoid = paidAfterVoid(invoice);
 
   if (loading) {
     return (
@@ -328,32 +402,58 @@ export default function InvoiceDetail() {
             </>
           )}
 
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleResendNotifications}
-            disabled={sendingNotifications || !client}
-            className="gap-2"
-          >
-            {sendingNotifications ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <Send className="w-4 h-4" />
-            )}
-            Resend
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDeleteDialog(true)}
-            className="text-danger-700 hover:text-danger-700 hover:bg-danger-50 dark:text-danger-400 dark:hover:text-danger-400 dark:hover:bg-danger-900/20"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {/* Resend, Void and Delete all disappear once an invoice is voided.
+              A voided invoice is a record to look at, not a document to act
+              on -- and re-mailing one would be a demand for money the
+              contractor has already withdrawn. */}
+          {!voided && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResendNotifications}
+                disabled={sendingNotifications || !client}
+                className="gap-2"
+              >
+                {sendingNotifications ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <Send className="w-4 h-4" />
+                )}
+                Resend
+              </Button>
+              {canVoid.ok && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setVoidError(null);
+                    setVoidDialog(true);
+                  }}
+                  className="gap-2"
+                >
+                  <Ban className="w-4 h-4" />
+                  Void
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDeleteDialog(true)}
+                className="text-danger-700 hover:text-danger-700 hover:bg-danger-50 dark:text-danger-400 dark:hover:text-danger-400 dark:hover:bg-danger-900/20"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
 
-      {/* Mobile Floating Action Bar */}
+      {/* Mobile Floating Action Bar.
+          Hidden entirely on a voided invoice with no PDF, because everything
+          inside it is gone by then and a bar with nothing in it still eats the
+          bottom of a phone screen. */}
+      {(!voided || invoice.pdf_url) && (
       <div
         className="sm:hidden fixed bottom-0 left-0 right-0 bg-surface dark:bg-surface-inverted border-t border-line dark:border-ink-700 shadow-lg z-40"
         style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}
@@ -389,32 +489,94 @@ export default function InvoiceDetail() {
               </Button>
             </>
           )}
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={handleResendNotifications}
-            disabled={sendingNotifications || !client}
-            className="flex-1 h-11"
-          >
-            {sendingNotifications ? (
-              <Loader2 className="w-4 h-4 animate-spin" />
-            ) : (
-              <>
-                <Send className="w-4 h-4 mr-2" />
-                Resend
-              </>
-            )}
-          </Button>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setDeleteDialog(true)}
-            className="text-danger-700 hover:text-danger-700 hover:bg-danger-50 h-11 px-3 dark:text-danger-400 dark:hover:text-danger-400 dark:hover:bg-danger-900/20"
-          >
-            <Trash2 className="w-4 h-4" />
-          </Button>
+          {!voided && (
+            <>
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={handleResendNotifications}
+                disabled={sendingNotifications || !client}
+                className="flex-1 h-11"
+              >
+                {sendingNotifications ? (
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                ) : (
+                  <>
+                    <Send className="w-4 h-4 mr-2" />
+                    Resend
+                  </>
+                )}
+              </Button>
+              {canVoid.ok && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setVoidError(null);
+                    setVoidDialog(true);
+                  }}
+                  className="h-11 px-3"
+                >
+                  <Ban className="w-4 h-4" />
+                </Button>
+              )}
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() => setDeleteDialog(true)}
+                className="text-danger-700 hover:text-danger-700 hover:bg-danger-50 h-11 px-3 dark:text-danger-400 dark:hover:text-danger-400 dark:hover:bg-danger-900/20"
+              >
+                <Trash2 className="w-4 h-4" />
+              </Button>
+            </>
+          )}
         </div>
       </div>
+      )}
+
+      {/* The audit trail. Above the invoice itself, because it changes what
+          every figure below it means. */}
+      {voided && (
+        <div className="mb-4 sm:mb-6 rounded-xl border border-line dark:border-ink-700 bg-ink-50 dark:bg-ink-800/60 p-4">
+          <div className="flex items-start gap-3">
+            <Ban className="w-5 h-5 text-content-body dark:text-ink-300 flex-shrink-0 mt-0.5" />
+            <div className="min-w-0">
+              <p className="font-bold text-content dark:text-content-inverted">
+                This invoice has been voided
+              </p>
+              {auditLine && (
+                <p className="text-sm text-content-body dark:text-ink-300 mt-1 break-words">
+                  {auditLine}
+                </p>
+              )}
+              <p className="text-sm text-content-muted dark:text-content-subtle mt-2">
+                It is kept as a record. It cannot be edited, deleted, sent or paid,
+                and its number is never reused.
+              </p>
+            </div>
+          </div>
+
+          {/* Money that arrived after the void. See recordInvoicePayment in
+              stripe-webhook: the webhook writes the payment and deliberately
+              does NOT clear the void, so the contractor is told rather than
+              quietly shown a paid invoice. */}
+          {paidDespiteVoid && (
+            <div className="mt-3 pt-3 border-t border-line dark:border-ink-700 flex items-start gap-3">
+              <ShieldAlert className="w-5 h-5 text-alert-600 dark:text-alert-400 flex-shrink-0 mt-0.5" />
+              <div>
+                <p className="font-semibold text-content dark:text-content-inverted">
+                  A payment arrived for this invoice anyway
+                </p>
+                <p className="text-sm text-content-body dark:text-ink-300 mt-1">
+                  A checkout page opened before you voided it stays valid for 24
+                  hours. The money is in your Stripe account. Refund it there, or
+                  raise a replacement invoice to cover it.
+                </p>
+              </div>
+            </div>
+          )}
+        </div>
+      )}
 
       <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
@@ -497,8 +659,11 @@ export default function InvoiceDetail() {
             </CardContent>
           </Card>
 
-          {/* Payment Link Card */}
-          {invoice.status !== "paid" && invoice.status !== "cancelled" && (
+          {/* Payment Link Card. Gone on a voided invoice: generating a
+              Checkout URL for one would fail at buildInvoiceCheckoutSession
+              anyway, and offering a button that cannot work is worse than not
+              offering it. */}
+          {invoice.status !== "paid" && invoice.status !== "cancelled" && !voided && (
             <Card className="border-none shadow-lg dark:bg-surface-inverted dark:border-ink-700">
               <CardHeader className="border-b border-line dark:border-ink-700 bg-info-50 p-4 sm:p-6 dark:bg-info-900/20">
                 <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-content dark:text-content-inverted">
@@ -663,11 +828,34 @@ export default function InvoiceDetail() {
             never expires, shows the invoice itself, and mints the Checkout
             session at the moment the client clicks Pay.
           */}
-          <PublicLinkControls
-            document={invoice}
-            kind="invoice"
-            onChange={loadInvoiceData}
-          />
+          {voided ? (
+            /* Not PublicLinkControls. That component offers Restore, which
+               clears public_link_revoked_at -- and voiding sets exactly that
+               field to kill the link. Leaving the control there would put an
+               "undo" next to a one-way door. Payment would still be refused by
+               buildInvoiceCheckoutSession, but the client would be looking at a
+               live page for an invoice that no longer exists. */
+            <Card className="border-none shadow-lg dark:bg-surface-inverted dark:border-ink-700">
+              <CardHeader className="border-b border-line dark:border-ink-700 p-4 sm:p-6">
+                <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-content dark:text-content-inverted">
+                  <Ban className="w-5 h-5 text-content-body dark:text-ink-300" />
+                  Client link
+                </CardTitle>
+              </CardHeader>
+              <CardContent className="p-4 sm:p-6">
+                <p className="text-sm text-content-body dark:text-ink-300">
+                  Switched off when this invoice was voided. Anyone opening the
+                  link they were sent now sees that it is no longer available.
+                </p>
+              </CardContent>
+            </Card>
+          ) : (
+            <PublicLinkControls
+              document={invoice}
+              kind="invoice"
+              onChange={loadInvoiceData}
+            />
+          )}
         </div>
       </div>
 
@@ -838,6 +1026,73 @@ export default function InvoiceDetail() {
         </Dialog>
       )}
 
+      {/* Void Confirmation Dialog */}
+      <Dialog open={voidDialog} onOpenChange={setVoidDialog}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Void invoice {invoice.invoice_number}?</DialogTitle>
+            <DialogDescription>
+              The invoice stays on record with its number, and this is written
+              against it. Its payment link stops working immediately, and it can
+              never be edited, sent or paid again. There is no undo.
+            </DialogDescription>
+          </DialogHeader>
+
+          <div className="mt-2">
+            <label
+              htmlFor="void-reason"
+              className="text-sm font-semibold text-content dark:text-content-inverted"
+            >
+              Reason{" "}
+              <span className="font-normal text-content-muted dark:text-content-subtle">
+                (optional)
+              </span>
+            </label>
+            <Textarea
+              id="void-reason"
+              value={voidReason}
+              onChange={(e) => setVoidReason(e.target.value)}
+              maxLength={500}
+              rows={3}
+              placeholder="Wrong client, duplicate, job cancelled…"
+              className="mt-2"
+            />
+            <p className="text-xs text-content-muted dark:text-content-subtle mt-1.5">
+              Only you and your crew see this. Your client is not told.
+            </p>
+          </div>
+
+          {voidError && (
+            <p className="text-sm text-danger-600 dark:text-danger-400 mt-3">
+              {voidError}
+            </p>
+          )}
+
+          <div className="flex justify-end gap-3 mt-4">
+            <Button
+              variant="outline"
+              onClick={() => setVoidDialog(false)}
+              disabled={voiding}
+            >
+              Keep it
+            </Button>
+            <Button onClick={handleVoid} disabled={voiding} className="gap-2">
+              {voiding ? (
+                <>
+                  <Loader2 className="w-4 h-4 animate-spin" />
+                  Voiding…
+                </>
+              ) : (
+                <>
+                  <Ban className="w-4 h-4" />
+                  Void invoice
+                </>
+              )}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
         <DialogContent>
@@ -848,6 +1103,36 @@ export default function InvoiceDetail() {
               This action cannot be undone.
             </DialogDescription>
           </DialogHeader>
+
+          {/* Deleting a sent invoice is still allowed -- it was allowed before
+              this feature and removing it would take away something
+              contractors do. But the client has this number, so the dialog
+              says what disappears and offers the answer that keeps it. */}
+          {canDeleteInvoice(invoice).prefer === "void" && (
+            <div className="rounded-lg border border-line dark:border-ink-700 bg-ink-50 dark:bg-ink-800/60 p-3">
+              <p className="text-sm text-content-body dark:text-ink-300">
+                Your client has already been sent this invoice. Deleting it
+                leaves nothing to point at if they ask about{" "}
+                {invoice.invoice_number} later.
+              </p>
+              {canVoid.ok && (
+                <Button
+                  variant="outline"
+                  size="sm"
+                  className="mt-3 gap-2"
+                  onClick={() => {
+                    setDeleteDialog(false);
+                    setVoidError(null);
+                    setVoidDialog(true);
+                  }}
+                >
+                  <Ban className="w-4 h-4" />
+                  Void it instead
+                </Button>
+              )}
+            </div>
+          )}
+
           <div className="flex justify-end gap-3 mt-4">
             <Button
               variant="outline"

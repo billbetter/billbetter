@@ -39,6 +39,48 @@ async function planFromSubscription(sub: Record<string, any>): Promise<string | 
 
 const APP_URL = Deno.env.get('APP_BASE_URL') || 'https://www.invoicium.ca';
 
+/**
+ * Record a payment against an invoice, without overwriting a void.
+ *
+ * -- The case this exists for ---------------------------------------------
+ *
+ * Voiding an invoice revokes its public token, so no NEW Checkout session can
+ * be minted for it. But a session the client already had open stays valid for
+ * 24 hours. Pay in that window and the money genuinely lands in the
+ * contractor's Stripe account, after the invoice was voided.
+ *
+ * Two wrong answers were available. Flipping the invoice to 'paid' erases the
+ * void -- the audit trail this feature exists to keep, gone, with no sign the
+ * two ever conflicted. Ignoring the event entirely loses the payment: the
+ * contractor has money in Stripe and nothing in the app that explains it.
+ *
+ * So the payment fields are written and the STATUS is left alone. The invoice
+ * stays voided and now carries a paid_date and a payment intent id, which is
+ * exactly what happened. paidAfterVoid() in src/lib/invoiceVoid.js reads that
+ * combination and the UI says so out loud, because a contractor holding money
+ * they cannot reconcile needs to be told rather than shielded.
+ *
+ * @returns whether the status was advanced to paid
+ */
+async function recordInvoicePayment(
+  invoiceId: string,
+  fields: Record<string, unknown>,
+): Promise<{ paid: boolean; invoice: Record<string, any> | null }> {
+  const invoice = await db.getOne('Invoice', invoiceId).catch(() => null);
+
+  // Both signals, matching isVoided() in src/lib/invoiceVoid.js.
+  const voided = Boolean(invoice) && (String(invoice.status || '') === 'void' || invoice.voided_at);
+
+  if (voided) {
+    console.warn(`stripe-webhook: payment received for VOIDED invoice ${invoiceId}; status left as void`);
+    await db.update('Invoice', invoiceId, fields);
+    return { paid: false, invoice };
+  }
+
+  await db.update('Invoice', invoiceId, { status: 'paid', ...fields });
+  return { paid: true, invoice };
+}
+
 // Stripe status -> the change we describe to the user. Mirrors the status
 // mapping used when patching the row, so the email can never claim something
 // different from what the account actually did.
@@ -164,8 +206,7 @@ Deno.serve(async (req) => {
       const session = event.data.object;
       const invoiceId = session.metadata?.invoice_id;
       if (invoiceId) {
-        await db.update('Invoice', invoiceId, {
-          status: 'paid',
+        await recordInvoicePayment(invoiceId, {
           paid_date: new Date().toISOString(),
           stripe_payment_intent_id: session.payment_intent || null,
         });
@@ -177,15 +218,20 @@ Deno.serve(async (req) => {
       const invoiceId = pi.metadata?.invoice_id;
       if (invoiceId) {
         const paidAt = new Date().toISOString();
-        await db.update('Invoice', invoiceId, {
-          status: 'paid',
+        // The row is read inside recordInvoicePayment (it has to be, to see a
+        // void) and handed back, so the notification below reuses it rather
+        // than fetching the same invoice a second time. The values are as of
+        // just before the write, which is fine -- nothing used here changes.
+        const { invoice } = await recordInvoicePayment(invoiceId, {
           paid_date: paidAt,
           stripe_payment_intent_id: pi.id,
         });
 
-        // Tell the contractor they got paid. Read the row back for the client
-        // name and owner -- the PaymentIntent metadata only carries the id.
-        const invoice = await db.getOne('Invoice', invoiceId).catch(() => null);
+        // Tell the contractor they got paid. Sent even when the invoice was
+        // voided: money arriving is the urgent fact and they need it today,
+        // whatever state the record is in. The email says an invoice was paid,
+        // which is true; the app is where the void and the payment are shown
+        // side by side and reconciled.
         if (invoice?.user_id) {
           const contact = await getUserContact(invoice.user_id);
           await notify.invoicePaid({

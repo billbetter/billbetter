@@ -57,6 +57,7 @@ import {
   Receipt,
   Send,
   CheckSquare,
+  Ban,
 } from "lucide-react";
 import { Checkbox } from "@/components/ui/checkbox";
 import {
@@ -64,6 +65,7 @@ import {
   sendInvoiceBatch,
   draftsNowSent,
 } from "@/lib/invoiceBatch";
+import { canDeleteInvoice, isVoided, VOID_STATUS } from "@/lib/invoiceVoid";
 import { dueReminders, reminderSentPatch } from "@/lib/reminders";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
@@ -153,6 +155,14 @@ export default function Invoices() {
   };
 
   const handleStatusChange = async (invoiceId, newStatus) => {
+    // A voided invoice's status is frozen. Both controls that reach here are
+    // already disabled for one, but disabling a control is presentation and
+    // this is the function that writes -- and the write it would make is an
+    // undo of a void that recorded who did it, when and why, with nothing
+    // recording the undo.
+    const target = invoices.find((inv) => inv.id === invoiceId);
+    if (isVoided(target) || newStatus === VOID_STATUS) return;
+
     const prevInvoices = invoices;
     // Optimistic: update UI immediately
     setInvoices((prev) =>
@@ -446,7 +456,28 @@ export default function Invoices() {
       icon: X,
       indicator: "bg-ink-400 dark:bg-ink-600",
     },
+    // Display only. SETTABLE_STATUSES below is what the per-row dropdown
+    // offers, and `void` is deliberately not in it: voiding has to record who,
+    // when and why, and a dropdown records none of those. It is reachable only
+    // from the Void dialog on InvoiceDetail, and there is no way back.
+    void: {
+      color:
+        "bg-ink-200 text-ink-700 line-through dark:bg-ink-700 dark:text-ink-200",
+      icon: Ban,
+      indicator: "bg-ink-500 dark:bg-ink-500",
+    },
   };
+
+  /**
+   * The statuses the per-row dropdown may set.
+   *
+   * Built by subtraction from statusConfig rather than as its own list, so a
+   * status added to the map for display does not become settable by accident
+   * -- which is exactly how `void` would have leaked in.
+   */
+  const SETTABLE_STATUSES = Object.keys(statusConfig).filter(
+    (s) => s !== VOID_STATUS,
+  );
 
   const stats = {
     total: filteredInvoices.length,
@@ -830,6 +861,12 @@ export default function Invoices() {
                     >
                       Cancelled
                     </SelectItem>
+                    <SelectItem
+                      value={VOID_STATUS}
+                      className="dark:text-ink-300 dark:focus:bg-ink-700"
+                    >
+                      Voided
+                    </SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -1133,12 +1170,18 @@ export default function Invoices() {
                         </TableCell>
 
                         <TableCell className="py-4 px-6">
+                          {/* A voided invoice's status is frozen. Leaving the
+                              dropdown live would let one click undo a void
+                              that recorded who did it and why -- and there is
+                              no equivalent record of the undo. */}
                           <Select
                             value={invoice.status}
                             onValueChange={(value) =>
                               handleStatusChange(invoice.id, value)
                             }
-                            disabled={updatingStatus === invoice.id}
+                            disabled={
+                              updatingStatus === invoice.id || isVoided(invoice)
+                            }
                           >
                             <SelectTrigger
                               className={`w-28 h-7 border-0 bg-transparent p-0 focus:ring-0 text-xs ${updatingStatus === invoice.id ? "opacity-50" : ""}`}
@@ -1160,7 +1203,7 @@ export default function Invoices() {
                               align="start"
                               className="rounded-xl dark:bg-ink-800 dark:border-ink-700"
                             >
-                              {Object.keys(statusConfig).map((status) => (
+                              {SETTABLE_STATUSES.map((status) => (
                                 <SelectItem
                                   key={status}
                                   value={status}
@@ -1225,15 +1268,29 @@ export default function Invoices() {
                                     Send Reminder
                                   </DropdownMenuItem>
                                 )}
-                                <DropdownMenuItem
-                                  onClick={() =>
-                                    setDeleteDialog({ open: true, invoice })
-                                  }
-                                  className="rounded-lg text-danger-600 dark:text-danger-400 dark:focus:bg-ink-700"
-                                >
-                                  <Trash2 className="w-4 h-4 mr-2" />
-                                  Delete
-                                </DropdownMenuItem>
+                                {/* A voided invoice is a record. Delete is
+                                    not offered here, and handleDelete refuses
+                                    it as well -- hiding a control is
+                                    presentation, not enforcement. */}
+                                {canDeleteInvoice(invoice).ok ? (
+                                  <DropdownMenuItem
+                                    onClick={() =>
+                                      setDeleteDialog({ open: true, invoice })
+                                    }
+                                    className="rounded-lg text-danger-600 dark:text-danger-400 dark:focus:bg-ink-700"
+                                  >
+                                    <Trash2 className="w-4 h-4 mr-2" />
+                                    Delete
+                                  </DropdownMenuItem>
+                                ) : (
+                                  <DropdownMenuItem
+                                    disabled
+                                    className="rounded-lg dark:text-ink-400"
+                                  >
+                                    <Ban className="w-4 h-4 mr-2" />
+                                    Voided — kept on record
+                                  </DropdownMenuItem>
+                                )}
                               </DropdownMenuContent>
                             </DropdownMenu>
                           </div>
@@ -1343,7 +1400,8 @@ export default function Invoices() {
 
                         <div className="flex items-center justify-between pt-3 border-t border-ink-50 dark:border-ink-700">
                           <button
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold active:scale-95 transition-transform ${statusConfig[invoice.status]?.color || "bg-ink-100"}`}
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-transform ${isVoided(invoice) ? "" : "active:scale-95"} ${statusConfig[invoice.status]?.color || "bg-ink-100"}`}
+                            disabled={isVoided(invoice)}
                             onClick={() => setMobileStatusPicker(invoice.id)}
                           >
                             {updatingStatus === invoice.id ? (
@@ -1490,29 +1548,47 @@ export default function Invoices() {
                       </a>
                     )}
 
-                    <button
-                      className="w-full flex items-center gap-4 px-4 py-4 text-base font-semibold text-danger-700 dark:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-900/20 rounded-2xl transition-all active:scale-[0.98]"
-                      onClick={() => {
-                        setDeleteDialog({
-                          open: true,
-                          invoice: filteredInvoices.find(
-                            (inv) => inv.id === mobileMenuOpen,
-                          ),
-                        });
-                        setMobileMenuOpen(false);
-                      }}
-                    >
-                      <div className="w-10 h-10 rounded-xl bg-danger-100 dark:bg-danger-900/30 flex items-center justify-center flex-shrink-0">
-                        <Trash2 className="w-5 h-5 text-danger-600 dark:text-danger-400" />
+                    {canDeleteInvoice(
+                      filteredInvoices.find((inv) => inv.id === mobileMenuOpen),
+                    ).ok ? (
+                      <button
+                        className="w-full flex items-center gap-4 px-4 py-4 text-base font-semibold text-danger-700 dark:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-900/20 rounded-2xl transition-all active:scale-[0.98]"
+                        onClick={() => {
+                          setDeleteDialog({
+                            open: true,
+                            invoice: filteredInvoices.find(
+                              (inv) => inv.id === mobileMenuOpen,
+                            ),
+                          });
+                          setMobileMenuOpen(false);
+                        }}
+                      >
+                        <div className="w-10 h-10 rounded-xl bg-danger-100 dark:bg-danger-900/30 flex items-center justify-center flex-shrink-0">
+                          <Trash2 className="w-5 h-5 text-danger-600 dark:text-danger-400" />
+                        </div>
+                        <div className="text-left flex-1 min-w-0">
+                          <p className="font-bold">Delete Invoice</p>
+                          <p className="text-xs text-content-muted dark:text-content-subtle font-medium mt-0.5 truncate">
+                            Remove permanently
+                          </p>
+                        </div>
+                        <ChevronRight className="w-5 h-5 text-content-subtle dark:text-content-muted flex-shrink-0" />
+                      </button>
+                    ) : (
+                      <div className="w-full flex items-center gap-4 px-4 py-4 rounded-2xl bg-ink-50 dark:bg-ink-700/40">
+                        <div className="w-10 h-10 rounded-xl bg-ink-100 dark:bg-ink-700 flex items-center justify-center flex-shrink-0">
+                          <Ban className="w-5 h-5 text-content-body dark:text-content-subtle" />
+                        </div>
+                        <div className="text-left flex-1 min-w-0">
+                          <p className="font-bold text-content dark:text-content-inverted text-base">
+                            Voided
+                          </p>
+                          <p className="text-xs text-content-muted dark:text-content-subtle font-medium mt-0.5">
+                            Kept on record. It cannot be deleted.
+                          </p>
+                        </div>
                       </div>
-                      <div className="text-left flex-1 min-w-0">
-                        <p className="font-bold">Delete Invoice</p>
-                        <p className="text-xs text-content-muted dark:text-content-subtle font-medium mt-0.5 truncate">
-                          Remove permanently
-                        </p>
-                      </div>
-                      <ChevronRight className="w-5 h-5 text-content-subtle dark:text-content-muted flex-shrink-0" />
-                    </button>
+                    )}
                   </div>
                 </motion.div>
               </>
@@ -1549,7 +1625,8 @@ export default function Invoices() {
                     </h3>
                   </div>
                   <div className="p-4 space-y-1.5">
-                    {Object.entries(statusConfig).map(([status, config]) => {
+                    {SETTABLE_STATUSES.map((status) => {
+                      const config = statusConfig[status];
                       const Icon = config.icon;
                       const isCurrentStatus =
                         filteredInvoices.find(

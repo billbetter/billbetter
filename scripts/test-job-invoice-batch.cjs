@@ -33,14 +33,36 @@ function check(label, cond, detail) {
   else { failed++; console.log(`  FAIL  ${label}${detail !== undefined ? ` -- ${detail}` : ""}`); }
 }
 
-// The modules are plain ESM with no imports of their own, so they load
-// directly once transformed -- no stubbing needed, which is the point of
-// having kept them free of sdk and React.
+// Bundled rather than merely transformed.
+//
+// This was an esbuild.transform() on the strength of these modules having no
+// imports of their own. That stopped being true when invoiceBatch began asking
+// invoiceVoid whether an invoice is voided, and the suite died with
+// ERR_MODULE_NOT_FOUND on '@/lib' -- a loader failure that looks nothing like
+// the behaviour it exists to check. Bundling resolves the `@/` alias the way
+// vite does and does not care how the module graph grows next.
+//
+// Still no sdk, no React and no network: what these modules import is data and
+// pure functions, which is what keeps the suite runnable in a terminal.
 async function load(rel) {
-  const src = fs.readFileSync(path.join(ROOT, rel), "utf8");
-  const { code } = await esbuild.transform(src, { loader: "js", format: "esm", target: "es2022" });
+  const result = await esbuild.build({
+    entryPoints: [path.join(ROOT, rel)],
+    bundle: true,
+    write: false,
+    format: "esm",
+    platform: "neutral",
+    target: "es2022",
+    plugins: [{
+      name: "vite-alias",
+      setup(build) {
+        build.onResolve({ filter: /^@\// }, (args) => ({
+          path: path.join(ROOT, "src", args.path.slice(2)) + ".js",
+        }));
+      },
+    }],
+  });
   const tmp = path.join(os.tmpdir(), `${path.basename(rel)}-${process.pid}.mjs`);
-  fs.writeFileSync(tmp, code);
+  fs.writeFileSync(tmp, result.outputFiles[0].text);
   const mod = await import("file://" + tmp.replace(/\\/g, "/"));
   fs.unlinkSync(tmp);
   return mod;
