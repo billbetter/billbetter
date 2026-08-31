@@ -15,6 +15,7 @@ import {
   Settings,
   LogOut,
   ClipboardList,
+  Layers,
   RefreshCw,
   Zap,
   Calendar as CalendarIcon,
@@ -567,6 +568,13 @@ export default function Layout({ children, currentPageName }) {
     ...(canAccessFeature(subscription, "time_tracking")
       ? [{ name: "Time", href: createPageUrl("Timesheet"), icon: Clock }]
       : []),
+    {
+      // Not ClipboardList -- Quotes already uses it, and two identical icons
+      // in one sidebar is worse than no icon at all.
+      name: "Plans",
+      href: createPageUrl("PaymentPlans"),
+      icon: Layers,
+    },
     {
       name: "Recurring",
       href: createPageUrl("RecurringInvoices"),

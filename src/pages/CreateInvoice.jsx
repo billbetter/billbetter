@@ -61,6 +61,7 @@ import {
   Info,
 } from "lucide-react";
 import { format, addDays, addWeeks, addMonths, addYears } from "date-fns";
+import { markStageReleased } from "@/lib/paymentPlan";
 import VoiceInput from "../components/invoice/VoiceInput";
 import ServiceAutofill from "../components/invoice/ServiceAutofill";
 import InvoiceSuccessDialog from "../components/invoice/InvoiceSuccessDialog";
@@ -1122,6 +1123,35 @@ Provide line items in this format.`,
         });
       }
 
+      // A payment plan stage is marked released only now, once the invoice
+      // actually exists. Marking it when Release was pressed would leave the
+      // plan claiming an invoice that was never created if the contractor
+      // backed out of this screen -- the bug the quote flow still has, where a
+      // quote is set to `converted` the moment the button is clicked.
+      if (createdInvoice?.id && prefillData?.payment_plan_id && prefillData?.plan_stage_id) {
+        try {
+          const rows = await sdk.entities.PaymentPlan.filter({
+            id: prefillData.payment_plan_id,
+          });
+          const plan = rows?.[0];
+          if (plan) {
+            const stages = markStageReleased(
+              plan.stages || [],
+              prefillData.plan_stage_id,
+              createdInvoice.id,
+            );
+            await sdk.entities.PaymentPlan.update(plan.id, {
+              stages,
+              status: stages.every((s) => s.released_at) ? "completed" : "active",
+            });
+          }
+        } catch (planErr) {
+          // The invoice is real and the client can be billed; failing to tick
+          // the stage off is worth a console line, not a failed save.
+          console.error("Invoice created, but could not mark the stage released:", planErr);
+        }
+      }
+
       let pdfUrl = null;
       let pdfGenerated = false;
       let paymentLink = null;
@@ -2035,6 +2065,14 @@ Provide line items in this format.`,
                           These lines came from the job&apos;s quote — the
                           figures your client was shown. Change them and the
                           invoice will no longer match the quote.
+                        </p>
+                      </div>
+                    ) : prefillData?.prefill_source === "plan" ? (
+                      <div className="flex items-start gap-2 rounded-lg border border-line bg-surface-sunken p-3 text-sm dark:border-ink-700 dark:bg-ink-800/50">
+                        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-content-body dark:text-content-subtle" />
+                        <p className="text-content-body dark:text-content-subtle">
+                          One stage of a payment plan. The stage is marked
+                          released once this invoice is saved.
                         </p>
                       </div>
                     ) : prefillData?.prefill_source === "job" ? (
