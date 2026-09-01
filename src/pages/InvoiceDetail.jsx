@@ -14,7 +14,6 @@ import {
   Calendar,
   CheckCircle,
   Copy,
-  CreditCard,
   DollarSign,
   Download,
   ExternalLink,
@@ -23,7 +22,6 @@ import {
   MessageSquare,
   Ban,
   History,
-  RefreshCw, // Added for regenerate button
   Send,
   ShieldAlert,
   Trash2,
@@ -313,38 +311,63 @@ export default function InvoiceDetail() {
     });
   };
 
-  const handleGeneratePaymentLink = async () => {
+  /**
+   * Mint a Stripe Checkout session and, optionally, open it.
+   *
+   * -- Why it is minted at the moment it is opened ---------------------------
+   *
+   * A Checkout session URL EXPIRES AFTER 24 HOURS. This screen used to store
+   * one on the invoice, label it "✅ Payment link is active", and hand out Copy
+   * and Open buttons for it forever -- so every link older than a day led to
+   * Stripe's "You've either completed your payment or this checkout session has
+   * timed out" page. Measured on this account: stored links four and nine days
+   * old, all dead.
+   *
+   * pay-public-invoice already solved this for the client side, in as many
+   * words: "The email carries the page; the page mints the session." This does
+   * the same for the contractor side.
+   *
+   * `openWhenReady` is a window opened SYNCHRONOUSLY by the click handler.
+   * Calling window.open() after an await is blocked by every popup blocker, so
+   * the tab is opened first and pointed at the URL once it exists -- otherwise
+   * the fix would fail silently, which is the bug it is fixing.
+   */
+  const handleGeneratePaymentLink = async (openWhenReady = null) => {
     setGeneratingPaymentLink(true);
     try {
-      console.log("🔗 Generating payment link for invoice:", invoice.id);
-
       const response = await sdk.functions.invoke("createInvoicePaymentLink", {
         invoice_id: invoice.id,
       });
 
-      console.log("✅ Payment link response:", response.data);
-
-      if (response.data?.payment_link) {
-        // Reload invoice to get updated payment link
-        await loadInvoiceData(); // Use loadInvoiceData() instead of loadData()
-        alert("Payment link generated successfully!");
-      } else {
-        throw new Error("No payment link in response");
+      const url = response.data?.payment_link;
+      if (url) {
+        if (openWhenReady) openWhenReady.location = url;
+        await loadInvoiceData();
+        return url;
       }
+
+      // invoke() RESOLVES with { error } on a non-2xx rather than throwing, so
+      // the real reason is in the payload and has to be read out of it.
+      throw new Error(response.data?.error || "No payment link in response");
     } catch (error) {
-      console.error("❌ Error generating payment link:", error);
-      alert("Failed to generate payment link. Please try again.");
+      if (openWhenReady) openWhenReady.close();
+      console.error("Error generating payment link:", error);
+      // The real message, not "Please try again". Stripe refuses any charge
+      // under $0.50 CAD, and a contractor testing with a 35-cent invoice was
+      // told to retry something that can never succeed.
+      alert(error?.message || "Could not create a payment link.");
+      return null;
     } finally {
       setGeneratingPaymentLink(false);
     }
   };
 
-  const handleCopyPaymentLink = () => {
-    if (invoice?.payment_link) {
-      navigator.clipboard.writeText(invoice.payment_link);
-      alert("Payment link copied to clipboard!");
-    }
-  };
+  /** The client-facing link, which never expires. */
+  const publicInvoiceUrl =
+    invoice?.public_token && !invoice?.public_link_revoked_at
+      ? `${window.location.origin}/i/${invoice.public_token}`
+      : null;
+
 
   const handleDelete = async () => {
     // Re-checked here and not only where the button is drawn. Hiding a control
@@ -896,21 +919,67 @@ export default function InvoiceDetail() {
                 </CardTitle>
               </CardHeader>
               <CardContent className="p-4 sm:p-6">
-                {invoice.payment_link ? (
-                  <div className="space-y-4">
-                    <div className="p-3 sm:p-4 bg-success-50 dark:bg-success-950/30 border border-success-200 dark:border-success-800 rounded-lg">
-                      <p className="text-sm text-success-800 dark:text-success-400 font-medium mb-2">
-                        ✅ Payment link is active
+                {/* No stored URL is shown, and none is offered for copying.
+                    A Checkout session dies after 24 hours, so a stored one is
+                    a link that works for a day and then sends the client to
+                    "You've either completed your payment or this checkout
+                    session has timed out". This card used to display exactly
+                    that URL under the words "Payment link is active".
+                    The button below mints a fresh session at the moment it is
+                    pressed, which is the same rule pay-public-invoice already
+                    follows for the client side. */}
+                <div className="space-y-4">
+                  <p className="text-sm text-content-body dark:text-ink-300">
+                    Opens a Stripe checkout page for{" "}
+                    <strong>{formatMoney(summary.balance)}</strong> so you can
+                    take a card payment yourself — over the phone, or on your
+                    device with the client standing there.
+                  </p>
+                  <Button
+                    onClick={() => {
+                      // Opened synchronously, then pointed at the URL. A
+                      // window.open() after the await is blocked by every popup
+                      // blocker.
+                      const tab = window.open("", "_blank");
+                      handleGeneratePaymentLink(tab);
+                    }}
+                    disabled={generatingPaymentLink}
+                    className="w-full bg-brand hover:bg-brand-hover gap-2 h-11"
+                  >
+                    {generatingPaymentLink ? (
+                      <>
+                        <Loader2 className="w-4 h-4 animate-spin" />
+                        Opening checkout…
+                      </>
+                    ) : (
+                      <>
+                        <ExternalLink className="w-4 h-4" />
+                        Take a card payment
+                      </>
+                    )}
+                  </Button>
+
+                  {/* What to actually SEND. This one never expires, and it is
+                      the link the emails and texts already use. */}
+                  {publicInvoiceUrl && (
+                    <div className="pt-4 border-t border-line dark:border-ink-700">
+                      <p className="text-sm font-semibold text-content dark:text-content-inverted mb-1">
+                        Sending it to your client instead?
+                      </p>
+                      <p className="text-xs text-content-muted dark:text-content-subtle mb-3">
+                        Use the client link below — it never expires and lets
+                        them pay whenever they open it. A checkout page copied
+                        from here would stop working tomorrow.
                       </p>
                       <div className="flex flex-col sm:flex-row gap-2">
                         <input
                           type="text"
-                          value={invoice.payment_link}
+                          value={publicInvoiceUrl}
                           readOnly
                           className="flex-1 px-3 py-2 text-xs sm:text-sm border border-line-strong dark:border-ink-600 rounded-lg bg-surface dark:bg-ink-800 text-content dark:text-content-inverted"
                         />
                         <Button
-                          onClick={handleCopyPaymentLink}
+                          onClick={() => copyToClipboard(publicInvoiceUrl)}
                           variant="outline"
                           className="gap-2 w-full sm:w-auto"
                         >
@@ -919,62 +988,8 @@ export default function InvoiceDetail() {
                         </Button>
                       </div>
                     </div>
-                    <div className="flex flex-col sm:flex-row gap-2">
-                      <Button
-                        onClick={() =>
-                          window.open(invoice.payment_link, "_blank")
-                        }
-                        className="flex-1 bg-brand hover:bg-brand-hover gap-2 h-11"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                        Open Payment Page
-                      </Button>
-                      <Button
-                        onClick={handleGeneratePaymentLink}
-                        variant="outline"
-                        disabled={generatingPaymentLink}
-                        className="h-11 w-full sm:w-auto"
-                      >
-                        {generatingPaymentLink ? (
-                          <>
-                            <Loader2 className="w-4 h-4 animate-spin sm:mr-2" />
-                            <span className="hidden sm:inline">
-                              Regenerating...
-                            </span>
-                          </>
-                        ) : (
-                          <>
-                            <RefreshCw className="w-4 h-4" />
-                          </>
-                        )}
-                      </Button>
-                    </div>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    <p className="text-sm text-content-body dark:text-ink-300">
-                      Generate a secure payment link to share with your client.
-                      They'll be able to pay directly via credit card.
-                    </p>
-                    <Button
-                      onClick={handleGeneratePaymentLink}
-                      disabled={generatingPaymentLink}
-                      className="w-full bg-brand hover:bg-brand-hover gap-2"
-                    >
-                      {generatingPaymentLink ? (
-                        <>
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          Generating Payment Link...
-                        </>
-                      ) : (
-                        <>
-                          <CreditCard className="w-4 h-4" />
-                          Generate Payment Link
-                        </>
-                      )}
-                    </Button>
-                  </div>
-                )}
+                  )}
+                </div>
               </CardContent>
             </Card>
           )}
