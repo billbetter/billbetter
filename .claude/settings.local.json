@@ -7,5 +7,8 @@
       "Bash(npm run build)",
       "Bash(python scripts/apply-migration.py supabase/migrations/*)"
     ]
-  }
+  },
+  "enabledMcpjsonServers": [
+    "21st"
+  ]
 }
