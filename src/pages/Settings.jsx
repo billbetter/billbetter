@@ -1,9 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { sdk } from "@/api/sdk";
 import {
-  useShaderBackground,
+  useShaderAppearance,
   setShaderBackgroundEnabled,
+  setShaderPreset,
 } from "@/lib/appearance";
+import { SHADER_PRESETS } from "@/components/ui/shader-presets";
 import { supabase } from "@/api/supabaseClient";
 // This import is not directly used in the new logic but kept for safety.
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -115,7 +117,8 @@ export default function Settings() {
   });
   const [loadingBilling, setLoadingBilling] = useState(false);
   const [userSpecialty, setUserSpecialty] = useState(null);
-  const shaderBackground = useShaderBackground();
+  const { enabled: shaderBackground, preset: shaderPreset } =
+    useShaderAppearance();
   const [darkMode, setDarkMode] = useState(() => {
     const stored = localStorage.getItem("invoicium-dark-mode");
     if (stored !== null) return stored === "true";
@@ -1790,7 +1793,7 @@ export default function Settings() {
                             Animated background
                           </span>
                           <span className="block text-sm text-content-body dark:text-content-subtle">
-                            A slow wave behind your pages instead of the flat
+                            Slow movement behind your pages instead of the flat
                             colour. Your cards and text are unchanged.
                           </span>
                         </span>
@@ -1808,6 +1811,54 @@ export default function Settings() {
                           />
                         </span>
                       </button>
+                      {/*
+                        Only shown while the background is on. A style picker
+                        above a switch that is off is a choice with nothing to
+                        apply to -- and the styles cannot be previewed here, so
+                        offering them with the canvas hidden would be asking
+                        for a decision blind.
+                      */}
+                      {shaderBackground && (
+                        <div
+                          role="radiogroup"
+                          aria-label="Background style"
+                          className="mt-3 grid gap-3 sm:grid-cols-2"
+                        >
+                          {Object.values(SHADER_PRESETS).map((option) => {
+                            const active = shaderPreset === option.id;
+                            return (
+                              <button
+                                key={option.id}
+                                type="button"
+                                role="radio"
+                                aria-checked={active}
+                                onClick={() => setShaderPreset(option.id)}
+                                className={`flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all ${
+                                  active
+                                    ? "border-success-500 bg-success-50 dark:bg-success-900/30"
+                                    : "border-line bg-surface hover:border-line-strong dark:border-ink-700 dark:bg-ink-800 dark:hover:border-ink-600"
+                                }`}
+                              >
+                                <span
+                                  aria-hidden
+                                  className="h-10 w-10 flex-shrink-0 rounded-lg shadow-inner"
+                                  style={{
+                                    backgroundImage: `linear-gradient(135deg, ${option.swatch[0]}, ${option.swatch[1]})`,
+                                  }}
+                                />
+                                <span className="min-w-0 flex-1">
+                                  <span className="block text-sm font-bold text-content dark:text-content-inverted">
+                                    {option.label}
+                                  </span>
+                                  <span className="block text-xs text-content-body dark:text-content-subtle">
+                                    {option.description}
+                                  </span>
+                                </span>
+                              </button>
+                            );
+                          })}
+                        </div>
+                      )}
                       <p className="mt-2 text-xs text-content-muted dark:text-content-subtle">
                         Saved to this browser, like your theme. It pauses when
                         the tab is hidden or scrolled out of view, so it costs
