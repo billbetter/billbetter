@@ -23,7 +23,7 @@ export default function CreateJobModal({
   isOpen,
   onClose,
   onJobCreated,
-  clients,
+  clients = [],
 }) {
   const [loading, setLoading] = useState(false);
   const [formData, setFormData] = useState({
@@ -116,11 +116,20 @@ export default function CreateJobModal({
                 <SelectValue placeholder="Select a client..." />
               </SelectTrigger>
               <SelectContent>
-                {clients.map((client) => (
-                  <SelectItem key={client.id} value={client.id}>
-                    {client.name}
-                  </SelectItem>
-                ))}
+                {/* An empty menu is indistinguishable from a broken one. Say
+                    which it is -- a job needs a client, and the answer when
+                    there are none is to go and add one. */}
+                {clients.length === 0 ? (
+                  <div className="px-2 py-3 text-sm text-content-muted">
+                    No clients yet. Add one on the Clients page first.
+                  </div>
+                ) : (
+                  clients.map((client) => (
+                    <SelectItem key={client.id} value={client.id}>
+                      {client.name}
+                    </SelectItem>
+                  ))
+                )}
               </SelectContent>
             </Select>
           </div>

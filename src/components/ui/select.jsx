@@ -18,8 +18,52 @@ import { ChevronDown, Check } from "lucide-react";
  * in the first place. Escaping the container is the only fix, and a portal is
  * how you escape it.
  */
+
+/**
+ * The text of a React node, the way `textContent` would read it.
+ *
+ * Used to label the trigger from the item that carries the selected value.
+ * Reading the elements the caller passed rather than the rendered DOM is the
+ * point: the items are only mounted while the menu is open, so anything that
+ * waits for them to appear is looking at a menu that has already closed.
+ */
+const textOf = (node) => {
+  if (node === null || node === undefined || typeof node === "boolean") {
+    return "";
+  }
+  if (typeof node === "string" || typeof node === "number") {
+    return String(node);
+  }
+  if (Array.isArray(node)) return node.map(textOf).join("");
+  if (React.isValidElement(node)) return textOf(node.props?.children);
+  return "";
+};
+
+/** Walks the passed elements for the SelectItem holding `value`. */
+const labelForValue = (children, value) => {
+  let label = null;
+
+  const walk = (node) => {
+    if (label !== null || node === null || node === undefined) return;
+    if (Array.isArray(node)) {
+      node.forEach(walk);
+      return;
+    }
+    if (!React.isValidElement(node)) return;
+    if (node.type === SelectItem && node.props?.value === value) {
+      label = textOf(node.props.children);
+      return;
+    }
+    walk(node.props?.children);
+  };
+
+  walk(children);
+  return label;
+};
+
 const SelectContext = React.createContext({
   value: null,
+  selectedLabel: null,
   onValueChange: () => {},
   open: false,
   setOpen: () => {},
@@ -69,10 +113,21 @@ const Select = ({ children, value, onValueChange, disabled = false }) => {
     setOpen(false);
   };
 
+  // Resolved here, where every SelectItem the caller wrote is in reach as an
+  // element, whether or not the menu happens to be mounted.
+  const selectedLabel = React.useMemo(
+    () =>
+      value === null || value === undefined || value === ""
+        ? null
+        : labelForValue(children, value),
+    [children, value],
+  );
+
   return (
     <SelectContext.Provider
       value={{
         value,
+        selectedLabel,
         onValueChange: handleValueChange,
         open,
         setOpen,
@@ -120,35 +175,28 @@ const SelectTrigger = React.forwardRef(
 );
 SelectTrigger.displayName = "SelectTrigger";
 
+/*
+  The trigger's label.
+
+  This used to wait 10ms and then look for `[data-select-item-value="..."]` in
+  the document. Choosing an option closes the menu in the same commit that
+  changes the value, so by the time that query ran the items had been unmounted
+  and it found nothing -- the trigger kept showing its placeholder, and picking
+  a client read as not having picked one. It missed on mount too: a Select
+  handed a value it already had showed "Select..." because the menu had never
+  been opened, so the item had never been in the DOM to find.
+
+  The label now comes from the element the caller wrote. No timing, nothing to
+  miss, and correct on the first render.
+*/
 const SelectValue = ({ placeholder = "Select...", children }) => {
-  const { value } = React.useContext(SelectContext);
-  const [displayValue, setDisplayValue] = React.useState(placeholder);
-
-  React.useEffect(() => {
-    if (children) {
-      return;
-    }
-
-    if (value) {
-      const timer = setTimeout(() => {
-        const item = document.querySelector(
-          `[data-select-item-value="${value}"]`,
-        );
-        if (item) {
-          setDisplayValue(item.textContent.trim());
-        }
-      }, 10);
-      return () => clearTimeout(timer);
-    } else {
-      setDisplayValue(placeholder);
-    }
-  }, [value, placeholder, children]);
+  const { selectedLabel } = React.useContext(SelectContext);
 
   if (children) {
     return <span>{children}</span>;
   }
 
-  return <span>{displayValue}</span>;
+  return <span>{selectedLabel || placeholder}</span>;
 };
 
 /** Gap between the trigger and the menu, and the smallest edge margin kept. */
@@ -221,13 +269,26 @@ const SelectContent = ({ children, className = "" }) => {
 
   const { maxHeight, ...boxStyle } = style;
 
-  // Portalled to the body, which is the entire point: an absolutely positioned
-  // sibling is clipped by any scrolling ancestor, and both the invoice and
-  // quote tables scroll.
+  /*
+    Portalled to the body, which is the entire point: an absolutely positioned
+    sibling is clipped by any scrolling ancestor, and both the invoice and
+    quote tables scroll.
+
+    `pointerEvents: "auto"` is what makes the menu usable inside a modal.
+    Radix's Dialog sets `document.body.style.pointerEvents = "none"` while it is
+    open and re-enables events only on its own layer; this menu is a child of
+    that body, so it inherited "none" and every option was painted, hoverable
+    in appearance, and completely dead to the click. Restoring it here rather
+    than at the call site fixes every Select that opens inside a dialog.
+
+    Dismissal is already handled: Radix checks the React tree, not the DOM, so
+    a pointerdown in this portal counts as inside the dialog and does not close
+    it -- the portal is a React child of the dialog's content.
+  */
   return createPortal(
     <div
       ref={contentRef}
-      style={boxStyle}
+      style={{ ...boxStyle, pointerEvents: "auto" }}
       className={`z-[9999] rounded-xl border bg-surface dark:bg-ink-800 dark:border-ink-700 shadow-xl animate-in fade-in-0 zoom-in-95 ${className}`}
     >
       <div className="p-1 overflow-auto" style={{ maxHeight }}>
