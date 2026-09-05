@@ -84,12 +84,46 @@ const formatCurrencyShort = (n) =>
     maximumFractionDigits: 0,
   });
 
+/*
+  A due date is a calendar day, not an instant.
+
+  Both invoice forms write it as a bare "YYYY-MM-DD" -- CreateInvoice from an
+  <input type="date">, QuickBillFlow from format(..., "yyyy-MM-dd") -- and
+  `new Date("2026-09-24")` parses that as midnight UTC, which is the 23rd at
+  20:00 for anyone west of Greenwich. The bucket, the countdown and the printed
+  date would all name the day before the one that was typed. Splitting the
+  digits and building a local midnight keeps the day as written.
+
+  Values that carry a real time of day are left alone and parsed as before:
+  those are instants and their local day is the correct reading of them.
+*/
+const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+const dueDateOf = (invoice) => {
+  const raw = invoice?.due_date;
+  if (!raw) return null;
+  if (typeof raw === "string" && CALENDAR_DATE.test(raw)) {
+    const [year, month, day] = raw.split("-").map(Number);
+    return new Date(year, month - 1, day);
+  }
+  const parsed = new Date(raw);
+  return Number.isNaN(parsed.getTime()) ? null : parsed;
+};
+
+// Signed distance to the due date: negative once it has passed, positive
+// while it is still ahead, 0 on the day itself. null when the invoice has no
+// due date at all, which is not the same as "due today" and must not be
+// bucketed as though it were.
+const daysToDueOf = (invoice) => {
+  const due = dueDateOf(invoice);
+  if (!due) return null;
+  return differenceInCalendarDays(due, new Date());
+};
+
 const daysOverdueOf = (invoice) => {
-  if (!invoice?.due_date) return 0;
-  return Math.max(
-    0,
-    differenceInCalendarDays(new Date(), new Date(invoice.due_date)),
-  );
+  const toDue = daysToDueOf(invoice);
+  if (toDue === null) return 0;
+  return Math.max(0, -toDue);
 };
 
 const getInvoiceNumber = (invoice) =>
@@ -161,10 +195,12 @@ export default function ChaseInvoice() {
 
       setInvoices(
         invoiceData.map((invoice) => {
+          // Same day math as the buckets and the row badge. Comparing raw
+          // instants instead flipped an invoice due today to "overdue" the
+          // moment it loaded, because a bare "2026-09-04" parses as midnight
+          // UTC -- already in the past for most of the working day.
           const isPastDue =
-            invoice.status === "sent" &&
-            invoice.due_date &&
-            new Date(invoice.due_date) < new Date();
+            invoice.status === "sent" && daysOverdueOf(invoice) > 0;
           return isPastDue ? { ...invoice, status: "overdue" } : invoice;
         }),
       );
@@ -185,10 +221,30 @@ export default function ChaseInvoice() {
         .map((invoice) => ({
           ...invoice,
           daysOverdue: daysOverdueOf(invoice),
+          daysToDue: daysToDueOf(invoice),
         })),
     [invoices],
   );
 
+  /*
+    Buckets are a distance from the due date, not a lateness score.
+
+    They used to run off `daysOverdue`, which is clamped at 0, so every invoice
+    that had not come due yet collapsed into "Due soon" and the four day-range
+    chips were permanently empty. Picking one returned nothing and read as a
+    broken filter -- which is exactly what it looked like on an account whose
+    invoices are all still ahead of their due date.
+
+    The ranges now measure |daysToDue|, so "8-14 days" means eight to fourteen
+    days FROM the due date and catches an invoice due next week as readily as
+    one that went late last week. Which side of the date an invoice sits on is
+    never hidden by this -- every row carries a "Due in Nd" or "Nd overdue"
+    badge -- and `overdue` stays as its own chip for the pure chase view.
+
+    These are overlapping slices, not a partition: an invoice ten days late is
+    in both `overdue` and `d8_14`, so the counts across the row do not add up
+    to All. That is the point of a filter row rather than a segmented control.
+  */
   const buckets = useMemo(() => {
     const make = (label, list) => ({
       label,
@@ -197,33 +253,29 @@ export default function ChaseInvoice() {
       list,
     });
 
+    // A missing due date has no distance to measure, so it belongs to no
+    // range. It still shows under All, which is where it can be noticed and
+    // given a date.
+    const inRange = (min, max) =>
+      chaseInvoices.filter((invoice) => {
+        if (invoice.daysToDue === null) return false;
+        const distance = Math.abs(invoice.daysToDue);
+        return distance >= min && distance <= max;
+      });
+
     return {
-      due_soon: make(
-        "Due soon",
-        chaseInvoices.filter((invoice) => invoice.daysOverdue === 0),
+      overdue: make(
+        "Overdue",
+        chaseInvoices.filter((invoice) => invoice.daysOverdue > 0),
       ),
-      d1_7: make(
-        "1–7 days",
-        chaseInvoices.filter(
-          (invoice) => invoice.daysOverdue >= 1 && invoice.daysOverdue <= 7,
-        ),
+      due_today: make(
+        "Due today",
+        chaseInvoices.filter((invoice) => invoice.daysToDue === 0),
       ),
-      d8_14: make(
-        "8–14 days",
-        chaseInvoices.filter(
-          (invoice) => invoice.daysOverdue >= 8 && invoice.daysOverdue <= 14,
-        ),
-      ),
-      d15_30: make(
-        "15–30 days",
-        chaseInvoices.filter(
-          (invoice) => invoice.daysOverdue >= 15 && invoice.daysOverdue <= 30,
-        ),
-      ),
-      d30plus: make(
-        "30+ days",
-        chaseInvoices.filter((invoice) => invoice.daysOverdue > 30),
-      ),
+      d1_7: make("1–7 days", inRange(1, 7)),
+      d8_14: make("8–14 days", inRange(8, 14)),
+      d15_30: make("15–30 days", inRange(15, 30)),
+      d30plus: make("30+ days", inRange(31, Infinity)),
     };
   }, [chaseInvoices]);
 
@@ -273,8 +325,23 @@ export default function ChaseInvoice() {
       );
     }
 
+    /*
+      Latest first, then soonest, then biggest.
+
+      Sorting on `daysOverdue` alone was fine while the list only ever held
+      late invoices, but it is clamped at 0, so every not-yet-due invoice tied
+      at 0 and fell back to amount -- one due tomorrow sat below one due in two
+      months if the second was worth more. Ordering on `daysToDue` ascending
+      puts the most urgent end of the queue at the top in both directions,
+      which is what "sorted by how late" means once the queue reaches forward
+      of today. Undated invoices have nothing to sort by and sink to the
+      bottom, above nothing but the amount tiebreak.
+    */
+    const NO_DUE_DATE = Number.MAX_SAFE_INTEGER;
     return [...list].sort((a, b) => {
-      if (b.daysOverdue !== a.daysOverdue) return b.daysOverdue - a.daysOverdue;
+      const aDue = a.daysToDue ?? NO_DUE_DATE;
+      const bDue = b.daysToDue ?? NO_DUE_DATE;
+      if (aDue !== bDue) return aDue - bDue;
       return (b.total || 0) - (a.total || 0);
     });
   }, [bucketFilter, buckets, chaseInvoices, searchTerm]);
@@ -585,7 +652,14 @@ export default function ChaseInvoice() {
     );
   }
 
-  const bucketKeys = ["due_soon", "d1_7", "d8_14", "d15_30", "d30plus"];
+  const bucketKeys = [
+    "overdue",
+    "due_today",
+    "d1_7",
+    "d8_14",
+    "d15_30",
+    "d30plus",
+  ];
 
   return (
     <PullToRefresh onRefresh={() => loadData(true)}>
@@ -823,7 +897,7 @@ export default function ChaseInvoice() {
                       Recovery Queue
                     </h2>
                     <p className="text-xs text-content-muted dark:text-content-subtle mt-0.5">
-                      Sorted by how late, then by amount
+                      Sorted by how late, then how soon, then by amount
                     </p>
                   </div>
                   <span className="text-xs font-semibold text-content-body dark:text-content-subtle px-2.5 py-1 rounded-full bg-ink-100 dark:bg-ink-800">
@@ -832,7 +906,18 @@ export default function ChaseInvoice() {
                 </div>
 
                 {filteredList.length === 0 ? (
-                  <EmptyState />
+                  <EmptyState
+                    filterLabel={
+                      bucketFilter === "all"
+                        ? null
+                        : buckets[bucketFilter]?.label
+                    }
+                    hasSearch={Boolean(searchTerm.trim())}
+                    onClearFilters={() => {
+                      setBucketFilter("all");
+                      setSearchTerm("");
+                    }}
+                  />
                 ) : (
                   <ul className="divide-y divide-line-subtle dark:divide-ink-800">
                     {filteredList.map((invoice) => (
@@ -990,7 +1075,17 @@ const ChaseRow = ({
     : isOverdue
       ? "bg-warning-50 text-warning-700 dark:bg-warning-900/30 dark:text-warning-300"
       : "bg-info-50 text-info-700 dark:bg-info-900/30 dark:text-info-300";
-  const stateLabel = isOverdue ? `${invoice.daysOverdue}d overdue` : "Due soon";
+  // "Due soon" told you nothing about how soon, which is the one thing the
+  // day-range chips filter on -- a row due in four days and one due in four
+  // weeks read identically. The countdown makes the bucket a row landed in
+  // legible from the row itself.
+  const stateLabel = isOverdue
+    ? `${invoice.daysOverdue}d overdue`
+    : invoice.daysToDue === null
+      ? "No due date"
+      : invoice.daysToDue === 0
+        ? "Due today"
+        : `Due in ${invoice.daysToDue}d`;
   const StateIcon = isOverdue ? AlertCircle : Clock;
 
   return (
@@ -1024,8 +1119,8 @@ const ChaseRow = ({
                 <span aria-hidden>·</span>
                 <span>
                   Due{" "}
-                  {invoice.due_date
-                    ? format(new Date(invoice.due_date), "MMM d")
+                  {dueDateOf(invoice)
+                    ? format(dueDateOf(invoice), "MMM d")
                     : "—"}
                 </span>
                 <span aria-hidden>·</span>
@@ -1450,25 +1545,62 @@ const ComposeDialog = ({
   );
 };
 
-const EmptyState = () => (
-  <div className="text-center py-16 px-6">
-    <div className="w-16 h-16 rounded-full bg-success-50 dark:bg-success-900/30 flex items-center justify-center mx-auto mb-4">
-      <CheckCircle2 className="w-8 h-8 text-success-600 dark:text-success-400" />
-    </div>
-    <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
-      All caught up
-    </h3>
-    <p className="text-sm text-content-muted dark:text-content-subtle mb-6">
-      No outstanding invoices match this view.
-    </p>
-    <Link to={createPageUrl("Invoices")}>
-      <Button
-        variant="outline"
-        className="h-10 px-5 rounded-xl border-line dark:border-ink-700 text-sm font-semibold dark:bg-ink-800 dark:text-ink-300"
+/*
+  Two different empty lists, and saying "All caught up" for both is a lie half
+  the time. An account with nothing outstanding is caught up; an account whose
+  queue is full but whose current filter matches none of it is not, and telling
+  it that is how a working filter gets read as a broken one. Name the filter
+  that emptied the list and offer the way back out of it.
+*/
+const EmptyState = ({ filterLabel, hasSearch, onClearFilters }) => {
+  const isFiltered = Boolean(filterLabel) || hasSearch;
+
+  return (
+    <div className="text-center py-16 px-6">
+      <div
+        className={`w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4 ${
+          isFiltered
+            ? "bg-ink-100 dark:bg-ink-800"
+            : "bg-success-50 dark:bg-success-900/30"
+        }`}
       >
-        View all invoices
-        <ArrowRight className="w-4 h-4 ml-2" />
-      </Button>
-    </Link>
-  </div>
-);
+        {isFiltered ? (
+          <Search className="w-8 h-8 text-content-muted dark:text-content-subtle" />
+        ) : (
+          <CheckCircle2 className="w-8 h-8 text-success-600 dark:text-success-400" />
+        )}
+      </div>
+      <h3 className="text-lg font-black text-content dark:text-content-inverted mb-2">
+        {isFiltered ? "Nothing in this view" : "All caught up"}
+      </h3>
+      <p className="text-sm text-content-muted dark:text-content-subtle mb-6">
+        {!isFiltered
+          ? "No outstanding invoices to chase."
+          : filterLabel && hasSearch
+            ? `No invoice matches "${filterLabel}" and that search.`
+            : filterLabel
+              ? `No invoice falls in "${filterLabel}" right now.`
+              : "No invoice matches that search."}
+      </p>
+      {isFiltered ? (
+        <Button
+          variant="outline"
+          onClick={onClearFilters}
+          className="h-10 px-5 rounded-xl border-line dark:border-ink-700 text-sm font-semibold dark:bg-ink-800 dark:text-ink-300"
+        >
+          Show all invoices
+        </Button>
+      ) : (
+        <Link to={createPageUrl("Invoices")}>
+          <Button
+            variant="outline"
+            className="h-10 px-5 rounded-xl border-line dark:border-ink-700 text-sm font-semibold dark:bg-ink-800 dark:text-ink-300"
+          >
+            View all invoices
+            <ArrowRight className="w-4 h-4 ml-2" />
+          </Button>
+        </Link>
+      )}
+    </div>
+  );
+};
