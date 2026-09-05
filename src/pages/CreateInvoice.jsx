@@ -9,6 +9,7 @@ import {
   isUnlimited,
 } from "@/components/utils/permissions";
 import { sdk } from "@/api/sdk";
+import { issuedPatch } from "@/lib/invoiceIssued";
 import { markTimeEntriesInvoiced } from "@/lib/timeTracking";
 import { generateInvoicePDF } from "@/functions/generateInvoicePDF";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -1076,6 +1077,11 @@ Provide line items in this format.`,
           user_id: user.id,
           invoice_number: invoiceNumber,
           status: "sent",
+          // Issued now, because this path creates it already sent. Stamped
+          // here rather than defaulted in the database: a draft saved today
+          // and sent on Friday is issued on Friday, and only the send knows
+          // that. See src/lib/invoiceIssued.js.
+          ...issuedPatch(formData),
           delivery_method: formData.client_email
             ? "email"
             : formData.client_phone

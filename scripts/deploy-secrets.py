@@ -56,6 +56,17 @@ SECRET_NAMES = [
     'GOOGLE_CLIENT_ID',
     'GOOGLE_CLIENT_SECRET',
     'APP_BASE_URL',
+    # Shared secret pg_cron presents to the scheduled sweeps, starting with
+    # sweep-demand-letters. That function refuses to run at all when this is
+    # unset, so it fails closed rather than opening an unauthenticated endpoint.
+    #
+    # Commented out because this list is all-or-nothing: require() exits on the
+    # first name it cannot find, so uncommenting before CRON_SECRET exists in
+    # .env would fail the ENTIRE push, Stripe and Resend included. Generate a
+    # value, put it in .env, uncomment, push -- then store the SAME value in
+    # Vault as 'cron_secret' so the cron job and the function agree. See
+    # supabase/migrations/20260904120100_demand_letter_sweep_cron.sql.
+    # 'CRON_SECRET',
 ]
 
 secrets = [(name, require(name)) for name in SECRET_NAMES]

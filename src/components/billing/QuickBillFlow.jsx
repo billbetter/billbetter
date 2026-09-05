@@ -2,6 +2,7 @@ import React, { useState, useEffect, useMemo } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { sdk } from "@/api/sdk";
+import { issuedPatch } from "@/lib/invoiceIssued";
 import { InvokeLLM } from "@/integrations/Core";
 import { LINE_ITEMS } from "@/lib/ai/schemas";
 import { aiFailureMessage } from "@/lib/ai/failure";
@@ -496,7 +497,12 @@ Return JSON only.`;
             const updateFn = isQuote
               ? sdk.entities.Quote.update
               : sdk.entities.Invoice.update;
-            await updateFn(created.id, { status: "sent" });
+            // Quote already carries its own date_issued and sets it elsewhere;
+            // only the invoice branch needs stamping here.
+            await updateFn(created.id, {
+              status: "sent",
+              ...(isQuote ? {} : issuedPatch(created)),
+            });
             sentSuccessfully = true;
           }
         } catch (sendErr) {
