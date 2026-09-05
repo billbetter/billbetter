@@ -46,6 +46,27 @@ const initials = (name = "") =>
     .join("")
     .toUpperCase() || "?";
 
+/*
+  Where the flow sits.
+
+  It used to be `fixed inset-0`, and `inset-0` on a fixed element means the
+  VIEWPORT. That covered the whole window, app chrome included: on desktop an
+  opaque backdrop sat over the sidebar, so pressing Invoice on the dashboard
+  left every nav item visible-but-dead and this screen's Back button the only
+  exit. On a phone the same edge-to-edge box reached under the bottom tab bar,
+  which paints above this flow, hiding the Continue / Send button behind it.
+
+  Still fixed -- the step slider below needs a viewport-stable box, not a
+  scrolling one -- but inset off the chrome instead of over it. The two
+  variables are published by Layout, which is the only thing that knows the
+  current sidebar width and the measured tab-bar height. They default to 0 so
+  the flow still fills the window if it is ever rendered outside the app shell.
+*/
+const SHELL_POSITION =
+  "fixed top-0 right-0 left-0 bottom-[var(--app-bottom-nav-height,0px)] " +
+  "lg:bottom-0 lg:left-[var(--app-sidebar-width,0px)] " +
+  "transition-[left,bottom] duration-300";
+
 export default function QuickBillFlow({ mode = "invoice" }) {
   const isQuote = mode === "quote";
   const navigate = useNavigate();
@@ -514,7 +535,9 @@ Details: ${detail}` : " Please try again."),
     const title = didSend ? `${noun} sent` : `${noun} saved`;
     const Icon = didSend ? Send : Check;
     return (
-      <div className="fixed inset-0 z-[80] bg-surface dark:bg-surface-inverted-deep flex items-center justify-center px-6">
+      <div
+        className={`${SHELL_POSITION} z-[80] bg-surface dark:bg-surface-inverted-deep flex items-center justify-center px-6`}
+      >
         <div className="flex flex-col items-center gap-6">
           <div className="relative">
             <div className="absolute inset-0 rounded-full bg-success-400/30 blur-2xl scale-150 animate-pulse" />
@@ -540,7 +563,9 @@ Details: ${detail}` : " Please try again."),
 
   if (loading) {
     return (
-      <div className="fixed inset-0 z-[60] bg-surface-sunken dark:bg-surface-inverted-deep flex items-center justify-center">
+      <div
+        className={`${SHELL_POSITION} z-[60] bg-surface-sunken dark:bg-surface-inverted-deep flex items-center justify-center`}
+      >
         <Loader2 className="w-7 h-7 text-success-600 animate-spin" />
       </div>
     );
@@ -563,12 +588,15 @@ Details: ${detail}` : " Please try again."),
       Continue button were each 1240px wide, which is why the Quote and Invoice
       shortcuts looked broken while every other page looked fine.
 
-      The backdrop stays edge to edge so the flow still covers the app behind
-      it; only the content column is capped and centred. max-w-xl because the
-      steps are a single column of stacked controls -- widening it past a
-      comfortable reading measure would not add information, just travel.
+      The backdrop fills whatever SHELL_POSITION leaves it so the flow still
+      covers the page behind it; only the content column is capped and centred.
+      max-w-xl because the steps are a single column of stacked controls --
+      widening it past a comfortable reading measure would not add information,
+      just travel.
     */
-    <div className="fixed inset-0 z-[60] bg-surface-sunken dark:bg-surface-inverted-deep flex justify-center">
+    <div
+      className={`${SHELL_POSITION} z-[60] bg-surface-sunken dark:bg-surface-inverted-deep flex justify-center`}
+    >
       <div className="flex flex-col w-full max-w-xl sm:border-x sm:border-line/60 sm:dark:border-ink-800/60">
       {/* Header */}
       <div
