@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { sdk } from "@/api/sdk";
+import { MAX_LOGO_BYTES, RENDERABLE_LOGO_TYPES } from "@/lib/invoiceBrand";
 import {
   useShaderAppearance,
   setShaderBackgroundEnabled,
@@ -433,9 +434,24 @@ export default function Settings() {
     // "All Files" selection walks straight past it. A logo the PDF renderer
     // cannot embed has to be refused at upload, where the person can see why,
     // rather than at render time where it fails an invoice.
-    if (!["image/png", "image/jpeg"].includes(file.type)) {
+    if (!RENDERABLE_LOGO_TYPES.includes(file.type)) {
       setSaveMessage(
         "Logos must be a PNG or JPEG. Other formats cannot be placed in a PDF.",
+      );
+      setTimeout(() => setSaveMessage(null), 5000);
+      e.target.value = "";
+      return;
+    }
+
+    // The same limit the PDF renderer applies, checked at the same place the
+    // format is. It was missing, and the uploads bucket allows 10MB, so a
+    // larger logo uploaded and saved cleanly and was then dropped silently by
+    // every PDF -- the exact failure the format check above exists to prevent,
+    // one field over.
+    if (file.size > MAX_LOGO_BYTES) {
+      const mb = (MAX_LOGO_BYTES / (1024 * 1024)).toFixed(0);
+      setSaveMessage(
+        `That logo is ${(file.size / (1024 * 1024)).toFixed(1)}MB. Logos must be under ${mb}MB or they cannot be placed in a PDF.`,
       );
       setTimeout(() => setSaveMessage(null), 5000);
       e.target.value = "";
@@ -461,8 +477,24 @@ export default function Settings() {
         const uploadResult = await sdk.integrations.Core.UploadFile({
           file: logoFile,
         });
-        finalLogoUrl = uploadResult.file_url; // Use the URL from the successful upload
         setUploadingLogo(false);
+
+        // UploadFile REPORTS failure rather than throwing -- deliberately, so
+        // one bad image cannot abort a whole settings save. That only works if
+        // the caller looks. This one did not: it assigned file_url straight
+        // through, so a failed upload wrote logo_url: null and then announced
+        // "Settings saved successfully!". The contractor believed they had a
+        // logo, the database had nothing, and every invoice went out unbranded
+        // with no way to find out why.
+        if (!uploadResult?.success || !uploadResult.file_url) {
+          setSaving(false);
+          setSaveMessage(
+            `Could not upload the logo${uploadResult?.error ? `: ${uploadResult.error}` : ""}. Nothing was saved — your previous logo is unchanged.`,
+          );
+          setTimeout(() => setSaveMessage(null), 6000);
+          return;
+        }
+        finalLogoUrl = uploadResult.file_url;
       } else if (formData.logo_url === "") {
         // If the user explicitly cleared the logo (formData.logo_url became empty)
         finalLogoUrl = null;
