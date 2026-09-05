@@ -30,6 +30,7 @@ Deno.serve(async (req) => {
       sender_email,
       sender_phone,
       sender_address,
+      logo_url,
       notes,
       expiry_date,
       date_issued,
@@ -87,6 +88,7 @@ Deno.serve(async (req) => {
         sender_email,
         sender_phone,
         sender_address,
+        logo_url,
       },
     });
 

@@ -140,7 +140,7 @@ async function enrichBusinessContext(base = {}) {
     if (!user) return base;
     const { data: settingsRows } = await supabase
       .from("BusinessSettings")
-      .select("business_name, email, phone, address, website")
+      .select("business_name, email, phone, address, website, logo_url")
       .eq("user_id", user.id)
       .limit(1);
     const s = (settingsRows && settingsRows[0]) || {};
@@ -156,6 +156,11 @@ async function enrichBusinessContext(base = {}) {
       sender_phone: base.sender_phone || s.phone || null,
       sender_address: base.sender_address || s.address || null,
       sender_website: base.sender_website || s.website || null,
+      // Resolved here rather than passed by each caller. Seven call sites
+      // reach sendInvoiceEmail / sendQuoteEmail and not one of them passes any
+      // branding today -- they all rely on this -- so a logo threaded through
+      // the callers would be a logo six of them forgot.
+      logo_url: base.logo_url || s.logo_url || null,
     };
   } catch {
     return base;

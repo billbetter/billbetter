@@ -139,8 +139,19 @@ export function brandHeading(settings) {
  */
 const RENDERABLE_IMAGE_TYPES = new Set(["image/png", "image/jpeg", "image/jpg"]);
 
-/** Bigger than this and it is not a logo, it is a photo somebody mis-uploaded. */
-const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+/**
+ * Bigger than this and it is not a logo, it is a photo somebody mis-uploaded.
+ *
+ * Exported because the settings upload has to refuse the same size this
+ * refuses. It did not, and the gap was invisible: the uploads bucket allows
+ * 10MB, so a 3MB logo uploaded, previewed, saved and reported success -- and
+ * then every PDF silently dropped it here, with nothing anywhere saying why.
+ * One number, read by both ends, or the two drift apart again.
+ */
+export const MAX_LOGO_BYTES = 2 * 1024 * 1024;
+
+/** The formats a logo may be uploaded in, for the settings screen to enforce. */
+export const RENDERABLE_LOGO_TYPES = ["image/png", "image/jpeg"];
 
 // Keyed by URL. A batch of thirty invoices is thirty renders of the same logo,
 // and refetching it thirty times is thirty chances for one to time out.

@@ -42,6 +42,8 @@ export interface EmailBranding {
   sender_phone?: string;
   sender_address?: string;
   website?: string;
+  /** Public URL of the business's logo. Rendered in place of the name. */
+  logo_url?: string | null;
 }
 
 interface LayoutOptions {
@@ -104,6 +106,33 @@ export function renderEmailLayout(opts: LayoutOptions): string {
   const senderEmail = escapeHtml(branding.sender_email || "");
   const senderPhone = escapeHtml(branding.sender_phone || "");
   const senderAddress = escapeHtml(branding.sender_address || "");
+
+  /*
+    The logo, where the business name would otherwise sit.
+
+    Linked rather than attached. An inline attachment would display without the
+    recipient allowing remote images, which is the one thing linking gives up --
+    but it would also add up to 2MB of base64 to every message, on top of the
+    invoice PDF already attached, and it needs the logo fetched inside the send
+    path where a slow or failed fetch would delay or break an email that has to
+    go out. A blemish in one email client is a cheaper failure than a send that
+    does not happen.
+
+    So the alt text carries the weight: with images blocked this renders the
+    business name, which is exactly what sat here before. Constrained in CSS
+    rather than with width/height attributes, because those distort any logo
+    whose aspect ratio is not what we guessed. Outlook's Word engine ignores
+    max-width, so a very large logo can render oversized there; every other
+    client honours it.
+
+    Only http(s) is allowed through. The URL reaches here from the database via
+    the client, and javascript: or data: in an src attribute is the obvious
+    thing to try.
+  */
+  const logoSrc = String(branding.logo_url || "").trim();
+  const logoHtml = /^https?:\/\//i.test(logoSrc)
+    ? `<img src="${escapeHtml(logoSrc)}" alt="${businessName}" style="display:block;border:0;outline:none;text-decoration:none;max-width:180px;max-height:44px;width:auto;height:auto;" />`
+    : "";
 
   const detailsHtml = detailsRows
     .map(
@@ -208,7 +237,7 @@ export function renderEmailLayout(opts: LayoutOptions): string {
           <td style="padding:28px 32px 20px;border-bottom:1px solid ${BORDER};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="color:${TEXT};font-size:18px;font-weight:700;letter-spacing:-0.01em;">${businessName}</td>
+                <td style="color:${TEXT};font-size:18px;font-weight:700;letter-spacing:-0.01em;">${logoHtml || businessName}</td>
                 <td align="right" style="color:${MUTED};font-size:12px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml(heading)}</td>
               </tr>
             </table>
