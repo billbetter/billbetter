@@ -14,8 +14,10 @@
  */
 
 import { useEffect, useState } from "react";
+import { DEFAULT_PRESET_ID } from "@/components/ui/shader-presets";
 
 const SHADER_KEY = "invoicium-shader-bg";
+const PRESET_KEY = "invoicium-shader-preset";
 const EVENT = "invoicium:appearance";
 
 /**
@@ -56,6 +58,36 @@ export function isShaderBackgroundChosen() {
 }
 
 /**
+ * Which background is drawn. Separate key from the on/off switch.
+ *
+ * Kept apart so turning the background off and on again returns the one that
+ * was chosen, rather than resetting to the default -- the switch answers
+ * "should there be a background", not "which one".
+ *
+ * An unrecognised stored value is not corrected here. getPreset() already
+ * falls back, and rewriting storage on read would silently discard the choice
+ * of anyone running a build where a preset exists that this one has not
+ * shipped yet.
+ */
+export function getShaderPreset() {
+  try {
+    return window.localStorage.getItem(PRESET_KEY) || DEFAULT_PRESET_ID;
+  } catch {
+    return DEFAULT_PRESET_ID;
+  }
+}
+
+/** @param {string} id a key of SHADER_PRESETS */
+export function setShaderPreset(id) {
+  try {
+    window.localStorage.setItem(PRESET_KEY, String(id));
+  } catch {
+    // Same as the switch: notify anyway so the change is at least live.
+  }
+  window.dispatchEvent(new CustomEvent(EVENT));
+}
+
+/**
  * Mirror the setting onto <html> as a class.
  *
  * The CSS that clears each page's own flat background keys off this, the same
@@ -86,6 +118,7 @@ function readAppearance() {
   return {
     enabled: isShaderBackgroundEnabled(),
     chosen: isShaderBackgroundChosen(),
+    preset: getShaderPreset(),
   };
 }
 
@@ -99,7 +132,7 @@ function readAppearance() {
  * would never happen and the reduced-motion decision would be made on a value
  * from before the click.
  *
- * @returns {{ enabled: boolean, chosen: boolean }}
+ * @returns {{ enabled: boolean, chosen: boolean, preset: string }}
  */
 export function useShaderAppearance() {
   const [state, setState] = useState(readAppearance);
@@ -111,7 +144,9 @@ export function useShaderAppearance() {
       const next = readAppearance();
       applyShaderClass(next.enabled);
       setState((prev) =>
-        prev.enabled === next.enabled && prev.chosen === next.chosen
+        prev.enabled === next.enabled &&
+        prev.chosen === next.chosen &&
+        prev.preset === next.preset
           ? prev
           : next,
       );

@@ -5,7 +5,7 @@ import { hasAppAccess, resolveAppAccess } from "@/lib/access";
 import { supabase } from "@/api/supabaseClient";
 import { canAccessFeature } from "@/components/utils/permissions";
 import { useShaderAppearance } from "@/lib/appearance";
-import { ShaderBackground } from "@/components/ui/waves-shader";
+import { ShaderBackground } from "@/components/ui/shader-background";
 import { sdk } from "@/api/sdk";
 import {
   LayoutDashboard,
@@ -50,8 +50,11 @@ export default function Layout({ children, currentPageName }) {
   // it, and it stays owner-only. null means "not asked yet"; the database
   // answers via my_app_access(). See lib/access.js resolveAppAccess.
   const [crewAccess, setCrewAccess] = useState(null);
-  const { enabled: shaderBackground, chosen: shaderChosen } =
-    useShaderAppearance();
+  const {
+    enabled: shaderBackground,
+    chosen: shaderChosen,
+    preset: shaderPreset,
+  } = useShaderAppearance();
   const [loading, setLoading] = useState(true);
   const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
@@ -886,6 +889,7 @@ export default function Layout({ children, currentPageName }) {
                     of view. */}
                 <ShaderBackground
                   className="h-full w-full"
+                  preset={shaderPreset}
                   respectReducedMotion={!shaderChosen}
                 />
               </div>
