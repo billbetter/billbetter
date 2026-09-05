@@ -62,6 +62,23 @@ export default function Layout({ children, currentPageName }) {
   const scrollPositions = useRef({});
   const mainContentRef = useRef(null);
 
+  // Published to the page as CSS variables on the shell below.
+  //
+  // The full-screen page flows -- Quick Invoice and Quick Quote -- were
+  // `fixed inset-0`, and `fixed` is measured against the VIEWPORT, not against
+  // the column they live in. So the flow painted an opaque backdrop over the
+  // desktop sidebar: every nav item was still there, still focusable, and
+  // completely unclickable, which left the flow's own Back button as the only
+  // way out of it. On a phone it reached under the bottom tab bar instead and
+  // hid the flow's primary button behind it.
+  //
+  // The flow now insets itself against these two numbers rather than against
+  // the viewport. Only the shell knows them: the sidebar's width depends on
+  // whether it is collapsed, and the tab bar's height depends on the device's
+  // safe area, so it is measured rather than guessed.
+  const bottomNavRef = useRef(null);
+  const [bottomNavHeight, setBottomNavHeight] = useState(0);
+
   // Public pages that DON'T require authentication
   const publicPages = [
     "Home",
@@ -103,6 +120,26 @@ export default function Layout({ children, currentPageName }) {
   // Rendered without the sidebar or the marketing header -- see the standalone
   // layout branch below.
   const standalonePages = ["Checkout"];
+
+  // Measured, not hard-coded: the tab bar pads itself with the device safe
+  // area, so its height differs between a notched phone and a desktop window
+  // narrowed past the lg breakpoint. Re-runs on navigation because the bar is
+  // only in the tree on the app layout branch -- the standalone and public
+  // branches return before it, and there the ref is null and the variable
+  // stays 0, which is exactly right.
+  useEffect(() => {
+    const el = bottomNavRef.current;
+    if (!el) {
+      setBottomNavHeight(0);
+      return;
+    }
+    const measure = () => setBottomNavHeight(el.offsetHeight);
+    measure();
+    if (typeof ResizeObserver === "undefined") return;
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    return () => observer.disconnect();
+  }, [currentPageName]);
 
   useEffect(() => {
     checkAuthAndSubscription();
@@ -595,7 +632,15 @@ export default function Layout({ children, currentPageName }) {
   ];
 
   return (
-    <div className="flex h-screen bg-[hsl(210_20%_97%)] dark:bg-[hsl(220_20%_7%)]">
+    <div
+      className="flex h-screen bg-[hsl(210_20%_97%)] dark:bg-[hsl(220_20%_7%)]"
+      style={{
+        // Read by full-screen page flows so they cover the app without
+        // covering the app's navigation -- see the note by bottomNavRef.
+        "--app-sidebar-width": sidebarCollapsed ? "4rem" : "16rem",
+        "--app-bottom-nav-height": `${bottomNavHeight}px`,
+      }}
+    >
       {/* Desktop Sidebar */}
       <aside
         className={`hidden lg:flex flex-col bg-surface-inverted dark:bg-surface-inverted-deep text-content-inverted ${sidebarCollapsed ? "w-16" : "w-64"} transition-all duration-300 flex-shrink-0`}
@@ -853,6 +898,7 @@ export default function Layout({ children, currentPageName }) {
 
         {/* Mobile Bottom Navigation */}
         <nav
+          ref={bottomNavRef}
           className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface/95 dark:bg-surface-inverted/95 backdrop-blur-sm border-t border-line-subtle dark:border-ink-800 z-50"
           style={{ paddingBottom: "max(env(safe-area-inset-bottom), 4px)" }}
         >

@@ -64,6 +64,14 @@ FUNCTIONS = [
     ('stripe-customer-portal', True),
     ('stripe-webhook', False),        # Stripe signs the request instead
     ('google-calendar-callback', False),  # Google OAuth redirect
+
+    # Called by pg_cron, which presents a shared secret and not a JWT -- the
+    # same arrangement stripe-worker already runs under on this project (see
+    # the note above). verify_jwt=True would reject that bearer and the sweep
+    # would fail every night. It is NOT unauthenticated: the function checks
+    # CRON_SECRET itself and refuses to run at all if that env var is unset,
+    # so a missing secret fails closed rather than opening the endpoint.
+    ('sweep-demand-letters', False),
 ]
 
 # Deployed on the project but NOT managed here, and deliberately left alone:

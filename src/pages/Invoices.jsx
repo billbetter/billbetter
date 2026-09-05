@@ -79,6 +79,7 @@ import {
   statusFromPayments,
 } from "@/lib/invoicePayments";
 import { dueReminders, reminderSentPatch } from "@/lib/reminders";
+import { issuedPatch } from "@/lib/invoiceIssued";
 import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import PullToRefresh from "@/components/utils/PullToRefresh";
@@ -501,7 +502,12 @@ export default function Invoices() {
       // triggered -- so the ladder is advanced here rather than in a separate
       // "send reminders" path. One code path means the count cannot disagree
       // with what the client actually received.
-      const patch = toFlip.has(invoice.id) ? { status: "sent" } : {};
+      // issuedPatch is inside the flip branch on purpose. An overdue invoice
+      // going out again is a reminder, not a re-issue -- stamping it here
+      // would reset the age of the debt every time it was chased.
+      const patch = toFlip.has(invoice.id)
+        ? { status: "sent", ...issuedPatch(invoice) }
+        : {};
       if (String(invoice.status || "").toLowerCase() === "overdue") {
         Object.assign(patch, reminderSentPatch(invoice));
       }

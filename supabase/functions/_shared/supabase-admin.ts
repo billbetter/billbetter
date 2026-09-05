@@ -53,6 +53,26 @@ export const db = {
   async update(table: string, id: string, patch: Record<string, unknown>) {
     return restFetch(`${table}?id=eq.${encodeURIComponent(id)}`, { method: 'PATCH', body: JSON.stringify(patch) });
   },
+  /**
+   * Patch every row matching a raw query, and get back the rows that changed.
+   *
+   * The same escape hatch `select` is, for the same reason: `update` addresses
+   * one row by id, and a sweep that has to read candidates and then patch them
+   * one at a time races itself -- two overlapping runs both read the same
+   * unstamped invoice and both stamp it. Filtering on the not-yet-stamped
+   * condition inside the PATCH makes the claim atomic, so a second run finds
+   * nothing left to do rather than doing it again.
+   *
+   * `Prefer: return=representation` is already set by restFetch, so the rows
+   * that were actually updated come back -- which is how a caller counts what
+   * it claimed without a separate read. Note that PostgREST caps that
+   * representation at `max_rows` (1000 here) while still updating everything
+   * that matched: the write is complete, the returned list may not be.
+   */
+  async updateWhere(table: string, query: string, patch: Record<string, unknown>) {
+    const rows = await restFetch(`${table}?${query}`, { method: 'PATCH', body: JSON.stringify(patch) });
+    return Array.isArray(rows) ? rows : [];
+  },
   async insert(table: string, row: Record<string, unknown>) {
     return restFetch(table, { method: 'POST', body: JSON.stringify(row) });
   },

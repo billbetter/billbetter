@@ -9,6 +9,7 @@ import {
   getTransactionAllowance,
 } from "@/components/utils/permissions";
 import OnboardingModal from "@/components/onboarding/OnboardingModal";
+import DemandLetterBanner from "@/components/invoice/DemandLetterBanner";
 import {
   Card,
   CardContent,
@@ -588,6 +589,29 @@ export default function Dashboard() {
               </Button>
             </div>
           </div>
+
+          {/*
+            Demand-letter prompt.
+
+            Above the digest because it is the only thing on this page that is
+            about a decision rather than a number, and it renders nothing at
+            all unless an invoice has actually crossed 21 days -- so on an
+            ordinary morning the dashboard looks exactly as it did.
+          */}
+          <DemandLetterBanner
+            invoices={invoices}
+            onDraftLetter={(invoice) => {
+              // SEAM: step 3 replaces this with the drafting dialog -- the AI
+              // call, the editable letter, the explicit review before anything
+              // is sent. Until that exists this opens the collections screen,
+              // which is the real place to act on the invoice today, rather
+              // than a button that acknowledges nothing.
+              navigate(createPageUrl("ChaseInvoice"), {
+                state: { focusInvoiceId: invoice.id },
+              });
+            }}
+            onDismissed={loadData}
+          />
 
           {/* Daily Digest */}
           <div>
