@@ -58,24 +58,33 @@ async function resolveAccount(settings: any, user: { id: string; email?: string 
 // Branding images are File objects, and files belong to whoever uploaded them.
 // They must be uploaded and referenced as the PLATFORM -- uploading against the
 // connected account produces a file id the platform cannot then attach ("No
-// such file upload"). One upload therefore serves every contractor, so this
-// reuses the file already on the platform instead of re-uploading per account.
-let brandFiles: { icon?: string; logo?: string } | null = null;
-
-async function platformBrandFiles() {
-  if (brandFiles) return brandFiles;
-
+// such file upload").
+//
+// One upload does NOT serve every contractor, which is what this used to assume.
+// Attaching a file to an account consumes it, and attaching the same one to a
+// second account fails with "That file is already attached to something else."
+// Because the failure is swallowed as cosmetic below, the visible symptom was
+// not an error -- it was the second contractor onwards quietly getting no
+// branding at all.
+//
+// Nor is there a cached id worth keeping. Reuse used to be unconditional: the
+// newest file with the right purpose won, whatever it depicted, which is how
+// every contractor onboarded after the AxisBill rebrand still checked out under
+// the dead logo. Re-reading the shipped asset each time is what makes replacing
+// public/logo-full.png the whole job.
+//
+// Content cannot be compared to avoid the re-upload, either -- Stripe re-encodes
+// branding images, so the size it reports back is not the size that was sent.
+//
+// So: a fresh upload per account, per onboarding. Two images of a few KB, on a
+// path a contractor reaches by hand, is not worth optimising.
+async function uploadBrandFiles() {
   const found: { icon?: string; logo?: string } = {};
   for (const [purpose, field, path] of [
     ['business_icon', 'icon', '/logo-icon.png'],
     ['business_logo', 'logo', '/logo-full.png'],
   ] as const) {
     try {
-      const existing = await stripeGet(`/files?purpose=${purpose}&limit=1`);
-      if (existing?.data?.[0]?.id) {
-        found[field] = existing.data[0].id;
-        continue;
-      }
       const res = await fetch(`${APP_URL}${path}`);
       if (!res.ok) continue;
       const file = await stripeUploadFile(await res.blob(), path.slice(1), purpose);
@@ -84,16 +93,23 @@ async function platformBrandFiles() {
       console.warn(`brand ${field} unavailable:`, err instanceof Error ? err.message : err);
     }
   }
-
-  brandFiles = found;
   return found;
 }
 
-async function applyPlatformBranding(accountId: string, account?: Record<string, any>) {
+async function applyPlatformBranding(accountId: string) {
   try {
-    if (account?.settings?.branding?.icon) return;
-
-    const files = await platformBrandFiles();
+    // Applied on every onboarding, not only when branding is unset.
+    //
+    // The guard here used to be `if (account?.settings?.branding?.icon) return`,
+    // which meant an account branded once was branded forever -- a contractor
+    // onboarded before a rebrand kept the dead logo with no route to the new
+    // one, because this is the only place branding is ever set.
+    //
+    // Re-applying unconditionally is what gives them that route: the next time
+    // they open onboarding they pick up whatever the app currently ships. This
+    // runs only on a page a contractor opens by hand, so the extra write costs
+    // nothing worth guarding.
+    const files = await uploadBrandFiles();
     const params: Record<string, string> = {
       'settings[branding][primary_color]': PLATFORM_BRANDING.primary_color,
       'settings[branding][secondary_color]': PLATFORM_BRANDING.secondary_color,
@@ -123,8 +139,8 @@ Deno.serve(async (req) => {
 
     let settings = await db.findOne('BusinessSettings', { user_id: user.id });
 
-    const { id: accountId, account } = await resolveAccount(settings, user);
-    await applyPlatformBranding(accountId, account);
+    const { id: accountId } = await resolveAccount(settings, user);
+    await applyPlatformBranding(accountId);
 
     // Persist before sending them to Stripe. If they complete onboarding and
     // never come back to the return_url, the webhook still needs this id to
