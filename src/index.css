@@ -950,3 +950,48 @@ html.shader-bg main .min-h-\[60vh\] {
     flex-shrink: 0;
   }
 }
+
+/* ---------------------------------------------------------------------------
+   The dashboard's Recent Invoices rows, same story as the queue above.
+
+   This row never stacked at all -- `flex items-center justify-between`, at
+   every width. It sits in `grid lg:grid-cols-3` with the revenue chart taking
+   `lg:col-span-2`, so it gets a third of the row: about 224px at a 1024px
+   viewport once the app sidebar is out. Inside that, a 44px icon and a ~90px
+   amount leave roughly 60px of text, and the invoice number and client name
+   both collapsed to an initial and an ellipsis.
+
+   Queried on the LIST, not the row: an element cannot query its own container,
+   and every row in the card shares the list's width anyway.
+
+   max-width rather than min-width because the horizontal layout is already the
+   default here and is correct wherever there is room -- this only has to catch
+   the cramped case, so an engine without container queries keeps exactly
+   today's behaviour.
+
+   20rem is where the two halves stop fitting: 44px icon + 12px gap + ~150px for
+   a number and client name + ~90px for the amount and date.
+   --------------------------------------------------------------------------- */
+.dash-invoice-list {
+  container-type: inline-size;
+  container-name: dash-invoice-list;
+}
+
+@container dash-invoice-list (max-width: 20rem) {
+  .dash-invoice-row {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 0.5rem;
+  }
+
+  /* Amount and date become one line under the invoice rather than a column
+     beside it, so both keep their full text. */
+  .dash-invoice-row-amount {
+    margin-left: 0;
+    text-align: left;
+    display: flex;
+    align-items: baseline;
+    justify-content: space-between;
+    gap: 0.5rem;
+  }
+}

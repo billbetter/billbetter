@@ -178,7 +178,7 @@ const InvoiceRow = ({ invoice, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="flex items-center justify-between p-3 sm:p-4 rounded-xl hover:bg-surface-sunken dark:hover:bg-ink-700/50 transition-all cursor-pointer border border-transparent hover:border-line dark:hover:border-ink-600 group"
+      className="dash-invoice-row flex items-center justify-between p-3 sm:p-4 rounded-xl hover:bg-surface-sunken dark:hover:bg-ink-700/50 transition-all cursor-pointer border border-transparent hover:border-line dark:hover:border-ink-600 group"
     >
       <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
         <div
@@ -205,7 +205,7 @@ const InvoiceRow = ({ invoice, onClick }) => {
           </p>
         </div>
       </div>
-      <div className="text-right flex-shrink-0 ml-3">
+      <div className="dash-invoice-row-amount text-right flex-shrink-0 ml-3">
         <p className="font-bold text-content dark:text-content-inverted text-base sm:text-lg whitespace-nowrap">
           ${invoice.total?.toFixed(2)}
         </p>
@@ -855,7 +855,7 @@ export default function Dashboard() {
                       </Link>
                     </div>
                   ) : (
-                    <div className="divide-y divide-line-subtle dark:divide-ink-700 space-y-0">
+                    <div className="dash-invoice-list divide-y divide-line-subtle dark:divide-ink-700 space-y-0">
                       {recentInvoices.map((invoice) => (
                         <InvoiceRow
                           key={invoice.id}
