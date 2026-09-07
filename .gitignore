@@ -44,3 +44,7 @@ __pycache__/
 *.pyc
 scripts/.session.tmp.json
 scripts/.last-email.html
+
+# The example file is placeholders only and MUST be committed, so it has to be
+# un-ignored after the .env* rule above catches it.
+!.env.example
