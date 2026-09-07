@@ -209,7 +209,18 @@ export default function QuickBillFlow({ mode = "invoice" }) {
         const upload = await sdk.integrations.Core.UploadFile({
           file: photoFile,
         });
-        uploadedUrl = upload?.file_url || null;
+        // Stop rather than carry on without it. UploadFile reports failure
+        // instead of throwing, so this used to fall through with uploadedUrl
+        // null: no photo reached the model, and it wrote a plausible invoice
+        // from nothing while the contractor watched their photo in the preview.
+        if (!upload?.success || !upload.file_url) {
+          setAiError(
+            `That photo could not be uploaded${upload?.error ? `: ${upload.error}` : ""}, so it was not read. Try again, or describe the job instead.`,
+          );
+          setAiLoading(false);
+          return;
+        }
+        uploadedUrl = upload.file_url;
         setPhotoUrl(uploadedUrl);
       }
 

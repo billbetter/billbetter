@@ -2,6 +2,7 @@ import React, { useState, useEffect } from "react";
 import { InvokeLLM } from "@/integrations/Core";
 import { LINE_ITEMS } from "@/lib/ai/schemas";
 import { applyRequestedTotal } from "@/lib/ai/lineItems";
+import { VISION_ACCEPT, unscannableReason } from "@/lib/ai/schemas";
 import { aiFailureMessage } from "@/lib/ai/failure";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -86,23 +87,57 @@ const CameraAnalyzer = ({ onAnalyze, className }) => {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [error, setError] = useState("");
 
+  // The photo used to be decoration. handleFileChange kept only an object URL
+  // for the preview, handleGenerate waited 1500ms to look like it was thinking
+  // and then sent `description` alone, and the button was disabled without
+  // text -- so "upload a photo" produced an invoice written from the caption,
+  // or from nothing. A receipt photographed and handed to this came back as
+  // generic labour and materials lines, because that is what the model writes
+  // when it is asked to price a job it cannot see.
   const handleGenerate = async () => {
-    if (!description.trim()) return;
+    if (!description.trim() && !imageFile) return;
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    if (onAnalyze) {
-      onAnalyze(description);
+    setError("");
+    try {
+      let fileUrl = null;
+      if (imageFile) {
+        const up = await sdk.integrations.Core.UploadFile({ file: imageFile });
+        // Loudly. UploadFile reports failure rather than throwing, and
+        // continuing without the photo is how an invented invoice reaches
+        // someone who believes their photo was read.
+        if (!up?.success || !up.file_url) {
+          setError(
+            `That photo could not be uploaded${up?.error ? `: ${up.error}` : ""}, so it was not read. Try again, or describe the work instead.`,
+          );
+          return;
+        }
+        fileUrl = up.file_url;
+      }
+      if (onAnalyze) await onAnalyze(description, fileUrl);
+      setDescription("");
+      setImage(null);
+      setImageFile(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    setDescription("");
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setImage(URL.createObjectURL(file));
+    if (!file) return;
+    const reason = unscannableReason(file);
+    if (reason) {
+      setError(reason);
+      e.target.value = "";
+      return;
     }
+    setError("");
+    setImageFile(file);
+    setImage(URL.createObjectURL(file));
+    e.target.value = ""; // allow re-picking the same file
   };
 
   return (
@@ -162,7 +197,7 @@ const CameraAnalyzer = ({ onAnalyze, className }) => {
           <input
             id="camera-input"
             type="file"
-            accept="image/*"
+            accept={VISION_ACCEPT}
             capture="environment"
             className="hidden"
             onChange={handleFileChange}
@@ -170,7 +205,7 @@ const CameraAnalyzer = ({ onAnalyze, className }) => {
           <input
             id="file-input"
             type="file"
-            accept="image/*"
+            accept={VISION_ACCEPT}
             className="hidden"
             onChange={handleFileChange}
           />
@@ -185,7 +220,10 @@ const CameraAnalyzer = ({ onAnalyze, className }) => {
               className="w-full h-28 sm:h-32 object-cover"
             />
             <button
-              onClick={() => setImage(null)}
+              onClick={() => {
+                setImage(null);
+                setImageFile(null);
+              }}
               className="absolute top-2 right-2 w-6 h-6 bg-surface-inverted/80 dark:bg-surface-inverted-deep/80 text-content-inverted rounded-full flex items-center justify-center hover:bg-surface-inverted transition-colors"
             >
               <X className="w-3 h-3" />
@@ -193,11 +231,17 @@ const CameraAnalyzer = ({ onAnalyze, className }) => {
           </div>
         )}
 
+        {error && (
+          <p className="text-xs font-medium text-danger-600 dark:text-danger-400">
+            {error}
+          </p>
+        )}
+
         {/* Generate Button */}
         <Button
           type="button"
           onClick={handleGenerate}
-          disabled={loading || !description.trim()}
+          disabled={loading || (!description.trim() && !imageFile)}
           className="w-full h-11 sm:h-12 bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover text-content-inverted font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm sm:text-base"
         >
           {loading ? (
@@ -794,7 +838,7 @@ export default function CreateInvoice() {
     setDeletingTemplate(false);
   };
 
-  const handleAISuggest = async (jobDescription) => {
+  const handleAISuggest = async (jobDescription, fileUrl = null) => {
     setAiLoading(true);
     try {
       const businessLocation = settings?.address || "";
@@ -811,7 +855,7 @@ export default function CreateInvoice() {
       const response = await InvokeLLM({
         prompt: `You are a pricing expert for contracting services in ${country}. Based on this job description, suggest invoice line items with realistic market rates for ${country}.
 
-Job: ${jobDescription}
+Job: ${jobDescription || "(no written description - work from the attached photo)"}
 Location: ${country}
 Currency: ${currency}
 Specialty: ${userSpecialty}
@@ -838,7 +882,31 @@ CRITICAL CALCULATION RULES:
 - Example: 5 items @ $20 each → quantity=5, rate=20, total=100
 - Example: "lock removal $50" → quantity=1, rate=50, total=50
 
-FORMATTING REQUIREMENTS:
+${
+  fileUrl
+    ? `THE ATTACHED PHOTO OUTRANKS EVERY PRICING RULE ABOVE.
+
+If it is a RECEIPT, supplier invoice or order confirmation, you are
+TRANSCRIBING it, not estimating:
+- Output exactly one line per item printed on it -- no more. Three items on the
+  receipt means three lines out. The "2-4 line items" guidance below does NOT
+  apply to a receipt.
+- Never invent a line. No accessories, delivery, labour, cleanup or contingency
+  unless the receipt itself prints one.
+- ALWAYS use quantity=1, and put the line's printed money amount -- the one at
+  the right-hand edge of that line -- in "rate". Do not split it into a unit
+  price, and do not carry over a quantity like "2@" or "3@" from the receipt.
+  Measured, splitting is where this goes wrong: a line reading "2@36.55" with
+  73.10 at the edge came back as quantity=2 with rate=73.10 in three runs out
+  of four, billing 146.20 for 73.10 of goods. Quantity 1 at the printed amount
+  cannot make that mistake, and the contractor can split it afterwards.
+- Skip SUBTOTAL, SALES TAX, TOTAL, DEBIT, card and auth lines. Not items.
+
+If it shows a JOB SITE instead, price the work visible in it as normal.
+
+`
+    : ""
+}FORMATTING REQUIREMENTS:
 - Keep descriptions SHORT and CLEAR (e.g., "HVAC System Inspection" NOT "Inspection of heating and cooling system")
 - Use professional service names without explanations
 - Be direct and to the point
@@ -846,6 +914,7 @@ FORMATTING REQUIREMENTS:
 - Rates should reflect ${currency} pricing
 
 Provide line items in this format.`,
+        ...(fileUrl && { file_urls: [fileUrl] }),
         response_json_schema: LINE_ITEMS,
       });
 
