@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from "react";
-import { RECEIPT_SCAN } from "@/lib/ai/schemas";
+import {
+  RECEIPT_SCAN,
+  VISION_ACCEPT,
+  unscannableReason,
+} from "@/lib/ai/schemas";
 import { aiFailureMessage } from "@/lib/ai/failure";
 import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
@@ -205,6 +209,15 @@ export default function JobExpensesTab({ job, user }) {
   const handleScanReceiptUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    // Checked before the upload, not after: a format the model cannot read
+    // uploads and previews perfectly well, and the only symptom would be a scan
+    // that comes back empty or invented.
+    const reason = unscannableReason(file);
+    if (reason) {
+      alert(reason);
+      e.target.value = "";
+      return;
+    }
     setUploadingForScan(true);
     try {
       const { file_url } = await sdk.integrations.Core.UploadFile({ file });
@@ -650,7 +663,7 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
                 <input
                   id="scan-receipt-upload"
                   type="file"
-                  accept="image/*"
+                  accept={VISION_ACCEPT}
                   capture="environment"
                   className="hidden"
                   onChange={handleScanReceiptUpload}

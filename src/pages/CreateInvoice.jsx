@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { InvokeLLM } from "@/integrations/Core";
 import { LINE_ITEMS } from "@/lib/ai/schemas";
+import { applyRequestedTotal } from "@/lib/ai/lineItems";
 import { aiFailureMessage } from "@/lib/ai/failure";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -849,7 +850,10 @@ Provide line items in this format.`,
       });
 
       if (response.items && response.items.length > 0) {
-        const itemsWithAmounts = response.items.map((item) => ({
+        // The prompt asks the model to honour a stated total; this makes it so.
+        // Measured, it obeys about a third of the time -- see lib/ai/lineItems.
+        const priced = applyRequestedTotal(response.items, jobDescription);
+        const itemsWithAmounts = priced.map((item) => ({
           ...item,
           amount: item.quantity * item.rate,
         }));

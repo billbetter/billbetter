@@ -151,3 +151,52 @@ export const VOICE_COMMAND = {
   },
   required: ["intent", "confirmation"],
 };
+
+/**
+ * The image formats a vision model can actually decode.
+ *
+ * Narrower than the uploads bucket allows, and narrower than `image/*`, both of
+ * which take HEIC -- which is what an iPhone camera produces by default. A HEIC
+ * receipt uploads cleanly, previews cleanly in Safari, and is then undecodable
+ * to the model, so the scan comes back empty or invented with nothing anywhere
+ * saying why. PDF is the same story from the other direction: the bucket takes
+ * it, image_url cannot read it.
+ *
+ * Used as the file input's `accept` as well as a guard. That matters on iOS:
+ * when `accept` excludes HEIC, the picker transcodes to JPEG on selection
+ * rather than refusing the photo, so narrowing this fixes the iPhone case
+ * instead of merely blocking it.
+ */
+export const VISION_IMAGE_TYPES = [
+  "image/png",
+  "image/jpeg",
+  "image/jpg",
+  "image/webp",
+];
+
+/** For an <input type="file" accept=...>. */
+export const VISION_ACCEPT = VISION_IMAGE_TYPES.join(",");
+
+/**
+ * Why this file cannot be scanned, or null when it can.
+ * @param {File} file
+ * @returns {string|null}
+ */
+export function unscannableReason(file) {
+  const type = String(file?.type || "").toLowerCase();
+  if (!type && file?.name) {
+    const ok = /\.(png|jpe?g|webp)$/i.test(file.name);
+    return ok ? null : "That file type cannot be read. Use a PNG, JPEG or WebP photo.";
+  }
+  if (VISION_IMAGE_TYPES.includes(type)) return null;
+  if (type === "image/heic" || type === "image/heif") {
+    return (
+      "iPhone HEIC photos cannot be read by the scanner. In Settings > Camera > " +
+      "Formats choose \"Most Compatible\", or re-save the photo as JPEG."
+    );
+  }
+  if (type === "application/pdf") {
+    return "PDF receipts cannot be scanned. Take a photo of the receipt instead.";
+  }
+  return "That image format cannot be read. Use a PNG, JPEG or WebP photo.";
+}

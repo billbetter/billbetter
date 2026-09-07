@@ -1,5 +1,9 @@
 import React, { useState } from "react";
-import { PHOTO_ESTIMATE } from "@/lib/ai/schemas";
+import {
+  PHOTO_ESTIMATE,
+  VISION_ACCEPT,
+  unscannableReason,
+} from "@/lib/ai/schemas";
 import { aiFailureMessage } from "@/lib/ai/failure";
 import { sdk } from "@/api/sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -28,9 +32,12 @@ export default function CameraAnalyzer({ onAnalysisComplete }) {
     const file = e.target.files[0];
     if (!file) return;
 
-    // Only allow images
-    if (!file.type.startsWith("image/")) {
-      alert("Please select an image file only");
+    // Not just "is it an image": HEIC is an image and the model cannot read
+    // one, so it would upload, preview, and come back with nothing found.
+    const reason = unscannableReason(file);
+    if (reason) {
+      alert(reason);
+      e.target.value = "";
       return;
     }
 
@@ -205,7 +212,7 @@ Provide a detailed materials list with specific names, quantities, units and cur
                     <label className="cursor-pointer">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept={VISION_ACCEPT}
                         capture="environment"
                         onChange={handlePhotoSelect}
                         className="hidden"
@@ -220,7 +227,7 @@ Provide a detailed materials list with specific names, quantities, units and cur
                     <label className="cursor-pointer">
                       <input
                         type="file"
-                        accept="image/*"
+                        accept={VISION_ACCEPT}
                         onChange={handlePhotoSelect}
                         className="hidden"
                       />

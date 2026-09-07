@@ -5,6 +5,8 @@ import { sdk } from "@/api/sdk";
 import { issuedPatch } from "@/lib/invoiceIssued";
 import { InvokeLLM } from "@/integrations/Core";
 import { LINE_ITEMS } from "@/lib/ai/schemas";
+import { applyRequestedTotal } from "@/lib/ai/lineItems";
+import { VISION_ACCEPT, unscannableReason } from "@/lib/ai/schemas";
 import { aiFailureMessage } from "@/lib/ai/failure";
 import { format, addDays } from "date-fns";
 import {
@@ -173,8 +175,12 @@ export default function QuickBillFlow({ mode = "invoice" }) {
   const handlePhotoSelect = (e) => {
     const file = e.target.files?.[0];
     if (!file) return;
-    if (!file.type.startsWith("image/")) {
-      setAiError("That doesn't look like an image.");
+    // Not just "is it an image": HEIC is an image and the model cannot read
+    // one, so it would upload, preview, and come back as an empty estimate.
+    const reason = unscannableReason(file);
+    if (reason) {
+      setAiError(reason);
+      e.target.value = "";
       return;
     }
     if (photoPreview) URL.revokeObjectURL(photoPreview);
@@ -240,7 +246,10 @@ Return JSON only.`;
         response_json_schema: LINE_ITEMS,
       });
 
-      const items = (response?.items || [])
+      // Same correction as CreateInvoice and CreateQuote: "honor them" in the
+      // prompt above is a request, not a guarantee. Runs before the filter so a
+      // scaled line is what gets kept.
+      const items = applyRequestedTotal(response?.items || [], description)
         .map((it) => {
           const q = Number(it.quantity) || 0;
           const r = Number(it.rate) || 0;
@@ -807,7 +816,7 @@ Details: ${detail}` : " Please try again."),
                   <label className="cursor-pointer">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept={VISION_ACCEPT}
                       capture="environment"
                       onChange={handlePhotoSelect}
                       className="hidden"
@@ -822,7 +831,7 @@ Details: ${detail}` : " Please try again."),
                   <label className="cursor-pointer">
                     <input
                       type="file"
-                      accept="image/*"
+                      accept={VISION_ACCEPT}
                       onChange={handlePhotoSelect}
                       className="hidden"
                     />

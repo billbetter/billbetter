@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from "react";
 import { LINE_ITEMS } from "@/lib/ai/schemas";
+import { applyRequestedTotal } from "@/lib/ai/lineItems";
 import { aiFailureMessage } from "@/lib/ai/failure";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -616,7 +617,10 @@ Provide line items in this format.`,
       });
 
       if (response.items && response.items.length > 0) {
-        const itemsWithAmounts = response.items.map((item) => ({
+        // See CreateInvoice: the model is asked for the stated total and often
+        // misses it, so the arithmetic is settled here rather than hoped for.
+        const priced = applyRequestedTotal(response.items, jobDescription);
+        const itemsWithAmounts = priced.map((item) => ({
           ...item,
           amount: item.quantity * item.rate,
         }));
