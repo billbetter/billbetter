@@ -1092,8 +1092,8 @@ const ChaseRow = ({
     <li className="group hover:bg-surface-sunken/70 dark:hover:bg-ink-800/40 transition-colors">
       <div className="flex items-stretch">
         <div className={`w-1 ${indicator}`} />
-        <div className="flex-1 min-w-0 px-4 sm:px-5 py-4">
-          <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:gap-5">
+        <div className="chase-row-container flex-1 min-w-0 px-4 sm:px-5 py-4">
+          <div className="chase-row flex flex-col gap-3">
             <div className="min-w-0 flex-1">
               <div className="flex items-center gap-2 flex-wrap">
                 <h3 className="font-black text-content dark:text-content-inverted text-sm sm:text-base truncate">
@@ -1150,7 +1150,7 @@ const ChaseRow = ({
               </div>
             </div>
 
-            <div className="flex items-center justify-between sm:justify-end gap-3 sm:flex-shrink-0">
+            <div className="chase-row-actions flex items-center justify-between gap-3">
               <p className="font-bold text-content dark:text-content-inverted text-base sm:text-lg whitespace-nowrap tabular-nums">
                 {formatCurrency(invoice.total)}
               </p>

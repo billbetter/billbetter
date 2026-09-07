@@ -909,3 +909,44 @@ html.shader-bg main .min-h-screen,
 html.shader-bg main .min-h-\[60vh\] {
   background-color: transparent;
 }
+
+/* ---------------------------------------------------------------------------
+   Recovery Queue rows size to their COLUMN, not the window.
+
+   The row used `sm:flex-row`, so it went horizontal at a 640px viewport. Its
+   real width is set by the page's body grid instead --
+   `lg:grid-cols-[minmax(0,1fr)_340px]` -- which at a 1024px viewport leaves the
+   list column around 350px once the app sidebar and the 340px rail are taken
+   out. So the row laid itself out sideways in a space less than half what that
+   needs, and the invoice number, due date and both readiness labels each wrapped
+   down their own narrow column.
+
+   A breakpoint cannot express this. The same viewport gives the column ~350px
+   with the sidebar expanded and ~550px collapsed, and the sidebar is runtime
+   state, not a media feature. The container is the only thing that knows.
+
+   30rem is the measured floor: the amount plus the Auto and Chase buttons hold
+   about 250px on the right, and the client name and meta line need roughly 200
+   before they start breaking up.
+
+   Plain CSS rather than @tailwindcss/container-queries -- one rule does not
+   earn a build dependency. Baseline since 2023; older engines simply keep the
+   stacked layout, which is the honest fallback.
+   --------------------------------------------------------------------------- */
+.chase-row-container {
+  container-type: inline-size;
+  container-name: chase-row;
+}
+
+@container chase-row (min-width: 30rem) {
+  .chase-row {
+    flex-direction: row;
+    align-items: center;
+    gap: 1.25rem;
+  }
+
+  .chase-row-actions {
+    justify-content: flex-end;
+    flex-shrink: 0;
+  }
+}
