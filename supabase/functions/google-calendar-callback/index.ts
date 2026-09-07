@@ -1,5 +1,5 @@
 import { getCorsHeaders } from '../_shared/cors.ts';
-import { exchangeCode } from '../_shared/google.ts';
+import { exchangeCode, verifyState } from '../_shared/google.ts';
 import { db } from '../_shared/supabase-admin.ts';
 
 Deno.serve(async (req) => {
@@ -7,8 +7,15 @@ Deno.serve(async (req) => {
   try {
     const url = new URL(req.url);
     const code = url.searchParams.get('code');
-    const state = url.searchParams.get('state');
-    if (!code || !state) throw new Error('Missing code or state');
+    const rawState = url.searchParams.get('state');
+    if (!code || !rawState) throw new Error('Missing code or state');
+
+    // The user id comes from a SIGNED state this server minted, not from the
+    // raw parameter. Before this, `state` was trusted verbatim as the user_id,
+    // so anyone could write their Google tokens into anyone's row. verifyState
+    // rejects a forged or expired state.
+    const state = await verifyState(rawState);
+    if (!state) throw new Error('Invalid or expired state');
 
     const tokens = await exchangeCode(code);
     if (!tokens.refresh_token) {
@@ -34,7 +41,7 @@ Deno.serve(async (req) => {
 
     const appBase = Deno.env.get('APP_BASE_URL') || 'http://localhost:5173';
     return new Response(
-      `<html><body style="font-family:sans-serif;text-align:center;padding:48px;"><h2>Google Calendar connected!</h2><p>You can close this window.</p><script>setTimeout(()=>{ try{ window.opener && window.opener.postMessage({type:'google-calendar-connected'},'*'); window.close(); }catch(e){ window.location.href='${appBase}/Settings'; } }, 800);</script></body></html>`,
+      `<html><body style="font-family:sans-serif;text-align:center;padding:48px;"><h2>Google Calendar connected!</h2><p>You can close this window.</p><script>setTimeout(()=>{ try{ window.opener && window.opener.postMessage({type:'google-calendar-connected'},'${appBase}'); window.close(); }catch(e){ window.location.href='${appBase}/Settings'; } }, 800);</script></body></html>`,
       { headers: { 'Content-Type': 'text/html' }, status: 200 }
     );
   } catch (err) {

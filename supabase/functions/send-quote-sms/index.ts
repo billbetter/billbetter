@@ -1,6 +1,8 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
 import { sendSMS } from '../_shared/sms.ts';
+import { loadOwnedForSend } from '../_shared/owned-send.ts';
+import { APP_URL } from '../_shared/app-url.ts';
 
 function money(v: unknown) {
   return `$${Number(v || 0).toFixed(2)}`;
@@ -24,20 +26,28 @@ Deno.serve(async (req) => {
   if (denied) return denied;
 
   try {
-    const {
-      to,
-      quote_number,
-      client_name,
-      total,
-      expiry_date,
-      approval_link,
-      business_name,
-      sender_phone,
-    } = await req.json();
+    const { quote_id, quote_number, total, expiry_date } = await req.json();
 
-    if (!to) throw new Error('Recipient phone number (to) is required');
+    // Recipient, business identity and the approve link come from the caller's
+    // own quote and settings, never the body -- otherwise any subscriber could
+    // fire platform-branded SMS at arbitrary numbers. See _shared/owned-send.ts.
+    const guard = await loadOwnedForSend('Quote', quote_id, access.user!, 'sms');
+    if (!guard) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Quote not found' }),
+        { status: 404, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
+      );
+    }
+    const to = guard.to;
+    if (!to) throw new Error('This quote has no client phone on file.');
 
-    const biz = business_name || 'Invoicium';
+    const client_name = guard.record.client_name;
+    const sender_phone = guard.business.sender_phone;
+    const approval_link = guard.record.public_id
+      ? `${APP_URL}/PublicQuote?id=${guard.record.public_id}`
+      : undefined;
+
+    const biz = guard.business.business_name;
     const hello = client_name ? `Hi ${String(client_name).split(' ')[0]}, ` : '';
     const validUntil = shortDate(expiry_date);
 

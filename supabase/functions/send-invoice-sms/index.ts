@@ -1,8 +1,8 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
 import { sendSMS } from '../_shared/sms.ts';
-import { db } from '../_shared/supabase-admin.ts';
 import { stampFeePercentOnSend } from '../_shared/stripe-session.ts';
+import { loadOwnedForSend } from '../_shared/owned-send.ts';
 import { APP_URL } from '../_shared/app-url.ts';
 
 function money(v: unknown) {
@@ -27,33 +27,34 @@ Deno.serve(async (req) => {
   if (denied) return denied;
 
   try {
-    const {
-      to,
-      invoice_number,
-      client_name,
-      total,
-      due_date,
-      payment_link,
-      business_name,
-      sender_phone,
-      invoice_id,
-    } = await req.json();
+    const { invoice_id, invoice_number, total, due_date, payment_link } = await req.json();
 
-    if (!to) throw new Error('Recipient phone number (to) is required');
+    // Ownership + trusted fields, same rule as send-invoice-email: recipient and
+    // business identity come from the caller's own invoice and settings, never
+    // the body. Before this, the invoice was fetched by body invoice_id with no
+    // owner check (cross-tenant token leak + a service-role fee write), and the
+    // recipient was whatever `to` the caller supplied. See _shared/owned-send.ts.
+    const guard = await loadOwnedForSend('Invoice', invoice_id, access.user!, 'sms');
+    if (!guard) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invoice not found' }),
+        { status: 404, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
+      );
+    }
+    const to = guard.to;
+    if (!to) throw new Error('This invoice has no client phone on file.');
+    const client_name = guard.record.client_name;
+    const sender_phone = guard.business.sender_phone;
 
-    // Resolved server-side, not taken from the request body -- the body is
-    // client-supplied and a stale token would send a link to nothing, with no
-    // error, because a delivered SMS is a successful send whatever the link
-    // inside it points at. No provider validates a URL for us.
     let publicUrl: string | null = null;
-    if (invoice_id) {
-      const invoice = await db.getOne('Invoice', invoice_id);
+    {
+      const invoice = guard.record;
 
       // Same refusal as send-invoice-email, for the same reason: the UI hides
       // every route here for a voided invoice, but this function is reachable
       // with an invoice_id alone, and the person who reads the text is the
       // client rather than the contractor who made the mistake.
-      if (invoice && (String(invoice.status || '') === 'void' || invoice.voided_at)) {
+      if (String(invoice.status || '') === 'void' || invoice.voided_at) {
         return new Response(
           JSON.stringify({
             success: false,
@@ -64,15 +65,13 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (invoice) {
-        await stampFeePercentOnSend(invoice);
-        if (invoice.public_token && !invoice.public_link_revoked_at) {
-          publicUrl = `${APP_URL}/i/${invoice.public_token}`;
-        }
+      await stampFeePercentOnSend(invoice);
+      if (invoice.public_token && !invoice.public_link_revoked_at) {
+        publicUrl = `${APP_URL}/i/${invoice.public_token}`;
       }
     }
 
-    const biz = business_name || 'Invoicium';
+    const biz = guard.business.business_name;
     const hello = client_name ? `Hi ${String(client_name).split(' ')[0]}, ` : '';
     const due = shortDate(due_date);
 

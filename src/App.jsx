@@ -136,7 +136,15 @@ function App() {
           <AuthenticatedApp />
         </Router>
         <Toaster />
-        <VisualEditAgent />
+        {/* Dev-only. VisualEditAgent registers a window 'message' listener whose
+            origin check was commented out, and it acts on messages that reload
+            the page and rewrite element content. In production it is both
+            dangerous and useless -- X-Frame-Options: DENY already stops the
+            editor parent frame from loading the app -- so it is excluded from
+            the production bundle entirely. import.meta.env.DEV is true only
+            under `vite dev`. The listener itself also enforces an origin
+            allowlist now (see VisualEditAgent.jsx). */}
+        {import.meta.env.DEV && <VisualEditAgent />}
       </QueryClientProvider>
     </AuthProvider>
   );

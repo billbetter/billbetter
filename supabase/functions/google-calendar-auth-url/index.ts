@@ -8,7 +8,7 @@ Deno.serve(async (req) => {
   try {
     const user = await getUserFromAuthHeader(req);
     if (!user) throw new Error('Not authenticated');
-    const url = getAuthUrl(user.id);
+    const url = await getAuthUrl(user.id);
     return new Response(JSON.stringify({ success: true, url }), {
       headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' },
       status: 200,

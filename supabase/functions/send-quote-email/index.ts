@@ -2,6 +2,8 @@ import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
 import { sendEmail } from '../_shared/resend.ts';
 import { renderEmailLayout, formatCurrency, formatDate, escapeHtml, LineItem } from '../_shared/email-templates.ts';
+import { loadOwnedForSend } from '../_shared/owned-send.ts';
+import { APP_URL } from '../_shared/app-url.ts';
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -15,7 +17,7 @@ Deno.serve(async (req) => {
 
   try {
     const {
-      to,
+      quote_id,
       quote_number,
       client_name,
       total,
@@ -24,20 +26,36 @@ Deno.serve(async (req) => {
       tax_amount,
       items,
       pdf_url,
-      approval_link,
-      business_name,
-      sender_name,
-      sender_email,
-      sender_phone,
-      sender_address,
-      logo_url,
       notes,
       expiry_date,
       date_issued,
       created_date,
     } = await req.json();
 
-    if (!to) throw new Error('Recipient email (to) is required');
+    // Ownership + trusted fields. The recipient, the business identity and the
+    // approve link are resolved from the caller's own quote and settings -- NOT
+    // from the request body -- so this endpoint can no longer be used to send
+    // mail from the platform's domain to an arbitrary recipient. A quote the
+    // caller does not own answers 404 with the generic wording, so the endpoint
+    // is not an existence oracle. See _shared/owned-send.ts.
+    const guard = await loadOwnedForSend('Quote', quote_id, access.user!, 'email');
+    if (!guard) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Quote not found' }),
+        { status: 404, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
+      );
+    }
+    const to = guard.to;
+    if (!to) throw new Error('This quote has no client email on file.');
+
+    const { business_name, sender_name, sender_email, sender_phone, sender_address, logo_url } =
+      guard.business;
+
+    // Built from the stored public_id, never accepted from the body -- the body
+    // value was a free phishing destination on the platform's domain.
+    const approval_link = guard.record.public_id
+      ? `${APP_URL}/PublicQuote?id=${guard.record.public_id}`
+      : undefined;
 
     let attachments: { filename: string; content: string }[] | undefined;
     if (pdf_url && pdf_url.startsWith('data:application/pdf;base64,')) {

@@ -432,8 +432,18 @@ export default function VisualEditAgent() {
     };
 
     const handleMessage = (event) => {
-      // Check origin if desired
-      //if (event.origin !== 'parent-origin') return;
+      // Only accept messages from the same origin or an explicitly allowed
+      // editor origin. This listener acts on messages that reload the page and
+      // rewrite element content; without this check any window holding a handle
+      // to this page (e.g. one that opened it via window.open) could drive it.
+      // The component is also excluded from production builds (see App.jsx), so
+      // this is the dev-time backstop.
+      const ALLOWED_ORIGINS = [
+        window.location.origin,
+        "http://localhost:5173",
+        "http://127.0.0.1:5173",
+      ];
+      if (!ALLOWED_ORIGINS.includes(event.origin)) return;
 
       const message = event.data;
 

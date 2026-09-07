@@ -5,6 +5,7 @@ import { notify } from '../_shared/notify.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 import { renderEmailLayout, formatCurrency, formatDate, escapeHtml, LineItem } from '../_shared/email-templates.ts';
 import { stampFeePercentOnSend } from '../_shared/stripe-session.ts';
+import { loadOwnedForSend } from '../_shared/owned-send.ts';
 import { APP_URL } from '../_shared/app-url.ts';
 
 Deno.serve(async (req) => {
@@ -19,7 +20,7 @@ Deno.serve(async (req) => {
 
   try {
     const {
-      to,
+      invoice_id,
       invoice_number,
       client_name,
       total,
@@ -29,21 +30,30 @@ Deno.serve(async (req) => {
       items,
       pdf_url,
       payment_link,
-      business_name,
-      sender_name,
-      sender_email,
-      sender_phone,
-      sender_address,
-      logo_url,
       notes,
       due_date,
       issue_date,
       created_date,
       status,
-      invoice_id,
     } = await req.json();
 
-    if (!to) throw new Error('Recipient email (to) is required');
+    // Ownership + trusted fields. The recipient and the business identity come
+    // from the caller's own invoice and settings, never the body -- so this
+    // endpoint can no longer leak another tenant's public token to an
+    // attacker-chosen recipient (it fetched by body invoice_id with no owner
+    // check before), nor send platform-branded mail to arbitrary addresses. A
+    // non-owned invoice answers 404 with generic wording. See owned-send.ts.
+    const guard = await loadOwnedForSend('Invoice', invoice_id, access.user!, 'email');
+    if (!guard) {
+      return new Response(
+        JSON.stringify({ success: false, error: 'Invoice not found' }),
+        { status: 404, headers: { ...getCorsHeaders(req), 'Content-Type': 'application/json' } },
+      );
+    }
+    const to = guard.to;
+    if (!to) throw new Error('This invoice has no client email on file.');
+    const { business_name, sender_name, sender_email, sender_phone, sender_address, logo_url } =
+      guard.business;
 
     // -- Phase A of the deliverability plan (docs/invoice-links-plan.md s.6) --
     //
@@ -59,8 +69,8 @@ Deno.serve(async (req) => {
     // Resend is a successful send.
     let publicUrl: string | null = null;
     let canPayOnline = false;
-    if (invoice_id) {
-      const invoice = await db.getOne('Invoice', invoice_id);
+    {
+      const invoice = guard.record;
 
       // A voided invoice is never mailed, whoever asks.
       //
@@ -71,7 +81,7 @@ Deno.serve(async (req) => {
       // and the client, not the contractor, is the one who reads it.
       //
       // Both signals, matching isVoided() in src/lib/invoiceVoid.js.
-      if (invoice && (String(invoice.status || '') === 'void' || invoice.voided_at)) {
+      if (String(invoice.status || '') === 'void' || invoice.voided_at) {
         return new Response(
           JSON.stringify({
             success: false,
@@ -82,16 +92,16 @@ Deno.serve(async (req) => {
         );
       }
 
-      if (invoice) {
-        // Decision 4: lock the fee rate to the plan they are on right now.
-        await stampFeePercentOnSend(invoice);
-        if (invoice.public_token && !invoice.public_link_revoked_at) {
-          publicUrl = `${APP_URL}/i/${invoice.public_token}`;
-        }
-        const settings = await db.findOne('BusinessSettings', { user_id: String(invoice.user_id) });
-        canPayOnline =
-          Boolean(settings?.stripe_account_id) && settings?.stripe_account_status === 'active';
+      // Decision 4: lock the fee rate to the plan they are on right now.
+      // Safe now that ownership is verified -- this is a write to the caller's
+      // own invoice, not, as before, any invoice whose id was guessed.
+      await stampFeePercentOnSend(invoice);
+      if (invoice.public_token && !invoice.public_link_revoked_at) {
+        publicUrl = `${APP_URL}/i/${invoice.public_token}`;
       }
+      const settings = await db.findOne('BusinessSettings', { user_id: String(invoice.user_id) });
+      canPayOnline =
+        Boolean(settings?.stripe_account_id) && settings?.stripe_account_status === 'active';
     }
 
     // The pre-generated Stripe Checkout URL is the fallback, and it is the
