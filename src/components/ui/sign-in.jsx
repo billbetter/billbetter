@@ -1,5 +1,7 @@
 import React, { useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
+import { ShaderBackground } from "@/components/ui/shader-background";
+import { useShaderAppearance } from "@/lib/appearance";
 
 /**
  * Split-screen auth shell used by the Login and Register pages.
@@ -102,6 +104,13 @@ export const SignInPage = ({
   onToggleMode,
 }) => {
   const [showPassword, setShowPassword] = useState(false);
+  // The same background, and the same choice, the signed-in app uses. Someone
+  // who turned it off in Settings is not shown one here either.
+  const {
+    enabled: shaderEnabled,
+    chosen: shaderChosen,
+    preset: shaderPreset,
+  } = useShaderAppearance();
   const isSignup = mode === "signup";
   const isError = message && message.tone !== "success";
 
@@ -301,13 +310,27 @@ export const SignInPage = ({
               : undefined
           }
         >
-          {!heroImageSrc && (
-            <>
-              <div className="absolute -left-24 -top-24 h-[520px] w-[520px] rounded-full bg-brand-500/25 blur-[130px]" />
-              <div className="absolute -bottom-32 -right-16 h-[460px] w-[460px] rounded-full bg-success-500/20 blur-[130px]" />
-            </>
-          )}
-          {/* Scrim keeps the cards readable over a photo as well as the gradient. */}
+          {!heroImageSrc &&
+            (shaderEnabled ? (
+              /* bg-surface-inverted on the parent is the floor here: where WebGL
+                 is missing the canvas draws nothing, and the panel stays dark
+                 rather than going blank. Paused by an IntersectionObserver, so
+                 the md:block panel costs nothing while it is hidden on a
+                 phone. respectReducedMotion mirrors Layout -- a default is
+                 nobody's consent, so only someone who actually flipped the
+                 switch overrides the OS setting. */
+              <ShaderBackground
+                className="absolute inset-0 h-full w-full"
+                preset={shaderPreset}
+                respectReducedMotion={!shaderChosen}
+              />
+            ) : (
+              <>
+                <div className="absolute -left-24 -top-24 h-[520px] w-[520px] rounded-full bg-brand-500/25 blur-[130px]" />
+                <div className="absolute -bottom-32 -right-16 h-[460px] w-[460px] rounded-full bg-success-500/20 blur-[130px]" />
+              </>
+            ))}
+          {/* Scrim keeps the cards readable over a photo or a shader alike. */}
           <div className="absolute inset-0 bg-gradient-to-t from-ink-950/70 via-transparent to-transparent" />
         </div>
 
