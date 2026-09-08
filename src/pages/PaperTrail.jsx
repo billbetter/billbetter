@@ -67,8 +67,26 @@ const money = (n) =>
     minimumFractionDigits: 2,
   });
 
-const longDate = (d) => (d ? format(d, "d MMM yyyy 'at' h:mm a") : "--");
-const shortDate = (d) => (d ? format(d, "d MMM yyyy") : "--");
+/**
+ * `new Date(null)` is the epoch, not an invalid date, so a null timestamp would
+ * render as a confident "1 Jan 1970" -- in a banner whose entire job is to make
+ * the record look trustworthy. Both formatters take anything and answer "--".
+ */
+const asDate = (v) => {
+  if (v instanceof Date) return Number.isNaN(v.getTime()) ? null : v;
+  if (!v) return null;
+  const d = new Date(v);
+  return Number.isNaN(d.getTime()) ? null : d;
+};
+
+const longDate = (v) => {
+  const d = asDate(v);
+  return d ? format(d, "d MMM yyyy 'at' h:mm a") : "--";
+};
+const shortDate = (v) => {
+  const d = asDate(v);
+  return d ? format(d, "d MMM yyyy") : "--";
+};
 
 const FILTERS = [
   { id: "all", label: "Everything" },
@@ -345,8 +363,7 @@ function ChainBanner({ chain }) {
         <p className="text-content-body dark:text-content-subtle mt-0.5">
           Each entry is cryptographically linked to the one before it, so
           changing or removing any of them breaks every entry that follows.
-          Checked just now, covering {shortDate(new Date(chain.sealedFrom))} to{" "}
-          {shortDate(new Date(chain.sealedTo))}.
+          Checked just now, covering {shortDate(chain.sealedFrom)} to {shortDate(chain.sealedTo)}.
         </p>
       </div>
     </div>
