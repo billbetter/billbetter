@@ -46,6 +46,7 @@ import {
 } from "recharts";
 import PullToRefresh from "@/components/utils/PullToRefresh";
 import DailyDigest from "@/components/dashboard/DailyDigest";
+import ReadReceiptBadge from "@/components/invoice/ReadReceiptBadge";
 import { indexPaymentsByInvoice, revenueDate } from "@/lib/invoicePayments";
 
 // Stat Card Component
@@ -199,6 +200,10 @@ const InvoiceRow = ({ invoice, onClick }) => {
             >
               {invoice.status}
             </span>
+            {/* The dashboard is where a contractor looks first thing in the
+                morning, so a receipt earned overnight belongs here rather than
+                only two clicks away. Renders nothing until there is one. */}
+            <ReadReceiptBadge document={invoice} className="flex-shrink-0" />
           </div>
           <p className="text-sm text-content-muted dark:text-content-subtle truncate">
             {invoice.client_name}

@@ -39,6 +39,7 @@ export type NotificationPreferenceKey =
   | 'invoice_overdue'
   | 'quote_approved'
   | 'quote_declined'
+  | 'document_viewed'
   | 'payment_received'
   | 'payment_failed'
   | 'due_date_reminder'

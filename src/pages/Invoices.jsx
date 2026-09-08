@@ -84,6 +84,7 @@ import { format } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import PullToRefresh from "@/components/utils/PullToRefresh";
 import ChaseInvoiceBanner from "@/components/invoice/ChaseInvoiceBanner";
+import ReadReceiptBadge from "@/components/invoice/ReadReceiptBadge";
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
@@ -1349,6 +1350,16 @@ export default function Invoices() {
                               ))}
                             </SelectContent>
                           </Select>
+
+                          {/* Under the status, not beside it: whether the
+                              client has opened it is the first thing you want
+                              to know about an invoice that is still sitting at
+                              "sent", and it is nothing at all once it is paid.
+                              Renders itself away when there is no receipt. */}
+                          <ReadReceiptBadge
+                            document={invoice}
+                            className="mt-1.5"
+                          />
                         </TableCell>
 
                         <TableCell className="py-4 px-6">
@@ -1540,18 +1551,23 @@ export default function Invoices() {
                         </div>
 
                         <div className="flex items-center justify-between pt-3 border-t border-ink-50 dark:border-ink-700">
-                          <button
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-transform ${isVoided(invoice) ? "" : "active:scale-95"} ${statusConfig[invoice.status]?.color || "bg-ink-100"}`}
-                            disabled={isVoided(invoice)}
-                            onClick={() => setMobileStatusPicker(invoice.id)}
-                          >
-                            {updatingStatus === invoice.id ? (
-                              <Loader2 className="w-3 h-3 animate-spin" />
-                            ) : (
-                              <StatusIcon className="w-3 h-3" />
-                            )}
-                            <span className="capitalize">{invoice.status}</span>
-                          </button>
+                          <div className="flex items-center gap-2 min-w-0">
+                            <button
+                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold transition-transform ${isVoided(invoice) ? "" : "active:scale-95"} ${statusConfig[invoice.status]?.color || "bg-ink-100"}`}
+                              disabled={isVoided(invoice)}
+                              onClick={() => setMobileStatusPicker(invoice.id)}
+                            >
+                              {updatingStatus === invoice.id ? (
+                                <Loader2 className="w-3 h-3 animate-spin" />
+                              ) : (
+                                <StatusIcon className="w-3 h-3" />
+                              )}
+                              <span className="capitalize">
+                                {invoice.status}
+                              </span>
+                            </button>
+                            <ReadReceiptBadge document={invoice} />
+                          </div>
 
                           <div className="flex gap-2">
                             <Link

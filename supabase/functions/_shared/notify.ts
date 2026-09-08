@@ -25,6 +25,7 @@ import type {
   SubscriptionChangedPayload,
   QuoteApprovedPayload,
   QuoteDeclinedPayload,
+  DocumentViewedPayload,
 } from "../_shared/notification-types.ts";
 import { trialStartedEmail } from "../_shared/email-trial-started.ts";
 import { invoiceSentEmail } from "../_shared/email-invoice-sent.ts";
@@ -34,6 +35,7 @@ import {
   quoteApprovedEmail,
   quoteDeclinedEmail,
 } from "../_shared/email-quote-responded.ts";
+import { documentViewedEmail } from "../_shared/email-document-viewed.ts";
 import { wantsNotification } from "../_shared/notify-prefs.ts";
 import type { NotificationPreferenceKey } from "../_shared/notify-prefs.ts";
 
@@ -163,5 +165,33 @@ export const notify = {
       p.userEmail,
       () => quoteDeclinedEmail(p),
       opts.replyTo,
+    ),
+
+  /**
+   * A client opened an invoice or quote for the first time. Gated by the
+   * `document_viewed` toggle.
+   *
+   * Gated from the day it ships, unlike the four older notifications. This is
+   * the one kind of mail here that is pure information -- nothing is owed,
+   * nothing changed, no money moved -- so it is also the one most likely to be
+   * unwanted by a contractor sending forty invoices a week. Shipping it
+   * ungated and promising a switch later would mean the busiest users, the
+   * ones it annoys most, meet it with no way out.
+   *
+   * `replyTo` is left at support: this email is about a client ACTION, not a
+   * message from them, so there is nothing for the contractor to reply to and
+   * pointing the reply at the client would invite "did you get my invoice?"
+   * sent to someone who demonstrably just read it.
+   */
+  documentViewed: (
+    p: DocumentViewedPayload,
+    opts: { settings?: Record<string, unknown> | null; userId?: string },
+  ) =>
+    gated(
+      "document_viewed",
+      opts,
+      `${p.kind}-viewed`,
+      p.userEmail,
+      () => documentViewedEmail(p),
     ),
 };

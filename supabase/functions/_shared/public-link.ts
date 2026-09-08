@@ -1,4 +1,6 @@
-import { db } from './supabase-admin.ts';
+import { db, getUserContact } from './supabase-admin.ts';
+import { notify } from './notify.ts';
+import { APP_URL } from './app-url.ts';
 
 /**
  * Everything the public document pages share: token lookup, revocation,
@@ -289,8 +291,9 @@ export async function advanceViewCounters(
   const last = row.last_viewed_at ? new Date(String(row.last_viewed_at)).getTime() : 0;
   const withinDebounce = last > 0 && Date.now() - last < VIEW_DEBOUNCE_MS;
 
+  const isFirstView = !row.first_viewed_at;
   const patch: Record<string, unknown> = { last_viewed_at: now };
-  if (!row.first_viewed_at) patch.first_viewed_at = now;
+  if (isFirstView) patch.first_viewed_at = now;
   if (!withinDebounce) patch.view_count = (Number(row.view_count) || 0) + 1;
 
   // Status is NOT touched here, on purpose. Viewing is a timestamp, not a
@@ -300,8 +303,78 @@ export async function advanceViewCounters(
     await db.update(table, String(row.id), patch);
   } catch (err) {
     console.error('advanceViewCounters failed (ignored):', err instanceof Error ? err.message : err);
+    // No notification. The write is what makes the open a one-time event: if
+    // first_viewed_at did not land, the next open takes this branch again, and
+    // mailing from here would send the contractor the same "they opened it"
+    // every single time their client reloaded the page.
+    return withinDebounce ? 'debounced' : 'counted';
   }
+
+  if (isFirstView) await notifyFirstView(table, row, now);
+
   return withinDebounce ? 'debounced' : 'counted';
+}
+
+/**
+ * Tell the contractor their client just opened the document, once, ever.
+ *
+ * -- Why this is awaited on the client's request path ----------------------
+ *
+ * It costs the person opening the invoice a few hundred milliseconds, which
+ * they never see: record_view is fired from JS after the page has already
+ * rendered (see PublicInvoice.jsx), and the caller swallows its result. The
+ * alternative -- returning first and mailing after -- is not available, because
+ * an edge isolate may be frozen the moment the Response is handed back, and a
+ * notification that usually sends is worse than one that always does.
+ *
+ * Never throws. A Resend outage must not turn into a client who cannot read
+ * their invoice, so every failure here is logged and swallowed; the view
+ * itself is already committed above.
+ */
+async function notifyFirstView(
+  table: string,
+  row: Record<string, unknown>,
+  viewedAt: string,
+): Promise<void> {
+  try {
+    const userId = String(row.user_id || '');
+    if (!userId) return;
+
+    const contact = await getUserContact(userId);
+    if (!contact?.email) return;
+
+    const isInvoice = table === 'Invoice';
+    const settings = await db.findOne('BusinessSettings', { user_id: userId });
+
+    await notify.documentViewed(
+      {
+        userEmail: contact.email,
+        userName: contact.name,
+        kind: isInvoice ? 'invoice' : 'quote',
+        number: row.invoice_number || row.quote_number
+          ? String(row.invoice_number || row.quote_number)
+          : null,
+        clientName: row.client_name ? String(row.client_name) : null,
+        total: Number(row.total) || 0,
+        viewedAt,
+        // updated_at moves on the send (the fee stamp and the token write both
+        // touch it), so it is the closest thing to "when this went out". Only
+        // used to render "waited 3 days", which the template drops when the
+        // arithmetic does not make sense.
+        sentAt: row.updated_at ? String(row.updated_at) : null,
+        // The contractor's own page. Mailing them the CLIENT's public link
+        // would put a credential meant for one recipient into a second inbox,
+        // and clicking it would count as another view of their own document.
+        documentUrl: `${APP_URL}/${isInvoice ? 'InvoiceDetail' : 'QuoteDetail'}?id=${row.id}`,
+      },
+      { settings },
+    );
+  } catch (err) {
+    console.error(
+      'notifyFirstView failed (ignored):',
+      err instanceof Error ? err.message : err,
+    );
+  }
 }
 
 export const PUBLIC_LINK_LIMITS = {

@@ -15,6 +15,7 @@ import {
   ShieldOff,
 } from "lucide-react";
 import { format } from "date-fns";
+import { readReceipt } from "@/lib/readReceipt";
 
 /**
  * The contractor's controls for the public link on one document.
@@ -102,13 +103,11 @@ export default function PublicLinkControls({ document: doc, kind = "invoice", on
     }
   };
 
-  const viewedLabel = () => {
-    if (!doc.first_viewed_at) return "Not opened yet";
-    const first = new Date(doc.first_viewed_at);
-    if (Number.isNaN(first.getTime())) return "Opened";
-    const count = Number(doc.view_count) || 1;
-    return `Opened ${count === 1 ? "once" : `${count} times`} · first on ${format(first, "PP")}`;
-  };
+  // The wording lives in src/lib/readReceipt.js, which is also what the two
+  // list views render. Four screens make this same claim about the client's
+  // behaviour and they have to make it identically -- "opened" on one and
+  // "not opened" on another is how someone stops believing the feature.
+  const receipt = readReceipt(doc);
 
   return (
     <Card>
@@ -150,9 +149,30 @@ export default function PublicLinkControls({ document: doc, kind = "invoice", on
           </Button>
         </div>
 
-        <div className="flex items-center gap-2 text-sm text-content-muted">
-          <Eye className="w-4 h-4" />
-          {viewedLabel()}
+        <div className="flex items-start gap-2 text-sm text-content-muted">
+          <Eye className="w-4 h-4 mt-0.5 flex-shrink-0" />
+          <div>
+            <p className={receipt.opened ? "text-content-body" : undefined}>
+              {receipt.label}
+            </p>
+            {/* Only when the client came BACK. A second visit an hour later is
+                a different signal from one long read, and it is the one that
+                says they are still weighing it. */}
+            {receipt.reopened && (
+              <p className="text-xs mt-0.5">
+                Last opened {format(receipt.lastAt, "PPp")}
+              </p>
+            )}
+            {!receipt.opened && (
+              // Said plainly, because the absence of a receipt is not evidence
+              // the client ignored anything: a PDF read straight from the email
+              // never touches this link.
+              <p className="text-xs mt-0.5">
+                This only counts opens of the link above — reading the attached
+                PDF does not show up here.
+              </p>
+            )}
+          </div>
         </div>
 
         <div className="flex flex-wrap gap-2 pt-1">

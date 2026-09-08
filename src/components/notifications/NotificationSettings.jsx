@@ -34,6 +34,7 @@ export default function NotificationSettings() {
     invoice_overdue: true,
     quote_approved: true,
     quote_declined: true,
+    document_viewed: true,
     payment_received: true,
     payment_failed: true,
     due_date_reminder: true,
@@ -192,11 +193,11 @@ export default function NotificationSettings() {
   /**
    * Which toggles actually gate a notification.
    *
-   * Saving the preferences made a second problem visible. The ten switches
-   * below now persist -- they never did before -- but only these two are read
-   * by anything: _shared/notify-prefs.ts gates quote_approved and
-   * quote_declined inside approve-quote. The other eight would store a choice
-   * that no sender consults.
+   * Saving the preferences made a second problem visible. The switches below
+   * now persist -- they never did before -- but only these three are read by
+   * anything: _shared/notify-prefs.ts gates quote_approved and quote_declined
+   * inside approve-quote, and document_viewed inside _shared/public-link.ts.
+   * The rest would store a choice that no sender consults.
    *
    * A control someone deliberately turns OFF, which is then ignored, is the
    * lying-stub bug with a nicer interface -- and worse than the version that
@@ -209,7 +210,11 @@ export default function NotificationSettings() {
    * carry billing and payment mail, and switching those off is its own
    * decision.
    */
-  const WIRED_PREFERENCES = new Set(["quote_approved", "quote_declined"]);
+  const WIRED_PREFERENCES = new Set([
+    "quote_approved",
+    "quote_declined",
+    "document_viewed",
+  ]);
 
   const notificationTypes = [
     {
@@ -236,6 +241,12 @@ export default function NotificationSettings() {
       key: "quote_declined",
       label: "Quote Declined",
       description: "When a client declines a quote",
+    },
+    {
+      key: "document_viewed",
+      label: "Invoice or Quote Opened",
+      description:
+        "The first time a client opens one from the link you sent. Once per document, not once per visit.",
     },
     {
       key: "payment_received",

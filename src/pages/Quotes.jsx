@@ -59,6 +59,7 @@ import {
 import { format, differenceInDays } from "date-fns";
 import { motion, AnimatePresence } from "framer-motion";
 import PullToRefresh from "@/components/utils/PullToRefresh";
+import ReadReceiptBadge from "@/components/invoice/ReadReceiptBadge";
 
 export default function Quotes() {
   const [quotes, setQuotes] = useState([]);
@@ -901,6 +902,14 @@ export default function Quotes() {
                               </span>
                             </p>
                           )}
+
+                          {/* A quote that has been read and not answered is the
+                              one worth a phone call. Renders nothing when there
+                              is no receipt to show. */}
+                          <ReadReceiptBadge
+                            document={quote}
+                            className="mt-1.5"
+                          />
                         </TableCell>
 
                         <TableCell className="py-4 px-4">
@@ -1026,12 +1035,17 @@ export default function Quotes() {
 
                         <div className="flex items-center justify-between pt-3 border-t border-ink-50 dark:border-ink-700">
                           <div className="min-w-0">
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${statusConfig[quote.status]?.color || "bg-ink-100"}`}
-                            >
-                              <StatusIcon className="w-3 h-3" />
-                              <span className="capitalize">{quote.status}</span>
-                            </span>
+                            <div className="flex items-center gap-2">
+                              <span
+                                className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-bold ${statusConfig[quote.status]?.color || "bg-ink-100"}`}
+                              >
+                                <StatusIcon className="w-3 h-3" />
+                                <span className="capitalize">
+                                  {quote.status}
+                                </span>
+                              </span>
+                              <ReadReceiptBadge document={quote} />
+                            </div>
                             {respondedBy(quote) && (
                               <p className="mt-1.5 text-[11px] leading-tight text-content-muted dark:text-content-subtle truncate">
                                 {respondedBy(quote).verb}{" "}
