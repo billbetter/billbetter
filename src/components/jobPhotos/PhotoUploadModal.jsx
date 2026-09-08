@@ -180,7 +180,19 @@ export default function PhotoUploadModal({
 
       for (const file of files) {
         // Upload file
-        const uploadResult = await sdk.integrations.Core.UploadFile({ file });
+        // PUBLIC, deliberately. Job photos are shared with the client through
+        // an anonymous album link (pages/SharedPhotos.jsx) -- no account, no
+        // session, and the link is expected to keep working for as long as the
+        // share says it does. Private storage would mean signing URLs for an
+        // anonymous viewer, which is public access with extra steps and an
+        // expiry that breaks a link the client bookmarked.
+        //
+        // Receipts are the opposite case and go to the private bucket; see
+        // JobExpensesTab.
+        const uploadResult = await sdk.integrations.Core.UploadFile({
+          file,
+          visibility: "public",
+        });
 
         // Create photo record
         await sdk.entities.JobPhoto.create({

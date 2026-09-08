@@ -1,5 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
+import { enforceRateLimit, rateLimited } from '../_shared/rate-limit.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 import { buildInvoiceCheckoutSession } from '../_shared/stripe-session.ts';
 
@@ -33,6 +34,11 @@ Deno.serve(async (req) => {
   const access = await requireAppAccess(req);
   const denied = accessDenied(access, getCorsHeaders(req));
   if (denied) return denied;
+
+  // Spend cap: a Stripe API call per request. See _shared/rate-limit.ts.
+  const budget = await enforceRateLimit('create-invoice-payment-link', access.user!.id);
+  const tooMany = rateLimited(budget, getCorsHeaders(req));
+  if (tooMany) return tooMany;
 
   try {
     // Invoices are read with SERVICE_ROLE, which bypasses RLS -- so ownership is

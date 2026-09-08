@@ -1,5 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
+import { enforceRateLimit, rateLimited } from '../_shared/rate-limit.ts';
 import { buildInvoicePDF } from '../_shared/pdf-utils.ts';
 
 Deno.serve(async (req) => {
@@ -11,6 +12,13 @@ Deno.serve(async (req) => {
   const access = await requireAppAccess(req);
   const denied = accessDenied(access, getCorsHeaders(req));
   if (denied) return denied;
+
+  // Spend cap: CPU and a multi-MB artifact per call. The budget here is the
+  // loosest of the set because the UI regenerates on preview, so this is the
+  // chattiest legitimate caller. See _shared/rate-limit.ts.
+  const budget = await enforceRateLimit('generate-invoice-pdf', access.user!.id);
+  const tooMany = rateLimited(budget, getCorsHeaders(req));
+  if (tooMany) return tooMany;
 
   try {
     const raw = await req.json();

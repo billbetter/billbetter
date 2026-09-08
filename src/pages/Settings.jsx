@@ -476,6 +476,12 @@ export default function Settings() {
         setUploadingLogo(true);
         const uploadResult = await sdk.integrations.Core.UploadFile({
           file: logoFile,
+          // PUBLIC, deliberately. The logo is rendered inside emailed invoice
+          // PDFs and on the public invoice page, both of which are opened by a
+          // client with no session, often days later. A signed URL would have
+          // expired by then and the invoice would arrive unbranded. Nothing
+          // about a business logo is confidential -- it is on their van.
+          visibility: "public",
         });
         setUploadingLogo(false);
 

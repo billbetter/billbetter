@@ -206,6 +206,9 @@ export default function QuickBillFlow({ mode = "invoice" }) {
     try {
       let uploadedUrl = photoUrl;
       if (photoFile && !uploadedUrl) {
+        // Private bucket (the default), and only file_url is used: this photo
+        // is handed to the model and never written to a row, so the signed URL
+        // is exactly the right lifetime for it.
         const upload = await sdk.integrations.Core.UploadFile({
           file: photoFile,
         });

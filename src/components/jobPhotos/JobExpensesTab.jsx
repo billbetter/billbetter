@@ -5,6 +5,7 @@ import {
   unscannableReason,
 } from "@/lib/ai/schemas";
 import { aiFailureMessage } from "@/lib/ai/failure";
+import { openStorageRef } from "@/lib/storageUrl";
 import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -117,7 +118,11 @@ export default function JobExpensesTab({ job, user }) {
 
   // AI Scan state
   const [showScanDialog, setShowScanDialog] = useState(false);
+  // The signed URL the model is given, and the durable reference written onto
+  // the saved rows. Kept as two pieces of state so neither can be used for the
+  // other's job -- see src/lib/storageUrl.js.
   const [scanImageUrl, setScanImageUrl] = useState(null);
+  const [scanImageRef, setScanImageRef] = useState(null);
   const [scanning, setScanning] = useState(false);
   const [uploadingForScan, setUploadingForScan] = useState(false);
   const [scannedItems, setScannedItems] = useState([]);
@@ -195,8 +200,12 @@ export default function JobExpensesTab({ job, user }) {
     if (!file) return;
     setUploadingReceipt(true);
     try {
-      const { file_url } = await sdk.integrations.Core.UploadFile({ file });
-      setForm((prev) => ({ ...prev, receipt_url: file_url }));
+      // Private bucket (the default). A receipt is financial PII -- vendor,
+      // amounts, sometimes a card's last four. file_ref is the durable value
+      // that goes in the row; the signed file_url would be dead within the
+      // hour. See src/lib/storageUrl.js.
+      const { file_ref } = await sdk.integrations.Core.UploadFile({ file });
+      setForm((prev) => ({ ...prev, receipt_url: file_ref }));
     } catch (err) {
       console.error("Receipt upload failed:", err);
       alert(aiFailureMessage(err, "this receipt"));
@@ -220,8 +229,14 @@ export default function JobExpensesTab({ job, user }) {
     }
     setUploadingForScan(true);
     try {
-      const { file_url } = await sdk.integrations.Core.UploadFile({ file });
+      // Two values, two jobs, and they are not interchangeable: the signed
+      // file_url is what the model's provider fetches in the next few seconds,
+      // and file_ref is what gets written onto every expense row below.
+      const { file_url, file_ref } = await sdk.integrations.Core.UploadFile({
+        file,
+      });
       setScanImageUrl(file_url);
+      setScanImageRef(file_ref);
     } catch (err) {
       console.error("Upload failed:", err);
       alert("Failed to upload image.");
@@ -296,7 +311,7 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
             quantity: item.quantity || 1,
             unit_cost: item.unit_cost || 0,
             category: item.category || "materials",
-            receipt_url: scanImageUrl,
+            receipt_url: scanImageRef,
             expense_date: scannedDate || format(new Date(), "yyyy-MM-dd"),
             markup_percent: 0,
             billable_amount: item.amount || 0,
@@ -308,6 +323,7 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
       await loadExpenses();
       setShowScanDialog(false);
       setScanImageUrl(null);
+      setScanImageRef(null);
       setScannedItems([]);
       setSelectedItems([]);
     } catch (err) {
@@ -437,6 +453,7 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
             variant="outline"
             onClick={() => {
               setScanImageUrl(null);
+              setScanImageRef(null);
               setScannedItems([]);
               setSelectedItems([]);
               setShowScanDialog(true);
@@ -472,6 +489,7 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
                 variant="outline"
                 onClick={() => {
                   setScanImageUrl(null);
+                  setScanImageRef(null);
                   setScannedItems([]);
                   setSelectedItems([]);
                   setShowScanDialog(true);
@@ -563,19 +581,20 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
                 </div>
                 <div className="flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity flex-shrink-0">
                   {expense.receipt_url && (
-                    <a
-                      href={expense.receipt_url}
-                      target="_blank"
-                      rel="noopener noreferrer"
+                    // A button rather than an <a>: receipt_url now holds a
+                    // storage reference, and the viewable URL is signed on
+                    // demand. openStorageRef opens the tab first so the popup
+                    // blocker does not eat it. Rows written before the bucket
+                    // split hold a plain URL and pass straight through.
+                    <Button
+                      variant="ghost"
+                      size="icon"
+                      title="Open receipt"
+                      onClick={() => openStorageRef(expense.receipt_url)}
+                      className="h-8 w-8 text-brand-700 hover:text-info-700 hover:bg-info-50 dark:hover:bg-info-900/20 dark:text-brand-400 dark:hover:text-info-400"
                     >
-                      <Button
-                        variant="ghost"
-                        size="icon"
-                        className="h-8 w-8 text-brand-700 hover:text-info-700 hover:bg-info-50 dark:hover:bg-info-900/20 dark:text-brand-400 dark:hover:text-info-400"
-                      >
-                        <ExternalLink className="w-4 h-4" />
-                      </Button>
-                    </a>
+                      <ExternalLink className="w-4 h-4" />
+                    </Button>
                   )}
                   <Button
                     variant="ghost"
@@ -607,6 +626,7 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
           if (!open) {
             setShowScanDialog(false);
             setScanImageUrl(null);
+            setScanImageRef(null);
             setScannedItems([]);
             setSelectedItems([]);
           }
@@ -681,6 +701,7 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
                   <button
                     onClick={() => {
                       setScanImageUrl(null);
+                      setScanImageRef(null);
                       setScannedItems([]);
                       setSelectedItems([]);
                     }}
@@ -1076,19 +1097,16 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
                   )}
                 </Button>
                 {form.receipt_url && (
-                  <a
-                    href={form.receipt_url}
-                    target="_blank"
-                    rel="noopener noreferrer"
+                  <Button
+                    variant="outline"
+                    size="icon"
+                    type="button"
+                    title="Open receipt"
+                    onClick={() => openStorageRef(form.receipt_url)}
+                    className="h-10 w-10 dark:border-ink-600"
                   >
-                    <Button
-                      variant="outline"
-                      size="icon"
-                      className="h-10 w-10 dark:border-ink-600"
-                    >
-                      <ExternalLink className="w-4 h-4 text-info-600" />
-                    </Button>
-                  </a>
+                    <ExternalLink className="w-4 h-4 text-info-600" />
+                  </Button>
                 )}
               </div>
               <input

@@ -1,4 +1,5 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
+import { enforceRateLimit, rateLimited } from '../_shared/rate-limit.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 
 const STRIPE_SECRET_KEY = Deno.env.get('STRIPE_SECRET_KEY')!;
@@ -25,6 +26,18 @@ Deno.serve(async (req) => {
   try {
     const user = await getUserFromAuthHeader(req);
     if (!user) throw new Error('Not authenticated');
+
+    // Spend cap: a Stripe API call per request. Deliberately keyed on the user
+    // and placed AFTER authentication -- there is no requireAppAccess here (this
+    // is the endpoint someone uses to START paying, so demanding an active
+    // subscription would lock out every new signup), which makes the auth check
+    // above the only thing bounding who reaches it.
+    //
+    // The budget is the tightest of the set because a human clicks Subscribe
+    // once, maybe twice. Any volume at all here is a loop.
+    const budget = await enforceRateLimit('stripe-create-session', user.id);
+    const tooMany = rateLimited(budget, getCorsHeaders(req));
+    if (tooMany) return tooMany;
 
     const { price_id, plan_name, billing_cycle, is_trial, frontend_origin } = await req.json();
     if (!price_id) throw new Error('price_id is required');

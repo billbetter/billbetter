@@ -1,5 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
+import { enforceRateLimit, rateLimited } from '../_shared/rate-limit.ts';
 import { getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
 import { complete, LlmError } from '../_shared/llm.ts';
 
@@ -38,30 +39,15 @@ import { complete, LlmError } from '../_shared/llm.ts';
 /**
  * Per-user rate limit.
  *
- * In-memory, so it is per-isolate rather than global -- Supabase may run
- * several, and an isolate recycles. That makes this a brake, not a wall: it
- * stops a runaway client loop billing us thousands of calls, which is the
- * realistic failure. A hard global cap needs a shared counter (a table or
- * Redis) and belongs with the scheduler work, where a job registry exists to
- * put it in.
+ * WAS an in-memory Map, and said so honestly: per-isolate rather than global,
+ * so a client that reconnected got a fresh 20/min from each isolate Supabase
+ * happened to route it to. A brake, not a wall, on an endpoint where every call
+ * is a billed OpenAI request.
+ *
+ * It is now the shared row counter in _shared/rate-limit.ts -- same 20/min,
+ * except that it is one budget across every isolate, plus a daily ceiling that
+ * a per-minute limit alone cannot provide.
  */
-const WINDOW_MS = 60_000;
-const MAX_PER_WINDOW = 20;
-const hits = new Map<string, number[]>();
-
-function rateLimited(userId: string): boolean {
-  const now = Date.now();
-  const recent = (hits.get(userId) || []).filter((t) => now - t < WINDOW_MS);
-  recent.push(now);
-  hits.set(userId, recent);
-  // Bound the map so a long-lived isolate cannot grow it without limit.
-  if (hits.size > 500) {
-    for (const [k, v] of hits) {
-      if (v.every((t) => now - t >= WINDOW_MS)) hits.delete(k);
-    }
-  }
-  return recent.length > MAX_PER_WINDOW;
-}
 
 Deno.serve(async (req) => {
   const cors = handleCors(req);
@@ -81,16 +67,9 @@ Deno.serve(async (req) => {
       );
     }
 
-    if (rateLimited(user.id)) {
-      return new Response(
-        JSON.stringify({
-          success: false,
-          error: 'Too many AI requests. Wait a minute and try again.',
-          rate_limited: true,
-        }),
-        { status: 429, headers },
-      );
-    }
+    const budget = await enforceRateLimit('invoke-llm', user.id);
+    const tooMany = rateLimited(budget, getCorsHeaders(req));
+    if (tooMany) return tooMany;
 
     const body = await req.json().catch(() => ({}));
     const { prompt, response_json_schema, file_urls } = body || {};

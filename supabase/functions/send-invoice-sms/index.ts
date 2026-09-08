@@ -1,5 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
+import { enforceRateLimit, rateLimited } from '../_shared/rate-limit.ts';
 import { sendSMS } from '../_shared/sms.ts';
 import { stampFeePercentOnSend } from '../_shared/stripe-session.ts';
 import { loadOwnedForSend } from '../_shared/owned-send.ts';
@@ -25,6 +26,13 @@ Deno.serve(async (req) => {
   const access = await requireAppAccess(req);
   const denied = accessDenied(access, getCorsHeaders(req));
   if (denied) return denied;
+
+  // Spend cap. The paywall above bounds WHO may call this; it does not bound
+  // HOW MUCH. Every call past this line is a billed message, so a retry loop or
+  // a stolen session is a bill with no ceiling. See _shared/rate-limit.ts.
+  const budget = await enforceRateLimit('send-invoice-sms', access.user!.id);
+  const tooMany = rateLimited(budget, getCorsHeaders(req));
+  if (tooMany) return tooMany;
 
   try {
     const { invoice_id, invoice_number, total, due_date, payment_link } = await req.json();

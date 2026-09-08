@@ -1,5 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
+import { enforceRateLimit, rateLimited } from '../_shared/rate-limit.ts';
 import { sendEmail } from '../_shared/resend.ts';
 import { notify } from '../_shared/notify.ts';
 import { db, getUserFromAuthHeader } from '../_shared/supabase-admin.ts';
@@ -17,6 +18,14 @@ Deno.serve(async (req) => {
   const access = await requireAppAccess(req);
   const denied = accessDenied(access, getCorsHeaders(req));
   if (denied) return denied;
+
+  // Spend cap. The scarce resource here is not money per send, it is the
+  // sending domain's reputation -- which is shared. One subscriber's volume is
+  // how Resend blocks the domain, and then invoice delivery stops for EVERY
+  // contractor, not just the abuser. See _shared/rate-limit.ts.
+  const budget = await enforceRateLimit('send-invoice-email', access.user!.id);
+  const tooMany = rateLimited(budget, getCorsHeaders(req));
+  if (tooMany) return tooMany;
 
   try {
     const {

@@ -1,5 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
+import { enforceRateLimit, rateLimited } from '../_shared/rate-limit.ts';
 import { sendEmail } from '../_shared/resend.ts';
 import { renderEmailLayout, formatCurrency, formatDate, escapeHtml, LineItem } from '../_shared/email-templates.ts';
 import { loadOwnedForSend } from '../_shared/owned-send.ts';
@@ -14,6 +15,12 @@ Deno.serve(async (req) => {
   const access = await requireAppAccess(req);
   const denied = accessDenied(access, getCorsHeaders(req));
   if (denied) return denied;
+
+  // Spend cap, on the shared sending domain's reputation as much as on cost.
+  // See _shared/rate-limit.ts.
+  const budget = await enforceRateLimit('send-quote-email', access.user!.id);
+  const tooMany = rateLimited(budget, getCorsHeaders(req));
+  if (tooMany) return tooMany;
 
   try {
     const {

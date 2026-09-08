@@ -1,4 +1,6 @@
 import json
+import shutil
+import subprocess
 import sys
 import urllib.request
 import urllib.error
@@ -239,8 +241,53 @@ def check_for_drift():
         sys.exit(1)
 
 
+def run_bundle_check():
+    """Refuse to deploy a bundle that check-function-bundles.cjs rejects.
+
+    This gate is here, and not only in `npm run check`, because of how the
+    2026-09-07 failure actually happened: send-invoice-email called
+    loadOwnedForSend() without importing it, and it went out because the deploy
+    path never consulted the checker. `npm run check` catches it -- but only if
+    someone remembers to run it, and a deploy that skips it prints Done and
+    reports success either way.
+
+    So the check runs HERE, where it cannot be forgotten, and a failure stops
+    the upload before anything reaches the project. Fails closed on purpose: no
+    node, no deploy.
+
+    Escape hatch: --skip-checks. For the case where the checker itself is what
+    is broken and something has to ship. It prints loudly, because a flag that
+    disables a safety gate quietly is how the gate stops existing.
+    """
+    if '--skip-checks' in sys.argv:
+        print('!! --skip-checks: deploying WITHOUT the bundle check.')
+        print('!! An unresolved import or undefined name will upload cleanly')
+        print('!! and 500 on the first real request.')
+        return
+
+    node = shutil.which('node')
+    if not node:
+        sys.exit(
+            'ERROR: node is not on PATH, so the bundle check cannot run.\n'
+            '       Refusing to deploy unchecked. Install node, or pass\n'
+            '       --skip-checks if you accept the risk.'
+        )
+
+    print('Checking function bundles...')
+    result = subprocess.run(
+        [node, 'check-function-bundles.cjs'],
+        cwd=ROOT,
+    )
+    if result.returncode != 0:
+        sys.exit(
+            '\nERROR: the bundle check failed, so nothing was deployed.\n'
+            '       Fix the above, or pass --skip-checks to override.'
+        )
+
+
 def main():
     check_for_drift()
+    run_bundle_check()
     only = [a for a in sys.argv[1:] if not a.startswith('-')]
     targets = [(s, v) for s, v in FUNCTIONS if not only or s in only]
     if only and not targets:

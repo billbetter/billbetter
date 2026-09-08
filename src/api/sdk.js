@@ -45,6 +45,30 @@ function buildPDFBlobUrl(title) {
 }
 
 /**
+ * The two storage buckets, and the rule for which one a file goes in.
+ *
+ * `uploads` is public=true. Anything in it is downloadable by anyone who knows
+ * the full object path, forever, with no credential -- /object/public/ does not
+ * consult RLS. That is correct for exactly two things:
+ *
+ *   - business logos, which are embedded in invoice PDFs and emails and are
+ *     rendered far outside any authenticated session;
+ *   - job photos, which the product deliberately shares with a client through
+ *     an anonymous album link.
+ *
+ * `private-uploads` is public=false. Reading an object requires a signed URL,
+ * which only its owner can mint. That is where receipts and quote-analysis
+ * photos go: a receipt carries financial PII, and one was demonstrably
+ * downloaded across tenants during the 2026-09-07 audit.
+ *
+ * DEFAULT IS PRIVATE. A call site that says nothing gets the safe bucket. The
+ * two public cases are the ones that have to argue for themselves, in writing,
+ * at the call site.
+ */
+export const PUBLIC_BUCKET = "uploads";
+export const PRIVATE_BUCKET = "private-uploads";
+
+/**
  * Upload a file to Supabase Storage and return a URL that survives a reload.
  *
  * This replaces a stub that did `URL.createObjectURL(file)`. Three things were
@@ -68,17 +92,38 @@ function buildPDFBlobUrl(title) {
  * name `url` is what the stub returned and what any future caller is likely to
  * reach for.
  *
- * @param {File|Blob|{file: File|Blob}} input
- * @returns {Promise<{file_url: string|null, url: string|null, path?: string,
- *                    success: boolean, error?: string}>}
+ * -- file_url vs file_ref, and why there are two ---------------------------
+ *
+ * For a PUBLIC upload they are the same permanent URL and nothing changes.
+ *
+ * For a PRIVATE upload they are different things and mixing them up is the
+ * one way to get this wrong:
+ *
+ *   file_url  a SIGNED url, valid for an hour. Use it NOW -- to preview the
+ *             image, or to hand to invoke-llm, whose provider fetches the URL
+ *             server-side within seconds. Never store it: a stored signed URL
+ *             is a dead link tomorrow, and the failure is silent.
+ *   file_ref  'private:<path>'. This is the durable value. Store THIS in the
+ *             database, and resolve it back to a viewable URL at render time
+ *             with resolveStorageUrl() from src/lib/storageUrl.js.
+ *
+ * @param {File|Blob|{file: File|Blob, visibility?: 'public'|'private'}} input
+ * @returns {Promise<{file_url: string|null, url: string|null, file_ref: string|null,
+ *                    path?: string, bucket?: string, success: boolean, error?: string}>}
  */
 async function uploadFile(input) {
   // Accept both shapes. Every current caller passes { file }, but the exported
   // name reads like it takes a file, and one day someone will pass one.
-  const file = input && typeof input === "object" && "file" in input ? input.file : input;
+  const isWrapped = input && typeof input === "object" && "file" in input;
+  const file = isWrapped ? input.file : input;
+  // Private unless a call site explicitly asks otherwise. See the bucket
+  // comment above: the safe default is the one that costs nothing to be wrong
+  // about.
+  const isPublic = isWrapped && input.visibility === "public";
+  const bucket = isPublic ? PUBLIC_BUCKET : PRIVATE_BUCKET;
 
   if (!file) {
-    return { file_url: null, url: null, success: false, error: "No file provided" };
+    return { file_url: null, url: null, file_ref: null, success: false, error: "No file provided" };
   }
 
   try {
@@ -86,7 +131,7 @@ async function uploadFile(input) {
       data: { user },
     } = await supabase.auth.getUser();
     if (!user) {
-      return { file_url: null, url: null, success: false, error: "Not signed in" };
+      return { file_url: null, url: null, file_ref: null, success: false, error: "Not signed in" };
     }
 
     // Strip anything that would make a messy or ambiguous object key. Keeping
@@ -99,18 +144,37 @@ async function uploadFile(input) {
       `${Date.now().toString(36)}${Math.random().toString(36).slice(2, 10)}`;
     const path = `${user.id}/${unique}-${safeName}`;
 
-    const { error } = await supabase.storage.from("uploads").upload(path, file, {
+    const { error } = await supabase.storage.from(bucket).upload(path, file, {
       cacheControl: "3600",
       upsert: false,
       contentType: file.type || undefined,
     });
     if (error) throw error;
 
-    const {
-      data: { publicUrl },
-    } = supabase.storage.from("uploads").getPublicUrl(path);
+    if (isPublic) {
+      const {
+        data: { publicUrl },
+      } = supabase.storage.from(bucket).getPublicUrl(path);
+      return { file_url: publicUrl, url: publicUrl, file_ref: publicUrl, path, bucket, success: true };
+    }
 
-    return { file_url: publicUrl, url: publicUrl, path, success: true };
+    // Private: mint a short-lived URL so the caller can preview the file or
+    // hand it to the model right now. An hour is far longer than either needs
+    // and short enough that a leaked URL stops working the same morning.
+    const { data: signed, error: signErr } = await supabase.storage
+      .from(bucket)
+      .createSignedUrl(path, 3600);
+    if (signErr) throw signErr;
+
+    const ref = `private:${path}`;
+    return {
+      file_url: signed.signedUrl,
+      url: signed.signedUrl,
+      file_ref: ref,
+      path,
+      bucket,
+      success: true,
+    };
   } catch (e) {
     console.error("UploadFile failed:", e);
     // Reported rather than thrown: callers check `success`/`file_url`, and a
@@ -118,6 +182,7 @@ async function uploadFile(input) {
     return {
       file_url: null,
       url: null,
+      file_ref: null,
       success: false,
       error: e?.message || String(e),
     };

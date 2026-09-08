@@ -1,5 +1,6 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
 import { requireAppAccess, accessDenied } from '../_shared/require-access.ts';
+import { enforceRateLimit, rateLimited } from '../_shared/rate-limit.ts';
 import { sendSMS } from '../_shared/sms.ts';
 import { loadOwnedForSend } from '../_shared/owned-send.ts';
 import { APP_URL } from '../_shared/app-url.ts';
@@ -24,6 +25,12 @@ Deno.serve(async (req) => {
   const access = await requireAppAccess(req);
   const denied = accessDenied(access, getCorsHeaders(req));
   if (denied) return denied;
+
+  // Spend cap: every call past this line is a billed message. See
+  // _shared/rate-limit.ts.
+  const budget = await enforceRateLimit('send-quote-sms', access.user!.id);
+  const tooMany = rateLimited(budget, getCorsHeaders(req));
+  if (tooMany) return tooMany;
 
   try {
     const { quote_id, quote_number, total, expiry_date } = await req.json();

@@ -59,6 +59,10 @@ export default function CameraAnalyzer({ onAnalysisComplete }) {
 
       // Upload photo if provided
       if (photo) {
+        // Private bucket (the default). This is a job-site photo used for
+        // estimation, not something a client is ever shown. The signed
+        // file_url is what the model's provider fetches, in the next few
+        // seconds -- it is not stored anywhere.
         const uploadResult = await sdk.integrations.Core.UploadFile({
           file: photo,
         });
@@ -129,7 +133,10 @@ Provide a detailed materials list with specific names, quantities, units and cur
       const uploadResult = await sdk.integrations.Core.UploadFile({
         file: photo,
       });
-      photoUrl = uploadResult.file_url;
+      // file_ref, not file_url: this one IS persisted (onto the quote), so it
+      // has to be the durable reference. A signed URL stored here would be a
+      // dead link within the hour, and nothing would say so.
+      photoUrl = uploadResult.file_ref;
     }
 
     onAnalysisComplete({
