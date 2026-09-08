@@ -7,7 +7,6 @@ import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import { ShinyButton } from "@/components/ui/shiny-button";
 import InvoiceDemoMockup from "@/components/marketing/InvoiceDemoMockup";
-import InvoiceScrollDemo from "@/components/marketing/InvoiceScrollDemo";
 import { TestimonialsMarquee } from "@/components/ui/testimonials-columns";
 import SEO from "@/components/seo/SEO";
 import InstallPWA from "@/components/pwa/InstallPWA";
@@ -25,7 +24,6 @@ import {
   Clock,
   Send,
   Bell,
-  Eye,
   CreditCard,
   Building2,
 } from "lucide-react";
@@ -131,15 +129,6 @@ export default function Home() {
       console.error("Logout error:", error);
     }
   };
-
-  const marqueeItems = [
-    { text: "Invoice in 30 seconds", icon: Zap },
-    { text: "Clients pay without an app", icon: Smartphone },
-    { text: "Auto payment reminders", icon: Bell },
-    { text: "Card · e-Transfer · Bank", icon: CreditCard },
-    { text: "Track every invoice view", icon: Eye },
-    { text: "Send by text, email, or link", icon: Send },
-  ];
 
   const features = [
     {
@@ -405,25 +394,6 @@ export default function Home() {
           </div>
         </section>
 
-        {/* ── MARQUEE STRIP ────────────────────────────────────── */}
-        <div className="border-y border-line bg-brand-50 py-4 overflow-hidden">
-          <div className="flex marquee-track gap-0 w-max select-none">
-            {[...marqueeItems, ...marqueeItems].map((item, i) => (
-              <div
-                key={i}
-                className="flex items-center gap-2 px-8 text-sm font-semibold whitespace-nowrap"
-              >
-                <item.icon className="w-4 h-4 text-brand-700 flex-shrink-0" />
-                <span className="text-ink-700">{item.text}</span>
-                <span className="text-ink-300 ml-8">◆</span>
-              </div>
-            ))}
-          </div>
-        </div>
-
-        {/* ── SCROLL REVEAL PRODUCT SHOT ───────────────────────── */}
-        <InvoiceScrollDemo />
-
         {/* ── PROBLEM STATEMENT ────────────────────────────────── */}
         <section className="py-20 sm:py-32 bg-surface relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none"></div>
@@ -672,154 +642,6 @@ export default function Home() {
                 </div>
               </div>
             </FadeIn>
-          </div>
-        </section>
-
-        {/* ── TRACK EVERYTHING ─────────────────────────────────── */}
-        <section className="py-20 sm:py-32 bg-brand-50 relative overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none"></div>
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
-              <FadeIn>
-                <p className="text-brand-700 font-bold text-sm uppercase tracking-widest mb-4">
-                  Invoice Tracking
-                </p>
-                <h2 className="text-3xl sm:text-5xl font-black text-content mb-6 leading-tight">
-                  Know the Second
-                  <br />
-                  They Open It.
-                </h2>
-                <p className="text-content-body text-lg leading-relaxed mb-8">
-                  Stop wondering if they got your invoice. Invoicium shows you
-                  exactly when it was opened, how many times, and whether
-                  payment is on the way — all in real time.
-                </p>
-                <div className="space-y-4">
-                  {[
-                    {
-                      icon: Eye,
-                      text: "Real-time open tracking — see when they viewed it",
-                    },
-                    {
-                      icon: Bell,
-                      text: "Auto-reminders at day 3, 7, and 14 if unpaid",
-                    },
-                    {
-                      icon: CheckCircle,
-                      text: "Instant notification when payment lands",
-                    },
-                  ].map((item, i) => (
-                    <div key={i} className="flex items-center gap-3">
-                      <div className="w-9 h-9 bg-brand-100 rounded-xl flex items-center justify-center flex-shrink-0">
-                        <item.icon className="w-5 h-5 text-brand-700" />
-                      </div>
-                      <p className="text-ink-700 font-medium">{item.text}</p>
-                    </div>
-                  ))}
-                </div>
-              </FadeIn>
-
-              {/* Activity feed */}
-              <FadeIn delay={150}>
-                <div className="bg-surface rounded-3xl border border-line overflow-hidden shadow-xl">
-                  <div className="bg-surface-sunken px-5 py-4 border-b border-line flex items-center gap-3">
-                    <div className="w-8 h-8 bg-brand-100 rounded-lg flex items-center justify-center">
-                      <Eye className="w-4 h-4 text-brand-700" />
-                    </div>
-                    <div>
-                      <p className="font-bold text-content text-sm">
-                        Invoice Activity
-                      </p>
-                      <p className="text-content-muted text-xs">
-                        Real-time updates
-                      </p>
-                    </div>
-                    <div className="ml-auto flex items-center gap-1.5">
-                      <div className="live-dot w-2 h-2 bg-success-500 rounded-full" />
-                      <span className="text-success-600 text-xs font-semibold">
-                        Live
-                      </span>
-                    </div>
-                  </div>
-
-                  <div className="divide-y divide-line-subtle">
-                    {[
-                      {
-                        time: "2 min ago",
-                        event: "Sarah Johnson opened INV-089",
-                        icon: Eye,
-                        color: "violet",
-                        sub: "3rd time viewing",
-                      },
-                      {
-                        time: "1 hr ago",
-                        event: "Auto-reminder sent to Mike Chen",
-                        icon: Bell,
-                        color: "amber",
-                        sub: "Invoice overdue 7 days",
-                      },
-                      {
-                        time: "3 hrs ago",
-                        event: "Payment received — $2,840.00",
-                        icon: DollarSign,
-                        color: "emerald",
-                        sub: "INV-087 · Derek Wilson",
-                      },
-                      {
-                        time: "Yesterday",
-                        event: "INV-089 delivered via text",
-                        icon: Send,
-                        color: "violet",
-                        sub: "Sent to +1 647 555 0183",
-                      },
-                      {
-                        time: "Yesterday",
-                        event: "Payment received — $6,320.00",
-                        icon: DollarSign,
-                        color: "emerald",
-                        sub: "INV-085 · Tony Ruiz",
-                      },
-                    ].map((item, i) => (
-                      <div
-                        key={i}
-                        className="flex items-start gap-4 px-5 py-4 hover:bg-surface-sunken transition-colors"
-                      >
-                        <div
-                          className={`w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 mt-0.5 ${
-                            item.color === "emerald"
-                              ? "bg-success-100"
-                              : item.color === "amber"
-                                ? "bg-warning-100"
-                                : "bg-brand-100"
-                          }`}
-                        >
-                          <item.icon
-                            className={`w-4 h-4 ${
-                              item.color === "emerald"
-                                ? "text-success-600"
-                                : item.color === "amber"
-                                  ? "text-warning-600"
-                                  : "text-brand-700"
-                            }`}
-                          />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <p className="text-sm font-semibold text-content truncate">
-                            {item.event}
-                          </p>
-                          <p className="text-xs text-content-muted">
-                            {item.sub}
-                          </p>
-                        </div>
-                        <p className="text-xs text-content-subtle flex-shrink-0">
-                          {item.time}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              </FadeIn>
-            </div>
           </div>
         </section>
 
