@@ -4,6 +4,7 @@ import { sdk } from "@/api/sdk";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { CheckCircle, Receipt, Download, Home, Loader2 } from "lucide-react";
+import { deliverPdf } from "@/lib/pdfDelivery";
 
 export default function InvoicePaymentSuccess() {
   const navigate = useNavigate();
@@ -124,7 +125,12 @@ export default function InvoicePaymentSuccess() {
                 {invoice.pdf_url && (
                   <div className="pt-4 border-t">
                     <Button
-                      onClick={() => window.open(invoice.pdf_url, "_blank")}
+                      onClick={() =>
+                        deliverPdf(invoice.pdf_url, {
+                          filename: `Invoice-${invoice.invoice_number || "000"}.pdf`,
+                          mode: "open",
+                        })
+                      }
                       variant="outline"
                       className="w-full border-success-200 hover:bg-success-50"
                     >

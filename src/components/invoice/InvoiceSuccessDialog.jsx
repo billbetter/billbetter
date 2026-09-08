@@ -1,6 +1,7 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
+import { deliverPdf } from "@/lib/pdfDelivery";
 import {
   Dialog,
   DialogContent,
@@ -129,7 +130,10 @@ export default function InvoiceSuccessDialog({
           {successDialog.invoice?.pdf_url && (
             <Button
               onClick={() =>
-                window.open(successDialog.invoice.pdf_url, "_blank")
+                deliverPdf(successDialog.invoice.pdf_url, {
+                  filename: `Invoice-${successDialog.invoice.invoice_number || "000"}.pdf`,
+                  mode: "open",
+                })
               }
               className="w-full bg-surface-inverted hover:bg-ink-800 dark:bg-ink-800 dark:hover:bg-ink-700 text-content-inverted h-11"
             >

@@ -14,6 +14,7 @@ import { sdk } from "@/api/sdk";
 import { issuedPatch } from "@/lib/invoiceIssued";
 import { markTimeEntriesInvoiced } from "@/lib/timeTracking";
 import { generateInvoicePDF } from "@/functions/generateInvoicePDF";
+import { deliverPdf } from "@/lib/pdfDelivery";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -1051,7 +1052,12 @@ Provide line items in this format.`,
           pdf_generated_at: new Date().toISOString(),
         });
 
-        window.open(pdfUrl, "_blank");
+        // Chrome blocks top-level navigation to data: URLs, so this
+        // used to be a silent no-op behind a success alert.
+        await deliverPdf(pdfUrl, {
+          filename: `Invoice-${invoiceNumber}.pdf`,
+          mode: "open",
+        });
 
         localStorage.removeItem(STORAGE_KEY);
         alert("Invoice created and downloaded! (Counted as 0.5 invoice)");

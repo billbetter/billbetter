@@ -85,6 +85,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import PullToRefresh from "@/components/utils/PullToRefresh";
 import ChaseInvoiceBanner from "@/components/invoice/ChaseInvoiceBanner";
 import ReadReceiptBadge from "@/components/invoice/ReadReceiptBadge";
+import { deliverPdf } from "@/lib/pdfDelivery";
 
 export default function Invoices() {
   const [invoices, setInvoices] = useState([]);
@@ -328,22 +329,41 @@ export default function Invoices() {
   const downloadInvoicePdf = async (invoiceId) => {
     try {
       const inv = await sdk.entities.Invoice.get(invoiceId);
-      const pdf = inv?.pdf_url || "";
+      let pdf = inv?.pdf_url || "";
+
+      // -- Render it now if there isn't one ------------------------------
+      //
+      // This used to give up with "No PDF is available for this invoice yet",
+      // which was a dead end on a button labelled Download. An invoice only
+      // HAS a stored PDF if it was created through a path that generated one:
+      // save a draft, or have generation fail once, and the row keeps a null
+      // pdf_url forever with no way back. Since the renderer moved into the
+      // browser (src/lib/invoicePdf.js) there is no reason to refuse -- we can
+      // just make it, from the same invoice and the same settings the create
+      // screen would have used.
+      //
+      // Stored on the way out so the next download, and any email that
+      // attaches it, is instant rather than a re-render.
       if (!pdf.startsWith("data:application/pdf")) {
-        alert("No PDF is available for this invoice yet.");
-        return;
+        const { generateInvoicePDF } = await import("@/lib/invoicePdf");
+        const res = await generateInvoicePDF({ invoice: inv, settings });
+        pdf = res?.data?.pdf_url || "";
+        if (!pdf) throw new Error("Could not render this invoice.");
+        // Best effort: a failed save must not cost the user the download they
+        // are already holding.
+        try {
+          await sdk.entities.Invoice.update(invoiceId, {
+            pdf_url: pdf,
+            pdf_generated_at: new Date().toISOString(),
+          });
+        } catch (saveErr) {
+          console.warn("PDF rendered but could not be saved:", saveErr);
+        }
       }
-      // Chrome blocks top-level navigation to data: URLs, so it has to become a
-      // blob before a download link will take it.
-      const blob = await (await fetch(pdf)).blob();
-      const url = URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `Invoice-${inv.invoice_number || invoiceId}.pdf`;
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+
+      await deliverPdf(pdf, {
+        filename: `Invoice-${inv.invoice_number || invoiceId}.pdf`,
+      });
     } catch (err) {
       console.error("PDF download failed:", err);
       alert("Could not download the PDF. Please try again.");

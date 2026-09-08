@@ -50,6 +50,7 @@ import { format, addDays } from "date-fns";
 import VoiceInput from "../components/invoice/VoiceInput";
 import ServiceAutofill from "../components/invoice/ServiceAutofill";
 import { generateQuotePDF } from "@/functions/generateQuotePDF";
+import { deliverPdf } from "@/lib/pdfDelivery";
 
 // Camera Analyzer Component with proper dark mode colors
 const CameraAnalyzer = ({ onAnalysisComplete, className }) => {
@@ -1477,7 +1478,10 @@ Provide line items in this format.`,
             {successDialog.quote?.pdf_url && (
               <Button
                 onClick={() =>
-                  window.open(successDialog.quote.pdf_url, "_blank")
+                  deliverPdf(successDialog.quote.pdf_url, {
+                    filename: `Quote-${successDialog.quote.quote_number || "000"}.pdf`,
+                    mode: "open",
+                  })
                 }
                 className="w-full bg-surface-inverted hover:bg-ink-800 dark:bg-ink-800 dark:hover:bg-ink-700 text-content-inverted h-11"
               >
