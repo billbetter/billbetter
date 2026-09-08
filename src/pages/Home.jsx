@@ -336,7 +336,25 @@ export default function Home() {
                         Go to Dashboard <ArrowRight className="ml-2 w-5 h-5" />
                       </Button>
                     ) : (
-                      <ShinyButton onClick={handleLogin}>Sign In</ShinyButton>
+                      // The one action this page exists to drive: start the
+                      // trial. It used to be "Sign In", which asked a first-time
+                      // visitor to log into an account they do not have -- the
+                      // primary CTA pointing at the one thing a new lead cannot
+                      // do. Sign-in stays, demoted to a link for returning users.
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
+                        <ShinyButton onClick={handleGetStarted}>
+                          Start invoicing free
+                        </ShinyButton>
+                        <button
+                          onClick={handleLogin}
+                          className="text-content-body font-semibold hover:text-content transition-colors text-left"
+                        >
+                          Already a member?{" "}
+                          <span className="text-brand-700 underline underline-offset-2">
+                            Sign in
+                          </span>
+                        </button>
+                      </div>
                     )}
                   </div>
                 </FadeIn>
