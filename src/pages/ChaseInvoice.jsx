@@ -18,6 +18,7 @@ import {
   RefreshCw,
   Search,
   Send,
+  ShieldCheck,
   Wallet,
   TrendingUp,
   TimerReset,
@@ -854,6 +855,17 @@ export default function ChaseInvoice() {
             </div>
           </div>
 
+          {/*
+            The escalation after reminders stop working.
+
+            Placed here, between the numbers and the queue, because that is the
+            order the thought actually arrives in: how much is outstanding, how
+            late is it, and -- for the one that is never going to be paid
+            voluntarily -- what can I actually prove? Making it a separate nav
+            item would have split one journey across two screens.
+          */}
+          <PaperTrailCard />
+
           {/* Search and Filter */}
           <div className="bg-surface dark:bg-surface-inverted rounded-xl border border-line-subtle dark:border-ink-800 p-4 shadow-sm">
             <div className="flex flex-col sm:flex-row gap-3">
@@ -1007,6 +1019,41 @@ const MOBILE_STAT_TONES = {
     emphasizedValue: "text-brand-700 dark:text-brand-400",
   },
 };
+
+/**
+ * The way in to the sealed record.
+ *
+ * Shown on every plan, including the ones that cannot open it, which is the
+ * opposite of what Layout.jsx does with the Team nav item -- and deliberately.
+ * That rule ("a nav item that only leads to an upsell wastes a tap") is about
+ * navigation you pass every day. This is a card on the one screen where the
+ * question it answers is actually live, and the answer for a Core subscriber is
+ * genuinely useful: the record of the invoice they are fighting about already
+ * exists, because the database records it on every plan.
+ */
+const PaperTrailCard = () => (
+  <Link
+    to={createPageUrl("PaperTrail")}
+    className="block bg-surface dark:bg-surface-inverted rounded-xl border border-line-subtle dark:border-ink-800 p-5 shadow-sm hover:border-line dark:hover:border-ink-700 transition-colors"
+  >
+    <div className="flex items-center gap-4">
+      <div className="w-11 h-11 rounded-xl bg-content dark:bg-ink-700 flex items-center justify-center flex-shrink-0">
+        <ShieldCheck className="w-5 h-5 text-content-inverted" />
+      </div>
+      <div className="min-w-0 flex-1">
+        <h2 className="text-base font-black text-content dark:text-content-inverted">
+          Paper Trail
+        </h2>
+        <p className="text-sm text-content-muted dark:text-content-subtle mt-0.5">
+          When a reminder is not going to be enough: the record Invoicium keeps
+          of what you sent, when you sent it, and every time the client opened
+          it. Read-only to you, which is why it counts for anything.
+        </p>
+      </div>
+      <ArrowRight className="w-5 h-5 text-content-subtle flex-shrink-0 hidden sm:block" />
+    </div>
+  </Link>
+);
 
 const MobileStat = ({ icon: Icon, tone, label, value, emphasize = false }) => {
   const t = MOBILE_STAT_TONES[tone] || MOBILE_STAT_TONES.emerald;

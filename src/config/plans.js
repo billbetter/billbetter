@@ -101,6 +101,7 @@ export const PLANS = {
       "One-tap overdue reminders (friendly → firm)",
     ],
     notIncluded: [
+      "Tamper-proof paper trail",
       "Expense tracking",
       "Analytics",
       "Time tracking",
@@ -129,6 +130,10 @@ export const PLANS = {
     popular: true,
     features: [
       "100 invoices or quotes/month",
+      // Second rather than buried, because Home.jsx renders `.slice(0, 4)` of
+      // this list and this is the bullet that answers the question every trade
+      // asks: "what happens when they refuse to pay?"
+      "Tamper-proof paper trail (proof you sent it, proof they opened it)",
       "Expense tracking + AI receipt scanner",
       "Time tracking & job costing",
       "Analytics dashboard & profit per job",

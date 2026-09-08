@@ -97,6 +97,15 @@ export const FEATURE_MINIMUM_PLAN = {
   // paying anything. Building a bespoke LAYOUT is the premium bit, and that
   // stays at professional as custom_templates.
   branding: "essential",
+  // The sealed, unforgeable record of what was sent and when, and what the
+  // client did with it. See supabase/migrations/20260908120000_paper_trail.sql.
+  //
+  // This gate is on READING and EXPORTING only. The database triggers record
+  // for every account on every plan, deliberately: a contractor who upgrades
+  // because a client has just refused to pay must find the history of THAT
+  // invoice already there. Gating the recording would hand them an empty file
+  // at the exact moment the feature was supposed to earn its money.
+  paper_trail: "essential",
 
   // -- Professional: other people are involved -----------------------------
   crew_management: "professional",
@@ -369,6 +378,7 @@ export function getUpgradeMessage(featureName) {
     client_reviews: "Client Reviews",
     public_booking: "Public Booking Page",
     automations: "Follow-up Drafting",
+    paper_trail: "Paper Trail",
   };
   return featureMessages[featureName] || "This feature";
 }

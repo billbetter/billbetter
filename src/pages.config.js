@@ -70,6 +70,7 @@ import JobPhotos from './pages/JobPhotos';
 import PaymentPlans from './pages/PaymentPlans';
 import PaymentSuccess from './pages/PaymentSuccess';
 import PhoneVerification from './pages/PhoneVerification';
+import PaperTrail from './pages/PaperTrail';
 import Pricing from './pages/Pricing';
 import PublicBooking from './pages/PublicBooking';
 import PublicQuote from './pages/PublicQuote';
@@ -114,6 +115,7 @@ export const PAGES = {
     "PaymentSuccess": PaymentSuccess,
     "PhoneVerification": PhoneVerification,
     "Checkout": Checkout,
+    "PaperTrail": PaperTrail,
     "Pricing": Pricing,
     "PublicBooking": PublicBooking,
     "PublicQuote": PublicQuote,

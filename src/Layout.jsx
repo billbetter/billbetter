@@ -564,6 +564,20 @@ export default function Layout({ children, currentPageName }) {
     );
   }
 
+  // A nav item stays lit for the pages that hang off it, listed in
+  // `alsoActiveOn`. Exact-match alone made Get Paid go dark the moment you
+  // followed its own Paper Trail link, which reads as having left the section
+  // -- and leaves no clue which of the five tabs gets you back.
+  const isNavActive = (item) =>
+    location.pathname === item.href ||
+    (item.alsoActiveOn || []).includes(location.pathname);
+
+  // The Paper Trail is reached from Get Paid and belongs to it, so both paths
+  // light the same tab.
+  const getPaidActive =
+    location.pathname === createPageUrl("ChaseInvoice") ||
+    location.pathname === createPageUrl("PaperTrail");
+
   const navigation = [
     {
       name: "Dashboard",
@@ -595,6 +609,7 @@ export default function Layout({ children, currentPageName }) {
       href: createPageUrl("ChaseInvoice"),
       icon: Zap,
       badge: "AI",
+      alsoActiveOn: [createPageUrl("PaperTrail")],
     },
     {
       name: "Calendar",
@@ -681,7 +696,7 @@ export default function Layout({ children, currentPageName }) {
 
         <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
           {navigation.map((item) => {
-            const isActive = location.pathname === item.href;
+            const isActive = isNavActive(item);
             return (
               <Link
                 key={item.name}
@@ -964,20 +979,27 @@ export default function Layout({ children, currentPageName }) {
               </span>
             </Link>
 
-            {/* Get Paid */}
+            {/*
+              Get Paid.
+
+              Active for the Paper Trail too, which lives under this tab rather
+              than beside it. A tab that goes dark when you follow a link from
+              its own page reads as "you have left the section", and the user
+              then has no idea which of the five tabs to press to get back.
+            */}
             <Link
               to={createPageUrl("ChaseInvoice")}
               className={`flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg transition-all active:scale-95 ${
-                location.pathname === createPageUrl("ChaseInvoice")
+                getPaidActive
                   ? "text-success-600 dark:text-success-400"
                   : "text-content-muted dark:text-content-subtle"
               }`}
             >
               <Zap
-                className={`w-5 h-5 mb-1 ${location.pathname === createPageUrl("ChaseInvoice") ? "stroke-[2.5]" : "stroke-[1.75]"}`}
+                className={`w-5 h-5 mb-1 ${getPaidActive ? "stroke-[2.5]" : "stroke-[1.75]"}`}
               />
               <span
-                className={`text-[11px] ${location.pathname === createPageUrl("ChaseInvoice") ? "font-semibold" : "font-medium"}`}
+                className={`text-[11px] ${getPaidActive ? "font-semibold" : "font-medium"}`}
               >
                 Get Paid
               </span>
@@ -1064,7 +1086,7 @@ export default function Layout({ children, currentPageName }) {
             <div className="px-4 py-3 max-h-[60vh] overflow-y-auto">
               <div className="grid grid-cols-3 gap-3">
                 {navigation.map((item) => {
-                  const isActive = location.pathname === item.href;
+                  const isActive = isNavActive(item);
                   return (
                     <Link
                       key={item.name}
