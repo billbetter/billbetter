@@ -85,10 +85,16 @@ def main():
     top = set(body.keys())
     ok &= check('top level is exactly the four sections',
                 top == {'success', 'invoice', 'client', 'business', 'capabilities'}, str(top))
+    # amount_paid and balance_due arrived with payment tracking (_shared/
+    # invoice-balance.ts) and were never added here, so this assertion has been
+    # red ever since -- which is the failure mode it exists to prevent, because
+    # a suite that always reports one failure is a suite nobody reads. Both are
+    # facts about the reader's OWN invoice, so they belong in the payload.
     ok &= check('invoice keys are the enumerated set',
                 set(invoice.keys()) == {
                     'number', 'issue_date', 'due_date', 'status', 'payment_terms', 'notes',
                     'currency', 'items', 'subtotal', 'tax_rate', 'tax_amount', 'total',
+                    'amount_paid', 'balance_due',
                 }, str(sorted(invoice.keys())))
     ok &= check('client keys are name+address only',
                 set(body.get('client', {}).keys()) == {'name', 'address'})
