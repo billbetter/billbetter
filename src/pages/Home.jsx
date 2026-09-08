@@ -3,10 +3,10 @@ import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { hasAppAccess } from "@/lib/access";
 import { listPlans, getAmount } from "@/config/plans";
+import { TRADES } from "@/config/trades";
 import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import { ShinyButton } from "@/components/ui/shiny-button";
-import InvoiceDemoMockup from "@/components/marketing/InvoiceDemoMockup";
 import { TestimonialsMarquee } from "@/components/ui/testimonials-columns";
 import SEO from "@/components/seo/SEO";
 import InstallPWA from "@/components/pwa/InstallPWA";
@@ -59,6 +59,111 @@ const FadeIn = ({ children, delay = 0, className = "" }) => {
     </div>
   );
 };
+
+/**
+ * The hero's call to action: one field, then Start.
+ *
+ * -- Why the email box is here and not on the next screen -------------------
+ *
+ * The CTA used to be a button that threw the visitor at /Login, where they met
+ * an email field, a password field, a Google button and a mode toggle before
+ * anything had happened. Asking for the single cheapest piece of information
+ * on the page they are already reading -- and carrying it forward so it is not
+ * typed twice -- is the difference between starting and considering starting.
+ *
+ * Email and nothing else. Not a phone number, not a company name, not a trade:
+ * every extra box on a signup form is another reason to close the tab, and all
+ * of it can be asked later by a product that already has the account. (The demo
+ * request is the opposite case and deliberately asks for more -- there, the
+ * questions are the point.)
+ *
+ * A real <form> rather than a click handler, so the browser validates the
+ * address, the keyboard shows a Go key on a phone, and Enter works.
+ */
+function HeroStart({ loading, user, onDashboard, onLogin }) {
+  const navigate = useNavigate();
+  const [email, setEmail] = useState("");
+
+  if (loading) {
+    return (
+      <div className="mb-10">
+        <Button
+          disabled
+          size="lg"
+          className="bg-ink-200 text-content-body h-14 px-8 rounded-2xl font-black"
+        >
+          <RefreshCw className="mr-2 w-5 h-5 animate-spin" /> Loading...
+        </Button>
+      </div>
+    );
+  }
+
+  // Someone already signed in has no use for a signup box.
+  if (user) {
+    return (
+      <div className="mb-10">
+        <Button
+          onClick={onDashboard}
+          size="lg"
+          className="bg-brand text-content-inverted h-14 px-8 rounded-2xl font-black shadow-2xl shadow-brand-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
+        >
+          Go to Dashboard <ArrowRight className="ml-2 w-5 h-5" />
+        </Button>
+      </div>
+    );
+  }
+
+  const start = (e) => {
+    e.preventDefault();
+    const value = email.trim();
+    navigate(
+      value
+        ? `${createPageUrl("Register")}?email=${encodeURIComponent(value)}`
+        : createPageUrl("Register"),
+    );
+  };
+
+  return (
+    <div className="mb-10">
+      <p className="text-content font-bold mb-3">
+        Get access to your new invoicing all-in-one.
+      </p>
+
+      <form
+        onSubmit={start}
+        className="flex flex-col sm:flex-row gap-3 max-w-xl"
+      >
+        <input
+          type="email"
+          required
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+          placeholder="you@yourbusiness.ca"
+          aria-label="Your email address"
+          autoComplete="email"
+          className="flex-1 h-14 px-5 rounded-2xl bg-surface border border-line text-base text-content placeholder:text-content-muted shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition-shadow"
+        />
+        <ShinyButton type="submit" className="flex-shrink-0">
+          Start
+        </ShinyButton>
+      </form>
+
+      <p className="text-content-muted text-sm mt-3">
+        Press start to begin.{" "}
+        <button
+          type="button"
+          onClick={onLogin}
+          className="text-content-body font-semibold hover:text-content transition-colors"
+        >
+          Already a member?{" "}
+          <span className="text-brand-700 underline underline-offset-2">
+            Sign in
+          </span>
+        </button>
+      </p>
+    </div>
+  );
+}
 
 export default function Home() {
   const navigate = useNavigate();
@@ -169,19 +274,6 @@ export default function Home() {
     },
   ];
 
-  const trades = [
-    "Electrical",
-    "HVAC",
-    "Plumbing",
-    "Carpentry",
-    "Landscaping",
-    "Roofing",
-    "Painting",
-    "Flooring",
-    "General Contracting",
-    "Cleaning",
-  ];
-
   const testimonials = [
     {
       quote:
@@ -276,76 +368,33 @@ export default function Home() {
                 </FadeIn>
 
                 <FadeIn delay={80}>
-                  <h1 className="text-[clamp(3.5rem,10vw,7rem)] font-black text-content leading-[0.88] mb-6 tracking-tight">
-                    GET PAID
+                  {/*
+                    Much longer than the two words this replaced ("GET PAID /
+                    TODAY."), so the clamp starts smaller and the line height
+                    opens up. At the old 10vw the second line wrapped on every
+                    phone in portrait.
+                  */}
+                  <h1 className="text-[clamp(2.5rem,6.2vw,4.5rem)] font-black text-content leading-[0.95] mb-6 tracking-tight">
+                    Paperwork done in minutes.
                     <br />
-                    <span className="text-brand-700">TODAY.</span>
+                    <span className="text-brand-700">Not hours.</span>
                   </h1>
                 </FadeIn>
 
                 <FadeIn delay={160}>
-                  <p className="text-xl sm:text-2xl text-content-body mb-4 leading-relaxed font-medium">
-                    Invoice in{" "}
-                    <span className="text-content font-black">30 seconds.</span>{" "}
-                    Clients pay by link —{" "}
-                    <span className="text-content font-black">
-                      no app needed.
-                    </span>{" "}
-                    Follow-ups are{" "}
-                    <span className="text-content font-black">
-                      written for you.
-                    </span>
+                  <p className="text-xl sm:text-2xl text-content-body mb-10 leading-relaxed font-medium max-w-xl">
+                    Invoicium turns a job into a paid invoice in under 2
+                    minutes, from any device.
                   </p>
                 </FadeIn>
 
                 <FadeIn delay={240}>
-                  <p className="text-content-muted mb-10 text-lg">
-                    The invoicing app for electricians, plumbers, HVAC techs,
-                    and every trade tired of chasing money.
-                  </p>
-                </FadeIn>
-
-                <FadeIn delay={320}>
-                  <div className="flex flex-col sm:flex-row gap-3 mb-10">
-                    {loading ? (
-                      <Button
-                        disabled
-                        size="lg"
-                        className="bg-ink-200 text-content-body h-14 px-8 rounded-2xl font-black"
-                      >
-                        <RefreshCw className="mr-2 w-5 h-5 animate-spin" />{" "}
-                        Loading...
-                      </Button>
-                    ) : user ? (
-                      <Button
-                        onClick={() => navigate(createPageUrl("Dashboard"))}
-                        size="lg"
-                        className="bg-brand text-content-inverted h-14 px-8 rounded-2xl font-black shadow-2xl shadow-brand-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
-                      >
-                        Go to Dashboard <ArrowRight className="ml-2 w-5 h-5" />
-                      </Button>
-                    ) : (
-                      // The one action this page exists to drive: start the
-                      // trial. It used to be "Sign In", which asked a first-time
-                      // visitor to log into an account they do not have -- the
-                      // primary CTA pointing at the one thing a new lead cannot
-                      // do. Sign-in stays, demoted to a link for returning users.
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-3 sm:gap-5">
-                        <ShinyButton onClick={handleGetStarted}>
-                          Start invoicing free
-                        </ShinyButton>
-                        <button
-                          onClick={handleLogin}
-                          className="text-content-body font-semibold hover:text-content transition-colors text-left"
-                        >
-                          Already a member?{" "}
-                          <span className="text-brand-700 underline underline-offset-2">
-                            Sign in
-                          </span>
-                        </button>
-                      </div>
-                    )}
-                  </div>
+                  <HeroStart
+                    loading={loading}
+                    user={user}
+                    onDashboard={() => navigate(createPageUrl("Dashboard"))}
+                    onLogin={handleLogin}
+                  />
                 </FadeIn>
 
                 <FadeIn delay={400}>
@@ -366,10 +415,43 @@ export default function Home() {
                 </FadeIn>
               </div>
 
-              {/* Phone mockup */}
+              {/*
+                The thing being sold, shown as itself.
+
+                This replaced an animated phone mockup. A mockup shows that we
+                can draw a phone; an actual invoice shows what the visitor
+                walks away with, which is the only question the hero has to
+                answer. Rendered from the real PDF at 2.5x so it stays sharp on
+                a retina display, with a half-size source for phones -- the
+                full asset is 90KB of WebP and there is no reason to send it to
+                someone holding a 400px-wide screen.
+              */}
               <div className="flex justify-center relative">
                 <FadeIn delay={200}>
-                  <InvoiceDemoMockup />
+                  <figure className="relative w-[min(86vw,470px)]">
+                    <div className="absolute -inset-8 bg-brand-300/25 blur-3xl rounded-full pointer-events-none" />
+                    <picture>
+                      <source
+                        type="image/webp"
+                        srcSet="/hero-invoice-small.webp 765w, /hero-invoice.webp 1530w"
+                        sizes="(min-width: 1024px) 470px, 86vw"
+                      />
+                      <img
+                        src="/hero-invoice.png"
+                        srcSet="/hero-invoice-small.png 765w, /hero-invoice.png 1530w"
+                        sizes="(min-width: 1024px) 470px, 86vw"
+                        // Intrinsic size given so the hero does not reflow when
+                        // the image lands -- this is the largest element above
+                        // the fold and a jump here is the whole layout moving.
+                        width={1530}
+                        height={1570}
+                        loading="eager"
+                        decoding="async"
+                        alt="An Invoicium invoice for a kitchen renovation: ten line items including custom cabinetry, quartz countertop and electrical rewiring, totalling $14,490.00 CAD."
+                        className="relative w-full h-auto rounded-2xl bg-white shadow-2xl shadow-ink-900/20 ring-1 ring-ink-900/10 lg:rotate-[-1.2deg]"
+                      />
+                    </picture>
+                  </figure>
                 </FadeIn>
               </div>
             </div>
@@ -380,7 +462,7 @@ export default function Home() {
                 <p className="text-content-muted text-xs font-semibold uppercase tracking-widest mr-2">
                   Trusted by:
                 </p>
-                {trades.map((trade) => (
+                {TRADES.map((trade) => (
                   <span
                     key={trade}
                     className="text-xs text-content-body bg-surface-sunken border border-line px-3 py-1.5 rounded-lg hover:border-brand-300 hover:text-content transition-all cursor-default flex items-center gap-1.5"

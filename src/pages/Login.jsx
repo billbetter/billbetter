@@ -40,7 +40,15 @@ export default function Login({ defaultMode = "signin" }) {
     searchParams.get("returnUrl"),
     "/Dashboard",
   );
-  const [email, setEmail] = useState("");
+  // The homepage hero asks a visitor for one thing -- their email -- and hands
+  // it over in the URL so they do not type it twice. Asking again is the kind
+  // of small friction that loses a signup between two screens.
+  //
+  // Trimmed and capped at the RFC address length. It is only ever an input
+  // value; React escapes it and nothing here interpolates it anywhere.
+  const [email, setEmail] = useState(() =>
+    (searchParams.get("email") || "").trim().slice(0, 254),
+  );
   const [password, setPassword] = useState("");
   const [rememberMe, setRememberMe] = useState(true);
   const [loading, setLoading] = useState(false);

@@ -4,17 +4,23 @@ import {
   Clock,
   Video,
   CheckCircle,
-  ArrowRight,
   Star,
   Users,
   Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import SEO from "@/components/seo/SEO";
+import DemoRequestForm from "@/components/marketing/DemoRequestForm";
 
 export default function BookDemo() {
-  const handleBooking = () => {
-    window.open("https://calendar.app.google/oMcQbdWok7g1wYrm9", "_blank");
+  // The bottom CTA now returns the visitor to the form rather than opening the
+  // calendar directly. Two routes to the same booking, one of which skipped
+  // every qualifying question, meant the answers were optional in practice --
+  // and the one people took was the one that asked nothing.
+  const scrollToForm = () => {
+    document
+      .getElementById("demo-form")
+      ?.scrollIntoView({ behavior: "smooth", block: "center" });
   };
 
   return (
@@ -47,17 +53,12 @@ export default function BookDemo() {
               any questions live.
             </p>
 
-            <Button
-              onClick={handleBooking}
-              className="bg-brand hover:bg-brand-hover text-content-inverted text-base sm:text-lg h-14 px-8 sm:px-10 rounded-2xl font-black shadow-2xl shadow-brand-600/25 transition-all hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
-            >
-              <Calendar className="w-5 h-5 mr-2 flex-shrink-0" />
-              Book My Free Demo
-              <ArrowRight className="w-5 h-5 ml-2 flex-shrink-0" />
-            </Button>
+            <div id="demo-form" className="scroll-mt-24">
+              <DemoRequestForm source="BookDemo" />
+            </div>
 
             <p className="text-content-muted text-sm mt-4">
-              Pick a time that works for you — instant confirmation
+              You pick your time on the next step — instant confirmation
             </p>
           </div>
         </div>
@@ -155,7 +156,7 @@ export default function BookDemo() {
               no pressure to sign up.
             </p>
             <Button
-              onClick={handleBooking}
+              onClick={scrollToForm}
               className="bg-brand-500 hover:bg-brand-400 text-content text-base sm:text-lg h-14 px-10 rounded-2xl font-black shadow-2xl shadow-brand-500/30 transition-all hover:scale-[1.02] active:scale-[0.98] w-full sm:w-auto"
             >
               <Calendar className="w-5 h-5 mr-2 flex-shrink-0" />
