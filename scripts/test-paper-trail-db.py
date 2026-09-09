@@ -149,6 +149,108 @@ select * from pg_temp.trail_probe();
 """
 
 
+AUTH_PROBE = r"""
+create or replace function pg_temp.trail_authprobe()
+returns table (name text, ok boolean, note text)
+language plpgsql
+as $auth$
+declare
+  v_uid uuid := '__UID__';
+  v_id  uuid;
+  v_when timestamptz;
+begin
+  select id, occurred_at into v_id, v_when
+    from public."AuditEvent" where user_id = v_uid order by seq limit 1;
+
+  name := 'cannot INSERT a forged entry'; ok := false; note := '';
+  begin
+    insert into public."AuditEvent"
+      (user_id, document_type, document_id, document_number, client_name,
+       kind, detail, occurred_at, source, seq, hash)
+    values (v_uid, 'invoice', gen_random_uuid(), 'FORGED-001', 'Made Up Ltd',
+            'sent', 'I definitely sent this', now() - interval '30 days',
+            'system', 999999, 'deadbeef');
+    raise exception 'rollback-sentinel';
+  exception when others then
+    ok := (sqlerrm <> 'rollback-sentinel'); note := sqlerrm;
+  end;
+  return next;
+
+  name := 'cannot backdate an existing entry'; ok := false; note := '';
+  begin
+    update public."AuditEvent" set occurred_at = occurred_at - interval '30 days'
+     where id = v_id;
+    raise exception 'rollback-sentinel';
+  exception when others then
+    ok := (sqlerrm <> 'rollback-sentinel'); note := sqlerrm;
+  end;
+  return next;
+
+  name := 'cannot DELETE an entry'; ok := false; note := '';
+  begin
+    delete from public."AuditEvent" where id = v_id;
+    raise exception 'rollback-sentinel';
+  exception when others then
+    ok := (sqlerrm <> 'rollback-sentinel'); note := sqlerrm;
+  end;
+  return next;
+
+  -- The one that matters most. audit_append is SECURITY DEFINER and writes
+  -- straight through RLS, so if this role could call it none of the above
+  -- would be worth anything.
+  --
+  -- All ELEVEN arguments, deliberately. An earlier version of this probe
+  -- passed ten and "passed" on a signature mismatch -- a refusal that had
+  -- nothing to do with permissions and would have gone on reporting PASS with
+  -- the function wide open.
+  name := 'cannot call audit_append directly'; ok := false; note := '';
+  begin
+    perform public.audit_append(v_uid, 'invoice', gen_random_uuid(), 'FORGED-002',
+      'Made Up Ltd', 'viewed', 'They definitely opened it', 1234.00,
+      now() - interval '10 days', 'system', null::uuid);
+    raise exception 'rollback-sentinel';
+  exception when others then
+    ok := (sqlerrm <> 'rollback-sentinel')
+          and sqlerrm ilike '%permission denied%';
+    note := sqlerrm;
+  end;
+  return next;
+
+  name := 'the entry survived all of that unchanged'; ok := false;
+  ok := (select occurred_at from public."AuditEvent" where id = v_id) = v_when;
+  note := 'occurred_at is where it was';
+  return next;
+
+  name := 'a visitor can still submit a demo request'; ok := false; note := '';
+  begin
+    insert into public."DemoRequest" (name, phone, trade, team_size, source)
+    values ('Probe Person', '5551234567', 'Electrical', 'solo', 'probe');
+    ok := true;
+    raise exception 'rollback-sentinel';
+  exception when others then
+    if sqlerrm <> 'rollback-sentinel' then ok := false; note := sqlerrm; end if;
+  end;
+  return next;
+
+  name := 'but cannot read the lead list back'; ok := false; note := '';
+  begin
+    perform 1 from public."DemoRequest" limit 1;
+    ok := not found;
+    note := 'select returned without error';
+  exception when others then
+    ok := true; note := sqlerrm;
+  end;
+  return next;
+end;
+$auth$;
+
+select set_config('request.jwt.claims',
+  '{"sub":"__UID__","role":"authenticated"}', true);
+set local role authenticated;
+select * from pg_temp.trail_authprobe();
+"""
+
+
 def main():
     print('Paper trail, against the live database\n')
 
@@ -275,6 +377,26 @@ def main():
           from public."AuditEvent" order by seq limit 1""")
     check('moving a date by one second changes the hash',
           bool(differs) and differs[0]['changed'] is True)
+
+    # --- The surface anyone would actually attack -------------------------
+    #
+    # Everything above runs as the Management API's role, which is a superuser.
+    # That proves the triggers hold against the strongest caller there is, and
+    # it is NOT how anybody would try this: a real attempt comes from a browser
+    # holding a user's JWT and the anon key that ships in the bundle.
+    #
+    # This section repeats the attempts as `authenticated` with a real uid set,
+    # which is where the grant revokes rather than the triggers do the work.
+    # Worth its own section because the two mechanisms fail independently -- a
+    # future migration that re-grants INSERT would leave every assertion above
+    # passing.
+    print('\nas a logged-in user (not a superuser):')
+    uid = sql('select id from auth.users limit 1')
+    if not uid:
+        print('  SKIP  no users to borrow an id from')
+    else:
+        for r in sql(AUTH_PROBE.replace('__UID__', uid[0]['id'])):
+            check(r['name'], r['ok'] is True, r['note'])
 
     # --- What the app reads ------------------------------------------------
     print('\nthe read path:')
