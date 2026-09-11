@@ -5,7 +5,12 @@ import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import {
   Building2,
   MapPin,
@@ -333,6 +338,16 @@ export default function OnboardingModal({ isOpen, onClose, user, onComplete }) {
       />
       <Dialog open={isOpen && !showFeatureTour} onOpenChange={onClose}>
         <DialogContent className="sm:max-w-lg p-0 bg-surface dark:bg-surface-inverted border border-line dark:border-ink-700 max-h-[90vh] flex flex-col overflow-hidden">
+        {/* The dialog's accessible name. The visible heading is the step header below,
+            styled to this screen's own design -- and DialogTitle brings
+            its own size and weight classes, which would fight with it. So
+            the same words go here instead, for screen readers: a
+            DialogContent with no DialogTitle is announced as just
+            "dialog", and Radix logs that on every open. */}
+        <DialogTitle className="sr-only">{currentStepData.title}</DialogTitle>
+        <DialogDescription className="sr-only">
+          {currentStepData.subtitle}
+        </DialogDescription>
           {/* Progress Bar */}
           <div className="h-1 bg-ink-200 dark:bg-ink-700">
             <div

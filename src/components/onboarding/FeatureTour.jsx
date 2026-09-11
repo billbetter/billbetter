@@ -1,6 +1,11 @@
 import React, { useState, useEffect } from "react";
 import { sdk } from "@/api/sdk";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useNavigate } from "react-router-dom";
 import { canAccessFeature } from "@/components/utils/permissions";
 import { isFeatureDormant } from "@/config/dormantFeatures";
@@ -198,6 +203,16 @@ export default function FeatureTour({ isOpen, onClose, onComplete }) {
   return (
     <Dialog open={isOpen} onOpenChange={onClose}>
       <DialogContent className="sm:max-w-2xl p-0 overflow-hidden max-h-[90vh] shadow-2xl bg-surface-inverted border border-ink-700">
+        {/* The dialog's accessible name. The visible heading is in TourSlideHeader,
+            styled to this screen's own design -- and DialogTitle brings
+            its own size and weight classes, which would fight with it. So
+            the same words go here instead, for screen readers: a
+            DialogContent with no DialogTitle is announced as just
+            "dialog", and Radix logs that on every open. */}
+        <DialogTitle className="sr-only">{section.title}</DialogTitle>
+        <DialogDescription className="sr-only">
+          {section.subtitle}
+        </DialogDescription>
         <TourProgressBar
           progress={progress}
         />
