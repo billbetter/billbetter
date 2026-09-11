@@ -77,6 +77,8 @@ const EXTRA_APP = [
 // Interactions whose result is not on screen until a click. Each runs at both
 // widths; `steps` can differ per profile because the controls do.
 //   { click: selector } { tap: selector } { focus: selector } { press: key }
+//   { type: selector, text } real key events into a field, so React sees
+//     them the way it sees a person typing.
 //   { waitFor: selector } { wait: ms }
 //   { clickText: label }  the first VISIBLE button whose text is exactly
 //                         `label`, clicked from the DOM -- for controls that
@@ -730,6 +732,43 @@ SCENARIOS.push(
   analytics("empty-insights", { empty: true, steps: () => aInsights }),
 );
 
+// ---- QuickBillFlow: the three steps of the quick invoice / quote -----------
+// Step 2 only exists after the model answers, so invoke-llm is mocked. Nothing
+// is sent: the buttons that would create or send are never pressed, and the
+// guard blocks the writes regardless.
+const QUICK_MOCKS = [
+  { match: /^Client\?/, body: [DETAIL_CLIENT, { ...DETAIL_CLIENT,
+    id: "66666666-0000-4000-8000-000000000002", name: "Morgan Lee", email: null }] },
+  { match: /^BusinessSettings\?/, body: [SETTINGS_ROW] },
+  { fn: "invoke-llm", body: { success: true, notes: "Deck repair, materials and labour.",
+    items: [
+      { description: "Pressure-treated 2x6", quantity: 12, rate: 14.5 },
+      { description: "Labor: framing", quantity: 3, rate: 95 },
+    ] } },
+];
+const quickBill = (name, route, steps) => ({
+  name: `quick-bill-${name}`, route, mocks: QUICK_MOCKS,
+  steps: () => [{ waitFor: "text/Who's it for?" }, ...steps],
+});
+const pickClientAndContinue = [
+  { clickContains: "Dana Reyes" },
+  { clickContains: "Continue" },
+  { waitFor: "text/Describe the work" },
+  { wait: 500 },
+];
+const describeAndGenerate = [
+  { type: "textarea", text: "Replaced 12ft of rotted deck boards, 3 hours labour" },
+  { clickContains: "Generate with AI" },
+  { wait: 1500 },
+];
+SCENARIOS.push(
+  quickBill("client", "/QuickInvoice", [{ clickContains: "Dana Reyes" }, { wait: 400 }]),
+  quickBill("describe", "/QuickInvoice", pickClientAndContinue),
+  quickBill("review", "/QuickInvoice", [...pickClientAndContinue, ...describeAndGenerate]),
+  quickBill("quote-review", "/QuickQuote", [...pickClientAndContinue, ...describeAndGenerate]),
+  quickBill("new-client", "/QuickInvoice", [{ clickContains: "Add new client" }, { wait: 400 }]),
+);
+
 // 15:00 UTC on a fixed weekday: an afternoon greeting, and far enough from
 // midnight that no timezone flips the date.
 const FROZEN_NOW = Date.parse("2026-09-09T15:00:00Z");
@@ -813,7 +852,10 @@ const slug = (route) =>
 
 async function runSteps(page, steps) {
   for (const step of steps) {
-    if (step.click) await page.click(step.click);
+    if (step.type) {
+      await page.click(step.type);
+      await page.keyboard.type(step.text || "", { delay: 0 });
+    } else if (step.click) await page.click(step.click);
     else if (step.tap) await page.tap(step.tap);
     else if (step.focus) await page.focus(step.focus);
     else if (step.domClickNth) {
