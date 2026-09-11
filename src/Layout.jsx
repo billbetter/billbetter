@@ -1,76 +1,22 @@
 import React, { useState, useEffect, useRef } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import Logo from "@/components/layout/Logo";
+import { buildNavigation } from "@/components/layout/navigation";
 import { hasAppAccess, resolveAppAccess } from "@/lib/access";
 import { supabase } from "@/api/supabaseClient";
-import { canAccessFeature } from "@/components/utils/permissions";
 import { useShaderAppearance } from "@/lib/appearance";
 import { ShaderBackground } from "@/components/ui/shader-background";
 import { sdk } from "@/api/sdk";
 import {
-  LayoutDashboard,
-  FileText,
-  Users,
-  BarChart3,
-  Settings,
-  LogOut,
-  ClipboardList,
-  Layers,
-  RefreshCw,
-  Zap,
-  Calendar as CalendarIcon,
-  ChevronDown,
-  ChevronLeft,
-  ChevronRight,
-  Building2,
-  CreditCard,
-  ArrowLeft,
   Lock,
-  Clock,
-  UserCog,
 } from "lucide-react";
-import { Badge } from "@/components/ui/badge";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import GlobalVoiceAssistant from "./components/voice/GlobalVoiceAssistant";
 import NotificationPermissionPrompt from "./components/notifications/NotificationPermissionPrompt";
-import NotificationBell from "./components/notifications/NotificationBell";
-
-/**
- * The account menu's items. One menu with two triggers -- the account row at
- * the foot of the desktop sidebar and the avatar in the phone top bar -- so
- * the items live here once instead of being written out twice.
- */
-function AccountMenuContent({ navigate, onLogout }) {
-  return (
-    <DropdownMenuContent align="end" className="w-56">
-      <DropdownMenuItem
-        onClick={() => navigate(createPageUrl("Settings") + "?tab=business")}
-      >
-        <Building2 className="w-4 h-4 mr-2" />
-        Business Information
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={() => navigate(createPageUrl("Settings"))}>
-        <Settings className="w-4 h-4 mr-2" />
-        Settings
-      </DropdownMenuItem>
-      <DropdownMenuItem
-        onClick={() => navigate(createPageUrl("Settings") + "?tab=billing")}
-      >
-        <CreditCard className="w-4 h-4 mr-2" />
-        Billing
-      </DropdownMenuItem>
-      <DropdownMenuItem onClick={onLogout} className="text-danger-600">
-        <LogOut className="w-4 h-4 mr-2" />
-        Logout
-      </DropdownMenuItem>
-    </DropdownMenuContent>
-  );
-}
+import DesktopSidebar from "@/components/layout/DesktopSidebar";
+import MobileTopBar from "@/components/layout/MobileTopBar";
+import MobileBottomNav from "@/components/layout/MobileBottomNav";
+import MobileMoreSheet from "@/components/layout/MobileMoreSheet";
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
@@ -444,16 +390,6 @@ export default function Layout({ children, currentPageName }) {
   };
 
   // Logo component - always shows Invoicium logo for company branding
-  const Logo = ({ className = "w-8 h-8", circular = false }) => {
-    return (
-      <img
-        src="/logo-mark.png"
-        alt="Invoicium Logo"
-        className={`${className} object-contain ${circular ? "rounded-full" : ""}`}
-      />
-    );
-  };
-
   // ---------- STANDALONE LAYOUT ----------
   // Checkout gets a page to itself. The sidebar is app furniture that invites
   // wandering off mid-payment, and the marketing header re-pitches plans to
@@ -600,6 +536,8 @@ export default function Layout({ children, currentPageName }) {
   // `alsoActiveOn`. Exact-match alone made Get Paid go dark the moment you
   // followed its own Paper Trail link, which reads as having left the section
   // -- and leaves no clue which of the five tabs gets you back.
+  const navigation = buildNavigation(subscription);
+
   const isNavActive = (item) =>
     location.pathname === item.href ||
     (item.alsoActiveOn || []).includes(location.pathname);
@@ -609,77 +547,6 @@ export default function Layout({ children, currentPageName }) {
   const getPaidActive =
     location.pathname === createPageUrl("ChaseInvoice") ||
     location.pathname === createPageUrl("PaperTrail");
-
-  const navigation = [
-    {
-      name: "Dashboard",
-      href: createPageUrl("Dashboard"),
-      icon: LayoutDashboard,
-    },
-    {
-      name: "Invoices",
-      href: createPageUrl("Invoices"),
-      icon: FileText,
-    },
-    {
-      name: "Clients",
-      href: createPageUrl("Clients"),
-      icon: Users,
-    },
-    {
-      name: "Quotes",
-      href: createPageUrl("Quotes"),
-      icon: ClipboardList,
-    },
-    {
-      name: "Analytics",
-      href: createPageUrl("Analytics"),
-      icon: BarChart3,
-    },
-    {
-      name: "Get Paid",
-      href: createPageUrl("ChaseInvoice"),
-      icon: Zap,
-      badge: "AI",
-      alsoActiveOn: [createPageUrl("PaperTrail")],
-    },
-    {
-      name: "Calendar",
-      href: createPageUrl("Calendar"),
-      icon: CalendarIcon,
-    },
-    { name: "Jobs", href: createPageUrl("JobPhotos"), icon: Building2 },
-    // Time is dormant (config/dormantFeatures.js). Unlike Team below it was not
-    // gated on anything, so it needs its own check -- the page still exists and
-    // works, it just has no way in.
-    ...(canAccessFeature(subscription, "time_tracking")
-      ? [{ name: "Time", href: createPageUrl("Timesheet"), icon: Clock }]
-      : []),
-    {
-      // Not ClipboardList -- Quotes already uses it, and two identical icons
-      // in one sidebar is worse than no icon at all.
-      name: "Plans",
-      href: createPageUrl("PaymentPlans"),
-      icon: Layers,
-    },
-    {
-      name: "Recurring",
-      href: createPageUrl("RecurringInvoices"),
-      icon: RefreshCw,
-    },
-    // Team is hidden rather than shown-and-refused on the single-operator
-    // plans: a nav item that only ever leads to an upsell is a nav item that
-    // wastes a tap every time. FeatureGate on the page is still the boundary --
-    // this is just tidiness.
-    ...(canAccessFeature(subscription, "crew_management")
-      ? [{ name: "Team", href: createPageUrl("Team"), icon: UserCog }]
-      : []),
-    {
-      name: "Settings",
-      href: createPageUrl("Settings"),
-      icon: Settings,
-    },
-  ];
 
   // 100dvh, not h-screen. Mobile Safari and Chrome size 100vh as if their
   // toolbar were hidden, but <main> is the scroller here, so the document
@@ -696,150 +563,27 @@ export default function Layout({ children, currentPageName }) {
         "--app-bottom-nav-height": `${bottomNavHeight}px`,
       }}
     >
-      {/* Desktop Sidebar */}
-      <aside
-        className={`hidden lg:flex flex-col bg-surface-inverted dark:bg-surface-inverted-deep text-content-inverted ${sidebarCollapsed ? "w-16" : "w-64"} transition-all duration-300 flex-shrink-0`}
-      >
-        <div
-          className={`flex items-center border-b border-ink-800 dark:border-ink-800 ${sidebarCollapsed ? "h-16 justify-center px-2" : "h-16 px-4 justify-between"}`}
-        >
-          {!sidebarCollapsed && (
-            <div className="flex items-center gap-2 min-w-0 flex-1">
-              <img
-                src="/logo-mark.png"
-                alt="Invoicium"
-                className="w-7 h-7 flex-shrink-0"
-              />
-              <span className="text-lg font-bold text-content-inverted tracking-tight truncate">
-                Invoicium
-              </span>
-            </div>
-          )}
-          {!sidebarCollapsed && <NotificationBell />}
-          <button
-            onClick={() => setSidebarCollapsed(!sidebarCollapsed)}
-            className={`flex-shrink-0 w-7 h-7 rounded-md flex items-center justify-center text-content-subtle hover:text-content-inverted hover:bg-ink-800 transition-colors ${sidebarCollapsed ? "" : "ml-2"}`}
-            aria-label={
-              sidebarCollapsed ? "Expand sidebar" : "Collapse sidebar"
-            }
-          >
-            {sidebarCollapsed ? (
-              <ChevronRight className="w-4 h-4" />
-            ) : (
-              <ChevronLeft className="w-4 h-4" />
-            )}
-          </button>
-        </div>
-
-        <nav className="flex-1 px-2 py-3 space-y-0.5 overflow-y-auto">
-          {navigation.map((item) => {
-            const isActive = isNavActive(item);
-            return (
-              <Link
-                key={item.name}
-                to={item.href}
-                className={`flex items-center gap-3 px-3 py-2.5 rounded-lg transition-all duration-150 ${
-                  isActive
-                    ? "bg-brand text-content-inverted shadow-sm"
-                    : "text-content-subtle hover:bg-ink-800 hover:text-content-inverted"
-                } ${sidebarCollapsed ? "justify-center" : ""}`}
-                title={sidebarCollapsed ? item.name : ""}
-              >
-                <item.icon className="w-5 h-5 flex-shrink-0" />
-                {!sidebarCollapsed && (
-                  <span className="text-sm font-medium truncate flex-1">
-                    {item.name}
-                  </span>
-                )}
-                {!sidebarCollapsed && item.badge && (
-                  <Badge className="ml-auto bg-success-700 text-content-inverted text-[10px] px-1.5 py-0">
-                    {item.badge}
-                  </Badge>
-                )}
-              </Link>
-            );
-          })}
-        </nav>
-
-        <div className="p-2 border-t border-ink-800">
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <button
-                className={`flex items-center gap-3 px-3 py-2.5 w-full rounded-lg text-content-subtle hover:bg-ink-800 hover:text-content-inverted transition-colors ${sidebarCollapsed ? "justify-center" : ""}`}
-              >
-                {settings?.logo_url ? (
-                  <img
-                    src={settings?.logo_url}
-                    alt="Profile"
-                    className="w-8 h-8 rounded-full object-cover flex-shrink-0"
-                  />
-                ) : (
-                  <div className="w-8 h-8 rounded-full bg-success-700 flex items-center justify-center text-content-inverted font-semibold text-sm flex-shrink-0">
-                    {user?.full_name?.[0]?.toUpperCase() || "U"}
-                  </div>
-                )}
-                {!sidebarCollapsed && (
-                  <div className="flex-1 text-left min-w-0">
-                    <p className="text-sm font-medium text-content-inverted truncate">
-                      {user?.full_name}
-                    </p>
-                    <p className="text-xs text-content-muted truncate">Owner</p>
-                  </div>
-                )}
-                {!sidebarCollapsed && (
-                  <ChevronDown className="w-4 h-4 flex-shrink-0" />
-                )}
-              </button>
-            </DropdownMenuTrigger>
-            <AccountMenuContent navigate={navigate} onLogout={handleLogout} />
-          </DropdownMenu>
-        </div>
-      </aside>
+      <DesktopSidebar
+        handleLogout={handleLogout}
+        isNavActive={isNavActive}
+        navigate={navigate}
+        navigation={navigation}
+        setSidebarCollapsed={setSidebarCollapsed}
+        settings={settings}
+        sidebarCollapsed={sidebarCollapsed}
+        user={user}
+      />
 
       {/* Main Content Area */}
       <div className="flex-1 flex flex-col overflow-hidden">
-        {/* Mobile Top Bar */}
-        <div className="lg:hidden mobile-header bg-surface dark:bg-surface-inverted border-b border-line dark:border-ink-800 px-4 py-3 flex items-center justify-between sticky top-0 z-40">
-          <div className="flex items-center gap-2">
-            {navigationStack.length > 1 && (
-              <button
-                onClick={handleMobileBack}
-                className="w-10 h-10 min-w-[40px] min-h-[40px] rounded-full flex items-center justify-center text-ink-700 dark:text-ink-300 active:bg-ink-100 dark:active:bg-ink-800 transition-colors"
-                aria-label="Go back"
-              >
-                <ArrowLeft className="w-6 h-6" />
-              </button>
-            )}
-            <Link
-              to={createPageUrl("Dashboard")}
-              className="flex items-center gap-2 py-1"
-            >
-              <img src="/logo-mark.png" alt="Invoicium" className="w-7 h-7" />
-              <span className="text-xl font-bold text-content dark:text-content-inverted tracking-tight">
-                Invoicium
-              </span>
-            </Link>
-          </div>
-          <div className="flex items-center gap-2">
-            <NotificationBell />
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <button className="w-11 h-11 min-w-[44px] min-h-[44px] rounded-full bg-success-100 flex items-center justify-center text-success-700 font-semibold text-sm active:bg-success-200 transition-colors overflow-hidden dark:bg-success-900/30 dark:text-success-400">
-                  {settings?.logo_url ? (
-                    <img
-                      src={settings?.logo_url}
-                      alt="Profile"
-                      className="w-full h-full object-cover"
-                    />
-                  ) : (
-                    <span>{user?.full_name?.[0]?.toUpperCase() || "U"}</span>
-                  )}
-                </button>
-              </DropdownMenuTrigger>
-              <AccountMenuContent navigate={navigate} onLogout={handleLogout} />
-            </DropdownMenu>
-          </div>
-        </div>
+        <MobileTopBar
+          handleLogout={handleLogout}
+          handleMobileBack={handleMobileBack}
+          navigate={navigate}
+          navigationStack={navigationStack}
+          settings={settings}
+          user={user}
+        />
 
         {/* Main Content */}
         <main
@@ -892,208 +636,15 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </main>
 
-        {/* Mobile Bottom Navigation */}
-        <nav
-          ref={bottomNavRef}
-          className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface/95 dark:bg-surface-inverted/95 backdrop-blur-sm border-t border-line-subtle dark:border-ink-800 z-50"
-          style={{ paddingBottom: "max(env(safe-area-inset-bottom), 4px)" }}
-        >
-          <div className="grid grid-cols-5 px-1">
-            {/* Dashboard */}
-            <Link
-              to={createPageUrl("Dashboard")}
-              className={`flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg transition-all active:scale-95 ${
-                location.pathname === createPageUrl("Dashboard")
-                  ? "text-success-600 dark:text-success-400"
-                  : "text-content-muted dark:text-content-subtle"
-              }`}
-            >
-              <LayoutDashboard
-                className={`w-5 h-5 mb-1 ${location.pathname === createPageUrl("Dashboard") ? "stroke-[2.5]" : "stroke-[1.75]"}`}
-              />
-              <span
-                className={`text-[11px] ${location.pathname === createPageUrl("Dashboard") ? "font-semibold" : "font-medium"}`}
-              >
-                Home
-              </span>
-            </Link>
+        <MobileBottomNav
+          bottomNavRef={bottomNavRef}
+          getPaidActive={getPaidActive}
+        />
 
-            {/* Invoices */}
-            <Link
-              to={createPageUrl("Invoices")}
-              className={`flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg transition-all active:scale-95 ${
-                location.pathname === createPageUrl("Invoices")
-                  ? "text-success-600 dark:text-success-400"
-                  : "text-content-muted dark:text-content-subtle"
-              }`}
-            >
-              <FileText
-                className={`w-5 h-5 mb-1 ${location.pathname === createPageUrl("Invoices") ? "stroke-[2.5]" : "stroke-[1.75]"}`}
-              />
-              <span
-                className={`text-[11px] ${location.pathname === createPageUrl("Invoices") ? "font-semibold" : "font-medium"}`}
-              >
-                Invoices
-              </span>
-            </Link>
-
-            {/* Quotes */}
-            <Link
-              to={createPageUrl("Quotes")}
-              className={`flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg transition-all active:scale-95 ${
-                location.pathname === createPageUrl("Quotes")
-                  ? "text-success-600 dark:text-success-400"
-                  : "text-content-muted dark:text-content-subtle"
-              }`}
-            >
-              <ClipboardList
-                className={`w-5 h-5 mb-1 ${location.pathname === createPageUrl("Quotes") ? "stroke-[2.5]" : "stroke-[1.75]"}`}
-              />
-              <span
-                className={`text-[11px] ${location.pathname === createPageUrl("Quotes") ? "font-semibold" : "font-medium"}`}
-              >
-                Quotes
-              </span>
-            </Link>
-
-            {/*
-              Get Paid.
-
-              Active for the Paper Trail too, which lives under this tab rather
-              than beside it. A tab that goes dark when you follow a link from
-              its own page reads as "you have left the section", and the user
-              then has no idea which of the five tabs to press to get back.
-            */}
-            <Link
-              to={createPageUrl("ChaseInvoice")}
-              className={`flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg transition-all active:scale-95 ${
-                getPaidActive
-                  ? "text-success-600 dark:text-success-400"
-                  : "text-content-muted dark:text-content-subtle"
-              }`}
-            >
-              <Zap
-                className={`w-5 h-5 mb-1 ${getPaidActive ? "stroke-[2.5]" : "stroke-[1.75]"}`}
-              />
-              <span
-                className={`text-[11px] ${getPaidActive ? "font-semibold" : "font-medium"}`}
-              >
-                Get Paid
-              </span>
-            </Link>
-
-            {/* More Menu */}
-            <button
-              onClick={() => {
-                const sheet = document.getElementById("mobile-more-menu");
-                sheet.classList.toggle("hidden");
-              }}
-              className="flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg text-content-muted dark:text-content-subtle active:scale-95 transition-all"
-            >
-              <div className="w-5 h-5 mb-1 flex items-center justify-center">
-                <svg
-                  width="20"
-                  height="20"
-                  viewBox="0 0 20 20"
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.75"
-                  strokeLinecap="round"
-                >
-                  <circle
-                    cx="4"
-                    cy="10"
-                    r="1.25"
-                    fill="currentColor"
-                    stroke="none"
-                  />
-                  <circle
-                    cx="10"
-                    cy="10"
-                    r="1.25"
-                    fill="currentColor"
-                    stroke="none"
-                  />
-                  <circle
-                    cx="16"
-                    cy="10"
-                    r="1.25"
-                    fill="currentColor"
-                    stroke="none"
-                  />
-                </svg>
-              </div>
-              <span className="text-[11px] font-medium">More</span>
-            </button>
-          </div>
-        </nav>
-
-        {/* Mobile More Menu Sheet */}
-        <div
-          id="mobile-more-menu"
-          className="lg:hidden fixed inset-0 z-50 hidden"
-          onClick={(e) => {
-            if (e.target.id === "mobile-more-menu") {
-              document
-                .getElementById("mobile-more-menu")
-                .classList.add("hidden");
-            }
-          }}
-        >
-          <div className="absolute inset-0 bg-black/50 backdrop-blur-sm" />
-          <div
-            className="absolute bottom-0 left-0 right-0 bg-surface dark:bg-surface-inverted rounded-t-3xl shadow-2xl animate-slide-up"
-            style={{ paddingBottom: "max(env(safe-area-inset-bottom), 8px)" }}
-          >
-            <div className="flex items-center justify-between px-6 py-4 border-b border-line dark:border-ink-800">
-              <h3 className="text-lg font-semibold text-content dark:text-content-inverted">
-                All Pages
-              </h3>
-              <button
-                onClick={() =>
-                  document
-                    .getElementById("mobile-more-menu")
-                    .classList.add("hidden")
-                }
-                className="w-8 h-8 flex items-center justify-center rounded-full hover:bg-ink-100 active:bg-ink-200 dark:hover:bg-ink-800 dark:active:bg-ink-700 transition-colors"
-              >
-                <span className="text-2xl text-content-muted">&times;</span>
-              </button>
-            </div>
-            <div className="px-4 py-3 max-h-[60vh] overflow-y-auto">
-              <div className="grid grid-cols-3 gap-3">
-                {navigation.map((item) => {
-                  const isActive = isNavActive(item);
-                  return (
-                    <Link
-                      key={item.name}
-                      to={item.href}
-                      onClick={() =>
-                        document
-                          .getElementById("mobile-more-menu")
-                          .classList.add("hidden")
-                      }
-                      className={`flex flex-col items-center justify-center p-4 rounded-xl transition-all active:scale-95 ${
-                        isActive
-                          ? "bg-success-600 text-content-inverted shadow-lg shadow-success-200"
-                          : "bg-surface-sunken dark:bg-ink-800 text-ink-700 dark:text-ink-300 active:bg-ink-100 dark:active:bg-ink-700"
-                      }`}
-                    >
-                      <item.icon
-                        className={`w-7 h-7 mb-2 ${isActive ? "stroke-[2.5]" : "stroke-[2]"}`}
-                      />
-                      <span
-                        className={`text-xs text-center font-medium leading-tight ${isActive ? "font-semibold" : ""}`}
-                      >
-                        {item.name}
-                      </span>
-                    </Link>
-                  );
-                })}
-              </div>
-            </div>
-          </div>
-        </div>
+        <MobileMoreSheet
+          isNavActive={isNavActive}
+          navigation={navigation}
+        />
       </div>
 
       <GlobalVoiceAssistant />
