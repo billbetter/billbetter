@@ -1,11 +1,9 @@
 import React from "react";
 import { FileText } from "lucide-react";
-import InvoicePreview from "@/components/invoice/create/InvoicePreview";
 
-/** The desktop live preview beside the form. */
+/** The desktop live-preview frame beside the form; the preview itself is `children`. */
 export default function LivePreviewPanel({
-  formData,
-  settings,
+  children,
 }) {
   return (
     <div className="hidden lg:block lg:sticky lg:top-24 w-full">
@@ -23,7 +21,7 @@ export default function LivePreviewPanel({
           </div>
         </div>
         <div className="p-3 sm:p-4 bg-surface-sunken dark:bg-surface-inverted-deep">
-          <InvoicePreview invoice={formData} settings={settings} />
+          {children}
         </div>
       </div>
     </div>

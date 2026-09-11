@@ -1,10 +1,10 @@
 import React from "react";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { calculateTotals } from "@/components/documentForm/lineItemMath";
 
 /** Tax rate; changing it recomputes the totals. */
 export default function TaxRateField({
-  calculateTotals,
   formData,
   setFormData,
 }) {

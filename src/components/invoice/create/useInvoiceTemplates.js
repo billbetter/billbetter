@@ -1,6 +1,6 @@
 import { useState } from "react";
 import { sdk } from "@/api/sdk";
-import { calculateTotals } from "./invoiceFormMath";
+import { calculateTotals } from "@/components/documentForm/lineItemMath";
 
 /**
  * Saved line-item templates: the list, applying one to the form, and the

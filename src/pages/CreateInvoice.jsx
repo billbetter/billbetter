@@ -26,26 +26,31 @@ import {
   DeleteTemplateDialog,
 } from "../components/invoice/TemplateDialogs";
 import CameraAnalyzer from "@/components/invoice/create/CameraAnalyzer";
-import { calculateNextDate, calculateTotals } from "@/components/invoice/create/invoiceFormMath";
+import { calculateNextDate } from "@/components/invoice/create/invoiceFormMath";
+import { calculateTotals } from "@/components/documentForm/lineItemMath";
 import useInvoiceTemplates from "@/components/invoice/create/useInvoiceTemplates";
 import { lineItemsPrompt } from "@/components/invoice/create/lineItemsPrompt";
-import CreateInvoiceHeader from "@/components/invoice/create/CreateInvoiceHeader";
+import DocumentBuilderHeader from "@/components/documentForm/DocumentBuilderHeader";
 import LimitReachedDialog from "@/components/invoice/create/LimitReachedDialog";
-import RecentWorkOrdersCard from "@/components/invoice/create/RecentWorkOrdersCard";
+import PastDocumentsCard from "@/components/documentForm/PastDocumentsCard";
 import JobExpensesImportCard from "@/components/invoice/create/JobExpensesImportCard";
 import ServiceTemplatesCard from "@/components/invoice/create/ServiceTemplatesCard";
 import RecurringToggleCard from "@/components/invoice/create/RecurringToggleCard";
 import RecurringScheduleCard from "@/components/invoice/create/RecurringScheduleCard";
-import JobDetailsHeader from "@/components/invoice/create/JobDetailsHeader";
-import ClientPicker from "@/components/invoice/create/ClientPicker";
+import FormCardHeader from "@/components/documentForm/FormCardHeader";
+import SaveTemplateButton from "@/components/invoice/create/SaveTemplateButton";
+import ClientPicker from "@/components/documentForm/ClientPicker";
 import DueDateField from "@/components/invoice/create/DueDateField";
 import PaymentTermsField from "@/components/invoice/create/PaymentTermsField";
-import LineItemsEditor from "@/components/invoice/create/LineItemsEditor";
-import TaxRateField from "@/components/invoice/create/TaxRateField";
-import InvoiceTotalsSummary from "@/components/invoice/create/InvoiceTotalsSummary";
-import JobNotesField from "@/components/invoice/create/JobNotesField";
+import LineItemsEditor from "@/components/documentForm/LineItemsEditor";
+import PrefillSourceNotice from "@/components/invoice/create/PrefillSourceNotice";
+import TaxRateField from "@/components/documentForm/TaxRateField";
+import TotalsSummary from "@/components/documentForm/TotalsSummary";
+import NotesField from "@/components/documentForm/NotesField";
 import InvoiceFormActions from "@/components/invoice/create/InvoiceFormActions";
-import LivePreviewPanel from "@/components/invoice/create/LivePreviewPanel";
+import LivePreviewPanel from "@/components/documentForm/LivePreviewPanel";
+import InvoicePreview from "@/components/invoice/create/InvoicePreview";
+import { HardHat } from "lucide-react";
 
 const STORAGE_KEY = "invoicium_invoice_draft";
 
@@ -893,9 +898,10 @@ export default function CreateInvoice() {
   return (
     <div className="min-h-screen bg-surface-sunken dark:bg-surface-inverted-deep transition-colors duration-300">
       <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <CreateInvoiceHeader
-          isEditing={isEditing}
-          isRecurring={isRecurring}
+        <DocumentBuilderHeader
+          Icon={HardHat}
+          subtitle={isRecurring ? "Set up automatic billing for ongoing contracts" : "Create professional invoices for your trade services"}
+          title={isEditing ? "Edit Invoice" : isRecurring ? "Recurring Invoice" : "New Invoice"}
           userSpecialty={userSpecialty}
         />
 
@@ -908,12 +914,15 @@ export default function CreateInvoice() {
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 items-start">
           <div className="space-y-4 sm:space-y-6 w-full min-w-0">
-            <RecentWorkOrdersCard
+            <PastDocumentsCard
               formData={formData}
+              numberField="invoice_number"
               setFormData={setFormData}
               setShowSuggestions={setShowSuggestions}
               showSuggestions={showSuggestions}
               similarSuggestions={similarSuggestions}
+              subtitle="Quickly bill for similar jobs"
+              title="Recent Work Orders"
             />
 
             <JobExpensesImportCard
@@ -945,11 +954,12 @@ export default function CreateInvoice() {
             />
 
             <Card className="border-0 shadow-xl bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-ink-200 dark:ring-ink-700">
-              <JobDetailsHeader
-                formData={formData}
-                setSaveTemplateDialog={setSaveTemplateDialog}
+              <FormCardHeader
                 setShowVoiceInput={setShowVoiceInput}
-              />
+                title="Job Details"
+              >
+                <SaveTemplateButton formData={formData} setSaveTemplateDialog={setSaveTemplateDialog} />
+              </FormCardHeader>
               <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                 <form
                   onSubmit={handleSubmit}
@@ -959,6 +969,7 @@ export default function CreateInvoice() {
                     clients={clients}
                     formData={formData}
                     handleClientSelect={handleClientSelect}
+                    hint="(Property Owner)"
                     selectedClient={selectedClient}
                   />
 
@@ -976,11 +987,13 @@ export default function CreateInvoice() {
 
                   <LineItemsEditor
                     addItem={addItem}
+                    descriptionLabel="Service Description"
                     formData={formData}
                     handleItemChange={handleItemChange}
-                    prefillData={prefillData}
+                    notice={<PrefillSourceNotice prefillData={prefillData} />}
                     removeItem={removeItem}
                     setFormData={setFormData}
+                    title="Labor & Materials"
                     userSpecialty={userSpecialty}
                   />
 
@@ -989,12 +1002,15 @@ export default function CreateInvoice() {
                     setFormData={setFormData}
                   />
 
-                  <InvoiceTotalsSummary
+                  <TotalsSummary
                     formData={formData}
+                    totalLabel="Total Due"
                   />
 
-                  <JobNotesField
+                  <NotesField
                     formData={formData}
+                    label="Job Notes & Terms"
+                    placeholder="Scope of work, warranty info, payment instructions..."
                     setFormData={setFormData}
                   />
 
@@ -1012,10 +1028,9 @@ export default function CreateInvoice() {
             </Card>
           </div>
 
-          <LivePreviewPanel
-            formData={formData}
-            settings={settings}
-          />
+          <LivePreviewPanel>
+            <InvoicePreview invoice={formData} settings={settings} />
+          </LivePreviewPanel>
         </div>
       </div>
 

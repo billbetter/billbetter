@@ -2,7 +2,7 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Receipt, X } from "lucide-react";
-import { calculateTotals } from "@/components/invoice/create/invoiceFormMath";
+import { calculateTotals } from "@/components/documentForm/lineItemMath";
 
 /** Billable expenses from the job this invoice was opened for, and importing them as lines. */
 export default function JobExpensesImportCard({

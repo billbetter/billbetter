@@ -2,15 +2,19 @@ import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent } from "@/components/ui/card";
 import { Sparkles, X } from "lucide-react";
-import { calculateTotals } from "@/components/invoice/create/invoiceFormMath";
+import { calculateTotals } from "@/components/documentForm/lineItemMath";
 
-/** The chosen client's recent invoices; picking one copies its line items. */
-export default function RecentWorkOrdersCard({
+/** The chosen client's recent documents; picking one copies its line items.
+ * `numberField` names the suggestion's number (invoice_number / quote_number). */
+export default function PastDocumentsCard({
   formData,
+  numberField,
   setFormData,
   setShowSuggestions,
   showSuggestions,
   similarSuggestions,
+  subtitle,
+  title,
 }) {
   return <>
     {showSuggestions && similarSuggestions.length > 0 && (
@@ -23,10 +27,10 @@ export default function RecentWorkOrdersCard({
               </div>
               <div className="min-w-0">
                 <h3 className="text-base sm:text-lg font-black text-content dark:text-ink-50 truncate">
-                  Recent Work Orders
+                  {title}
                 </h3>
                 <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
-                  Quickly bill for similar jobs
+                  {subtitle}
                 </p>
               </div>
             </div>
@@ -63,7 +67,7 @@ export default function RecentWorkOrdersCard({
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center justify-between mb-1 gap-2">
                     <span className="text-xs sm:text-sm font-semibold text-brand-700 dark:text-brand-400 truncate">
-                      {suggestion.invoice_number}
+                      {suggestion[numberField]}
                     </span>
                     <span className="text-base sm:text-lg font-bold text-content dark:text-ink-50 shrink-0">
                       ${suggestion.total.toFixed(2)}

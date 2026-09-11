@@ -14,18 +14,21 @@ import { format, addDays } from "date-fns";
 import VoiceInput from "../components/invoice/VoiceInput";
 import { generateQuotePDF } from "@/functions/generateQuotePDF";
 import CameraAnalyzer from "@/components/quote/create/CameraAnalyzer";
-import CreateQuoteHeader from "@/components/quote/create/CreateQuoteHeader";
-import SimilarQuotesCard from "@/components/quote/create/SimilarQuotesCard";
-import QuoteDetailsHeader from "@/components/quote/create/QuoteDetailsHeader";
-import ClientPicker from "@/components/quote/create/ClientPicker";
+import { calculateTotals } from "@/components/documentForm/lineItemMath";
+import DocumentBuilderHeader from "@/components/documentForm/DocumentBuilderHeader";
+import PastDocumentsCard from "@/components/documentForm/PastDocumentsCard";
+import FormCardHeader from "@/components/documentForm/FormCardHeader";
+import ClientPicker from "@/components/documentForm/ClientPicker";
 import QuoteDatesFields from "@/components/quote/create/QuoteDatesFields";
-import LineItemsEditor from "@/components/quote/create/LineItemsEditor";
-import TaxRateField from "@/components/quote/create/TaxRateField";
-import QuoteTotalsSummary from "@/components/quote/create/QuoteTotalsSummary";
-import QuoteNotesField from "@/components/quote/create/QuoteNotesField";
+import LineItemsEditor from "@/components/documentForm/LineItemsEditor";
+import TaxRateField from "@/components/documentForm/TaxRateField";
+import TotalsSummary from "@/components/documentForm/TotalsSummary";
+import NotesField from "@/components/documentForm/NotesField";
 import QuoteFormActions from "@/components/quote/create/QuoteFormActions";
-import LivePreviewPanel from "@/components/quote/create/LivePreviewPanel";
+import LivePreviewPanel from "@/components/documentForm/LivePreviewPanel";
 import QuoteSuccessDialog from "@/components/quote/create/QuoteSuccessDialog";
+import QuotePreview from "@/components/quote/create/QuotePreview";
+import { Quote } from "lucide-react";
 
 export default function CreateQuote() {
   const navigate = useNavigate();
@@ -201,13 +204,6 @@ export default function CreateQuote() {
     }
 
     return true;
-  };
-
-  const calculateTotals = (items, taxRate) => {
-    const subtotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
-    const tax_amount = (subtotal * taxRate) / 100;
-    const total = subtotal + tax_amount;
-    return { subtotal, tax_amount, total };
   };
 
   const handleItemChange = (index, field, value) => {
@@ -572,27 +568,32 @@ Provide line items in this format.`,
   return (
     <div className="min-h-screen bg-surface-sunken dark:bg-surface-inverted-deep transition-colors duration-300">
       <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
-        <CreateQuoteHeader
-          editMode={editMode}
+        <DocumentBuilderHeader
+          Icon={Quote}
+          subtitle="Create professional quotes for your trade services"
+          title={editMode ? "Edit Quote" : "New Quote"}
           userSpecialty={userSpecialty}
         />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 items-start">
           <div className="space-y-4 sm:space-y-6 w-full min-w-0">
-            <SimilarQuotesCard
-              calculateTotals={calculateTotals}
+            <PastDocumentsCard
               formData={formData}
+              numberField="quote_number"
               setFormData={setFormData}
               setShowSuggestions={setShowSuggestions}
               showSuggestions={showSuggestions}
               similarSuggestions={similarSuggestions}
+              subtitle="Reuse pricing from previous jobs"
+              title="Similar Past Quotes"
             />
 
             <CameraAnalyzer onAnalysisComplete={handleCameraAnalysis} />
 
             <Card className="border-0 shadow-xl bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-ink-200 dark:ring-ink-700">
-              <QuoteDetailsHeader
+              <FormCardHeader
                 setShowVoiceInput={setShowVoiceInput}
+                title="Quote Details"
               />
               <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                 <form
@@ -603,6 +604,7 @@ Provide line items in this format.`,
                     clients={clients}
                     formData={formData}
                     handleClientSelect={handleClientSelect}
+                    hint="(Required)"
                     selectedClient={selectedClient}
                   />
 
@@ -613,26 +615,29 @@ Provide line items in this format.`,
 
                   <LineItemsEditor
                     addItem={addItem}
-                    calculateTotals={calculateTotals}
+                    descriptionLabel="Description"
                     formData={formData}
                     handleItemChange={handleItemChange}
                     removeItem={removeItem}
                     setFormData={setFormData}
+                    title="Line Items"
                     userSpecialty={userSpecialty}
                   />
 
                   <TaxRateField
-                    calculateTotals={calculateTotals}
                     formData={formData}
                     setFormData={setFormData}
                   />
 
-                  <QuoteTotalsSummary
+                  <TotalsSummary
                     formData={formData}
+                    totalLabel="Total"
                   />
 
-                  <QuoteNotesField
+                  <NotesField
                     formData={formData}
+                    label="Notes & Terms"
+                    placeholder="Quote validity, scope exclusions, payment terms..."
                     setFormData={setFormData}
                   />
 
@@ -648,10 +653,9 @@ Provide line items in this format.`,
             </Card>
           </div>
 
-          <LivePreviewPanel
-            formData={formData}
-            settings={settings}
-          />
+          <LivePreviewPanel>
+            <QuotePreview quote={formData} settings={settings} />
+          </LivePreviewPanel>
         </div>
       </div>
 

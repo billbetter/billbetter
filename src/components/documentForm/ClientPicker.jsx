@@ -2,11 +2,12 @@ import React from "react";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
-/** Choose the client; picking one also loads their recent quotes. */
+/** Choose the client. `hint` is the small note after the label. */
 export default function ClientPicker({
   clients,
   formData,
   handleClientSelect,
+  hint,
   selectedClient,
 }) {
   return (
@@ -17,7 +18,7 @@ export default function ClientPicker({
       >
         Client *
         <span className="text-xs font-normal text-content-muted">
-          (Required)
+          {hint}
         </span>
       </Label>
       <Select

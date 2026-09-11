@@ -1,10 +1,11 @@
 import React from "react";
-import { HardHat, Wrench } from "lucide-react";
+import { Wrench } from "lucide-react";
 
-/** Page title (new, recurring or editing) and the trade it prices for. */
-export default function CreateInvoiceHeader({
-  isEditing,
-  isRecurring,
+/** The builder's title block, and the trade it prices for. */
+export default function DocumentBuilderHeader({
+  Icon,
+  subtitle,
+  title,
   userSpecialty,
 }) {
   return (
@@ -12,20 +13,14 @@ export default function CreateInvoiceHeader({
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
         <div className="flex items-center gap-3">
           <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-ink-800 flex items-center justify-center shadow-lg ring-1 ring-ink-900/10 dark:ring-content-inverted/10 shrink-0">
-            <HardHat className="w-5 h-5 sm:w-6 sm:h-6 text-content-inverted" />
+            <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-content-inverted" />
           </div>
           <div className="min-w-0 flex-1">
             <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-content dark:text-ink-50 tracking-tight truncate">
-              {isEditing
-                ? "Edit Invoice"
-                : isRecurring
-                  ? "Recurring Invoice"
-                  : "New Invoice"}
+              {title}
             </h1>
             <p className="text-content-body dark:text-content-subtle text-xs sm:text-sm mt-0.5 truncate">
-              {isRecurring
-                ? "Set up automatic billing for ongoing contracts"
-                : "Create professional invoices for your trade services"}
+              {subtitle}
             </p>
           </div>
         </div>

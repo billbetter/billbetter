@@ -1,8 +1,9 @@
 import React from "react";
 
-/** Subtotal, tax and total due. */
-export default function InvoiceTotalsSummary({
+/** Subtotal, tax (when there is any) and the total, labelled `totalLabel`. */
+export default function TotalsSummary({
   formData,
+  totalLabel,
 }) {
   return (
     <div className="p-4 sm:p-5 bg-surface-sunken dark:bg-surface-inverted-deep rounded-xl text-content dark:text-content-inverted shadow-sm dark:shadow-xl border border-line dark:border-ink-800">
@@ -22,7 +23,7 @@ export default function InvoiceTotalsSummary({
           </div>
         )}
         <div className="flex justify-between text-lg sm:text-xl font-bold pt-2 border-t border-line dark:border-ink-800">
-          <span>Total Due</span>
+          <span>{totalLabel}</span>
           <span className="text-brand-700 dark:text-info-400">
             ${formData.total.toFixed(2)}
           </span>
