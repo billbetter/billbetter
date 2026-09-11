@@ -7,3 +7,7 @@
 **Why it might be intended:** the insights compare fixed windows ("this week vs last week", "last 30 vs previous 30 days"), which arguably should not move with a custom range.
 
 **Decision needed:** either (a) insights should respect the selected range, in which case restore the filter and use it; or (b) they shouldn't, in which case say so in the UI (e.g. "based on the last 60 days") and drop the `dateRange` prop, which is currently only a `useMemo` dependency.
+
+---
+
+**Fixed:** 2026-09-11 in `2dd789a` (Fix #04: Smart Insights says which window it is comparing). Insights keep their fixed windows and say so; they are fed every invoice, so the line is true.

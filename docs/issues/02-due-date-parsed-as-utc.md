@@ -20,3 +20,7 @@
 **Suggested fix:** one helper that parses a date-only string as a *local* calendar day (`parseISO` from date-fns does this, as does splitting `y-m-d` into `new Date(y, m-1, d)`), used at every site above. The overdue comparisons should compare calendar days, not instants.
 
 **Note:** this is the same class of bug an earlier session recorded as "four pages still do it". There are more than four.
+
+---
+
+**Fixed:** 2026-09-11 in `cf6ac5c` (Fix #02: calendar days were parsed as UTC, so they read a day early). The same reading now covers paid_date and the quote/recurring dates too.

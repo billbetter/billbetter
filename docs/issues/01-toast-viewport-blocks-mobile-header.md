@@ -13,3 +13,7 @@
 **Suggested fix:** the standard one for this component. Add `pointer-events-none` to the viewport and `pointer-events-auto` to each toast, so the empty strip is click-through and real toasts stay clickable.
 
 **Verify:** `scripts/snapshot-pages.cjs`, scenario `account-menu`, currently opens the phone menu from the keyboard *because* a tap cannot. After the fix, switch that step back to `tap` and it should pass.
+
+---
+
+**Fixed:** 2026-09-11 in `f85dee4` (Fix #01: the empty toast strip swallowed taps on the mobile header).

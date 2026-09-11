@@ -15,3 +15,7 @@
 **Already right:** the client-facing invoice/quote pages use the business's own `settings.currency` (server-provided), defaulting to CAD. `CreateInvoice.jsx:849` picks CAD or USD from the business location.
 
 **Suggested fix:** one formatter that takes the business's `settings.currency` (default CAD), used everywhere above. Worth checking at the same time whether the chase *messages* sent to clients carry the wrong currency, since that text leaves the app.
+
+---
+
+**Fixed:** 2026-09-11 in `7f144c3` (Fix #03: money is the business's currency, not a hardcoded USD). Amounts follow BusinessSettings.currency (CAD by default) and the reader's locale.

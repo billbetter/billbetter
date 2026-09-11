@@ -9,3 +9,7 @@ This is happening against the live data right now. Opening an existing invoice f
 **Suggested fix:** guard the fields (`(preset.name || "").toLowerCase()`, the same for `description`, and for `template.name` / `template.description`). Also find the row(s) missing them. A column renamed during the AxisBill → Invoicium migration would produce exactly this.
 
 **Found:** 2026-09-10, as a console error in the CreateInvoice edit snapshot. Not fixed there because it changes behaviour.
+
+---
+
+**Fixed:** 2026-09-11 in `17137cf` (Fix #09: one bad service preset emptied the whole autofill list). Guarded. The row(s) with a missing name or description are still there and worth finding.

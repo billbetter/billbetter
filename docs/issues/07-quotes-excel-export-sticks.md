@@ -10,3 +10,7 @@
 **Suggested fix:** either build the export (the invoice list's CSV export, `src/components/invoice/list/exportInvoicesCsv.js`, is a working model and needs no edge function) or remove the menu item until it exists. Whichever you choose, put `setExporting(false)` in a `finally`.
 
 **Found:** 2026-09-10, while splitting Quotes.jsx; not fixed there because it changes behaviour.
+
+---
+
+**Fixed:** 2026-09-11 in `29bf931` (Fix #06 and #07: Edit Quote opens the quote, and the export works). Built as CSV, the way the invoice list already exports; the menu reads "Export CSV" and the handler is synchronous, so there is no `exporting` state left to stick.

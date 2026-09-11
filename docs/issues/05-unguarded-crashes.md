@@ -29,3 +29,7 @@ None of them is hit by current live data, but each takes a whole screen down whe
 **Today:** latent. Every Quote row has `date_issued` (checked 2026-09-10: 2 of 2). Found the same way as A, from fixture data.
 
 **Suggested fix:** render the date only when present, or fall back to `created_at`, which is what `get-public-quote` already does for the client's copy (`issue_date: quote.date_issued || quote.created_at`).
+
+---
+
+**Fixed:** 2026-09-11 in `2d96559` (Fix #05: three unguarded crashes). All three: the job photo, the quote without a date, and PaymentSuccess signed out.

@@ -9,3 +9,7 @@ The invoice builder had the same fake analyzer and it was fixed there. `src/comp
 **Suggested fix:** give the quote builder the invoice version's behaviour. The two components are near-identical apart from this. Once they match, make them one shared component, with the copy ("Generate Quote Items" / "Generate Invoice Items") and the callback name passed in as props.
 
 **Found:** 2026-09-10, while splitting CreateInvoice.jsx. Not merged or fixed there, because merging would change what the quote builder does.
+
+---
+
+**Fixed:** 2026-09-11 in `4e1aba0` (Fix #08: the quote builder now actually reads the photo). One shared CameraAnalyzer; the quote builder uploads and reads the photo.

@@ -13,3 +13,7 @@ navigate(createPageUrl(`CreateQuote?id=${quoteId}`));
 **Suggested fix:** send `?edit=${quoteId}` from `handleEdit`. Then decide whether invoices should get an Edit entry point too.
 
 **Found:** 2026-09-10, while splitting Quotes.jsx; not fixed there because it changes behaviour.
+
+---
+
+**Fixed:** 2026-09-11 in `29bf931` (Fix #06 and #07: Edit Quote opens the quote, and the export works).
