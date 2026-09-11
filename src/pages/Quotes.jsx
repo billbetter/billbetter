@@ -25,6 +25,7 @@ import QuoteFilterBar from "@/components/quote/list/QuoteFilterBar";
 import QuotesDesktopHeader from "@/components/quote/list/QuotesDesktopHeader";
 import QuotesMobileHeader from "@/components/quote/list/QuotesMobileHeader";
 import useQuoteListData from "@/components/quote/list/useQuoteListData";
+import { exportQuotesCsv } from "@/components/quote/list/exportQuotesCsv";
 
 export default function Quotes() {
   const { quotes, loading, refreshing, loadData } = useQuoteListData();
@@ -36,7 +37,6 @@ export default function Quotes() {
   });
   const [deleting, setDeleting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(null);
-  const [exporting, setExporting] = useState(false);
   const [converting, setConverting] = useState(null);
   const [convertDialog, setConvertDialog] = useState({
     open: false,
@@ -62,7 +62,9 @@ export default function Quotes() {
   };
 
   const handleEdit = (quoteId) => {
-    navigate(createPageUrl(`CreateQuote?id=${quoteId}`));
+    // ?edit=, which is what CreateQuote reads. With ?id= it opened a blank
+    // New Quote form, so editing a quote quietly created a second one.
+    navigate(createPageUrl(`CreateQuote?edit=${quoteId}`));
   };
 
   const handleStatusChange = async (quoteId, newStatus) => {
@@ -137,41 +139,7 @@ export default function Quotes() {
     }
   };
 
-  const handleExportToExcel = async () => {
-    setExporting(true);
-    try {
-      const response = await sdk.functions.invoke("exportQuotesToExcel", {
-        quote_ids: [],
-      });
-
-      // Without this the line below wrapped a plain object in a Blob and
-      // downloaded a .xlsx containing the text [object Object].
-      if (!response?.data || response.data.success === false) {
-        alert(
-          response?.data?.not_implemented
-            ? "Excel export isn't available yet."
-            : "Export failed. Please try again.",
-        );
-        return;
-      }
-
-      const blob = new Blob([response.data], {
-        type: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
-      });
-      const url = window.URL.createObjectURL(blob);
-      const a = document.createElement("a");
-      a.href = url;
-      a.download = `quotes-export-${Date.now()}.xlsx`;
-      document.body.appendChild(a);
-      a.click();
-      window.URL.revokeObjectURL(url);
-      a.remove();
-    } catch (error) {
-      console.error("Error exporting quotes:", error);
-      alert("Failed to export quotes. Please try again.");
-    }
-    setExporting(false);
-  };
+  const handleExportQuotes = () => exportQuotesCsv(filteredQuotes);
 
   const filteredQuotes = quotes.filter((quote) => {
     const matchesSearch =
@@ -199,16 +167,14 @@ export default function Quotes() {
       <div className="min-h-screen bg-surface-sunken/50 dark:bg-surface-inverted">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
           <QuotesMobileHeader
-            exporting={exporting}
-            handleExportToExcel={handleExportToExcel}
+            handleExportQuotes={handleExportQuotes}
             loadData={loadData}
             refreshing={refreshing}
             stats={stats}
           />
 
           <QuotesDesktopHeader
-            exporting={exporting}
-            handleExportToExcel={handleExportToExcel}
+            handleExportQuotes={handleExportQuotes}
             loadData={loadData}
             refreshing={refreshing}
             stats={stats}

@@ -10,8 +10,7 @@ import QuoteActionsMenuContent from "@/components/quote/list/QuoteActionsMenuCon
 /** Desktop top of the quote list: title, Refresh / Actions / New Quote, and
  * the five headline figures. */
 export default function QuotesDesktopHeader({
-  exporting,
-  handleExportToExcel,
+  handleExportQuotes,
   loadData,
   refreshing,
   stats,
@@ -58,8 +57,7 @@ export default function QuotesDesktopHeader({
                 </Button>
               </DropdownMenuTrigger>
               <QuoteActionsMenuContent
-                exporting={exporting}
-                handleExportToExcel={handleExportToExcel}
+                handleExportQuotes={handleExportQuotes}
               />
             </DropdownMenu>
 

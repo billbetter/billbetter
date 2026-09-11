@@ -10,8 +10,7 @@ import QuoteActionsMenuContent from "@/components/quote/list/QuoteActionsMenuCon
 /** Phone layout's top of the quote list: title, actions menu, the four
  * headline figures and the New Quote button. */
 export default function QuotesMobileHeader({
-  exporting,
-  handleExportToExcel,
+  handleExportQuotes,
   loadData,
   refreshing,
   stats,
@@ -55,8 +54,7 @@ export default function QuotesMobileHeader({
               </Button>
             </DropdownMenuTrigger>
             <QuoteActionsMenuContent
-              exporting={exporting}
-              handleExportToExcel={handleExportToExcel}
+              handleExportQuotes={handleExportQuotes}
             />
           </DropdownMenu>
         </div>
