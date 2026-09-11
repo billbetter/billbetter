@@ -649,6 +649,25 @@ SCENARIOS.push(
   createInvoice("save-template", { steps: () => [{ clickContains: "Save" }, { waitFor: "[role='dialog']" }] }),
 );
 
+// ---- CreateQuote, from the same fixtures ------------------------------------
+const createQuote = (name, { query = "", steps = () => [] } = {}) => ({
+  name: `create-quote-${name}`, route: `/CreateQuote${query}`,
+  mocks: [
+    { match: /^Client\?/, body: [DETAIL_CLIENT, { ...DETAIL_CLIENT, id: "66666666-0000-4000-8000-000000000002",
+      name: "Morgan Lee", email: null, phone: "902 555 0102" }] },
+    { match: /^BusinessSettings\?/, body: [SETTINGS_ROW] },
+    { match: /^Subscription\?/, body: [SUBSCRIPTION_ROW] },
+    { match: /^UserSpecialty\?/, body: [{ id: "s1", primary_specialty: "general_contractor" }] },
+    { match: /^Quote\?/, body: [DETAIL_QUOTE] },
+  ],
+  steps: (p) => [{ waitFor: "text/Line Items" }, ...steps(p)],
+});
+SCENARIOS.push(
+  createQuote("fixture"),
+  createQuote("client", { steps: () => pickFirstClient }),
+  createQuote("edit", { query: `?edit=${DETAIL_QUOTE.id}`, steps: () => [{ wait: 800 }] }),
+);
+
 // 15:00 UTC on a fixed weekday: an afternoon greeting, and far enough from
 // midnight that no timezone flips the date.
 const FROZEN_NOW = Date.parse("2026-09-09T15:00:00Z");
