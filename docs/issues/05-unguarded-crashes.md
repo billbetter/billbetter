@@ -1,6 +1,6 @@
-# Two unguarded crashes
+# Three unguarded crashes
 
-Neither is hit by current live data, but each takes a whole screen down when it is.
+None of them is hit by current live data, but each takes a whole screen down when it is.
 
 ## A. A job photo with no `taken_date` crashes the job view
 
@@ -19,3 +19,13 @@ Neither is hit by current live data, but each takes a whole screen down when it 
 **What happens:** opened with no session it logs `❌ Database check error: TypeError: Cannot read properties of null (reading 'id')`. The user is `null` and the check reads `.id` from it.
 
 **Note:** this is Stripe-flow code. Per the standing rule it needs an explicit go-ahead before anyone edits it.
+
+## C. A quote with no `date_issued` crashes the quote list
+
+**Where:** `src/pages/Quotes.jsx` (desktop table row and mobile card): `format(new Date(quote.date_issued), ...)`, unguarded.
+
+**What happens:** one such quote replaces the whole Quotes page with the error screen, the same `RangeError` as A.
+
+**Today:** latent. Every Quote row has `date_issued` (checked 2026-09-10: 2 of 2). Found the same way as A, from fixture data.
+
+**Suggested fix:** render the date only when present, or fall back to `created_at`, which is what `get-public-quote` already does for the client's copy (`issue_date: quote.date_issued || quote.created_at`).

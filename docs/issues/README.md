@@ -12,4 +12,6 @@ written so it can be pasted into GitHub as-is:
 | 02 | [Date-only `due_date` parsed as UTC, a day early in Canada](02-due-date-parsed-as-utc.md) | Medium: wrong dates shown/exported; overdue off by a day |
 | 03 | [Currency hardcoded as USD in six places, CAD elsewhere](03-currency-hardcoded-usd.md) | Medium: amounts labelled US$ for Canadian businesses |
 | 04 | [Smart Insights ignores the selected date range](04-smart-insights-ignores-date-range.md) | Low, may be intended |
-| 05 | [Two unguarded crashes: photo without taken_date, PaymentSuccess logged out](05-unguarded-crashes.md) | Low today (no live data hits them) |
+| 05 | [Three unguarded crashes: photo without taken_date, quote without date_issued, PaymentSuccess logged out](05-unguarded-crashes.md) | Low today (no live data hits them) |
+| 06 | ["Edit Quote" from the quote list opens a blank quote](06-edit-quote-opens-blank-quote.md) | Medium: an edit silently becomes a duplicate quote |
+| 07 | [Quotes "Export to Excel" is a stub, and using it jams the button](07-quotes-excel-export-sticks.md) | Low: dead menu item that disables itself |
