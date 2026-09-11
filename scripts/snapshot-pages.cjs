@@ -367,7 +367,8 @@ const quoteRow = (id, n, status, total) => ({
   id, user_id: config.session.user.id, quote_number: `QTE-50${n}`, status, total,
   subtotal: total, tax_amount: 0, client_name: ["Dana Reyes", "Sam Vega", "Ruth Okafor",
     "Lee Park", "Moss & Co"][n - 1], client_email: `client${n}@example.com`,
-  expiry_date: "2026-10-01", created_date: `2026-09-0${n}T15:00:00Z`,
+  expiry_date: "2026-10-01", date_issued: `2026-09-0${n}`,
+  created_date: `2026-09-0${n}T15:00:00Z`,
   created_at: `2026-09-0${n}T15:00:00Z`, items: [],
 });
 const QUOTE_MOCKS = [
