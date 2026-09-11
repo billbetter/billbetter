@@ -1,4 +1,3 @@
-import { parseCalendarDay } from "@/lib/calendarDate";
 /**
  * What has been paid on an invoice, and what happened to it.
  *
@@ -32,6 +31,7 @@ import { parseCalendarDay } from "@/lib/calendarDate";
 
 import { ENTITY_COLUMNS } from "@/api/entityColumns";
 import { isVoided } from "@/lib/invoiceVoid";
+import { parseCalendarDay } from "@/lib/calendarDate";
 
 /** Methods offered in the UI. Not a constraint -- the column is free text. */
 export const PAYMENT_METHODS = [

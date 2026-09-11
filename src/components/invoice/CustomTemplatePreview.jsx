@@ -1,6 +1,6 @@
-import { formatCalendarDay } from "@/lib/calendarDate";
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 export default function CustomTemplatePreview({ config, settings }) {
   const {

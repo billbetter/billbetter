@@ -1,5 +1,5 @@
-import { daysUntilDay } from "@/lib/calendarDate";
 import { CheckCircle2, Clock, FileCheck, FileText, XCircle } from "lucide-react";
+import { daysUntilDay } from "@/lib/calendarDate";
 
 /** How each quote status looks in the list: badge colours, icon, row stripe. */
 export const statusConfig = {
