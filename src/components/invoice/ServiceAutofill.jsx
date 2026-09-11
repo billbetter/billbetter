@@ -59,21 +59,23 @@ const ServiceAutofill = React.memo(
 
           // Combine and filter
           const searchLower = searchTerm.toLowerCase();
+          // Null-safe on purpose: one row with no name or description used
+          // to throw here, and the catch below swallowed it, so NO
+          // suggestions appeared for any search on any line item.
+          const matches = (value) =>
+            String(value || "")
+              .toLowerCase()
+              .includes(searchLower);
 
           const filteredSystem = systemPresets.filter(
             (preset) =>
-              preset.name.toLowerCase().includes(searchLower) ||
-              preset.description.toLowerCase().includes(searchLower) ||
-              (preset.keywords &&
-                preset.keywords.some((k) =>
-                  k.toLowerCase().includes(searchLower),
-                )),
+              matches(preset.name) ||
+              matches(preset.description) ||
+              (preset.keywords || []).some(matches),
           );
 
           const filteredCustom = customTemplates.filter(
-            (template) =>
-              template.name.toLowerCase().includes(searchLower) ||
-              template.description.toLowerCase().includes(searchLower),
+            (template) => matches(template.name) || matches(template.description),
           );
 
           // Rank results
@@ -108,7 +110,7 @@ const ServiceAutofill = React.memo(
     const calculateScore = (item, search, specialty) => {
       let score = 0;
       const searchLower = search.toLowerCase();
-      const nameLower = item.name.toLowerCase();
+      const nameLower = String(item.name || "").toLowerCase();
 
       // Exact match bonus
       if (nameLower === searchLower) score += 100;
@@ -121,8 +123,11 @@ const ServiceAutofill = React.memo(
 
       // Keyword match
       if (
-        item.keywords &&
-        item.keywords.some((k) => k.toLowerCase().includes(searchLower))
+        (item.keywords || []).some((k) =>
+          String(k || "")
+            .toLowerCase()
+            .includes(searchLower),
+        )
       ) {
         score += 20;
       }
