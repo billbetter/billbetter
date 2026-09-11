@@ -4,10 +4,10 @@ import { Clock, ExternalLink, Trash2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { TableCell, TableRow } from "@/components/ui/table";
 import { createPageUrl } from "@/utils";
-import { format } from "date-fns";
 import { statusConfig } from "@/components/quote/list/quoteStatus";
 import { getExpiryStatus } from "@/components/quote/list/quoteStatus";
 import QuoteStatusCell from "@/components/quote/list/QuoteStatusCell";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 /** One quote in the desktop table: number, client, who responded, amount,
  * expiry, status dropdown and Open / Delete. */
@@ -55,7 +55,7 @@ export default function QuoteTableRow({
 
       <TableCell className="py-4 px-4">
         <p className="text-sm font-semibold text-ink-700 dark:text-ink-300">
-          {format(new Date(quote.date_issued), "MMM d, yyyy")}
+          {formatCalendarDay(quote.date_issued, "MMM d, yyyy")}
         </p>
       </TableCell>
 

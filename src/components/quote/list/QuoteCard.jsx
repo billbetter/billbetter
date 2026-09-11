@@ -4,9 +4,9 @@ import { Button } from "@/components/ui/button";
 import { Link } from "react-router-dom";
 import ReadReceiptBadge from "@/components/invoice/ReadReceiptBadge";
 import { createPageUrl } from "@/utils";
-import { format } from "date-fns";
 import { respondedBy, statusConfig } from "@/components/quote/list/quoteStatus";
 import { getExpiryStatus } from "@/components/quote/list/quoteStatus";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 /** One quote in the phone layout, with Convert when it has been approved. */
 export default function QuoteCard({
@@ -50,7 +50,7 @@ export default function QuoteCard({
             </p>
             <div className="flex items-center gap-2 mt-1">
               <p className="text-xs text-content-subtle dark:text-content-muted font-medium">
-                {format(new Date(quote.date_issued), "MMM d")}
+                {formatCalendarDay(quote.date_issued, "MMM d")}
               </p>
               <span
                 className={`text-[10px] px-1.5 py-0.5 rounded font-bold ${expiryStatus.bgColor} ${expiryStatus.color}`}

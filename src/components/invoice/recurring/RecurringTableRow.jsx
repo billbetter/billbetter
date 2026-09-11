@@ -3,7 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { AlertCircle, Calendar, Loader2, Pause, Play, Trash2 } from "lucide-react";
 import { TableCell, TableRow } from "@/components/ui/table";
-import { format } from "date-fns";
+import { formatCalendarDay } from "@/lib/calendarDate";
 import { getEndLabel, getFrequencyLabel, statusConfig } from "./recurringStatus";
 
 /** One recurring invoice in the desktop table, with pause/resume and delete. */
@@ -60,8 +60,8 @@ export default function RecurringTableRow({
         {recurring.next_generation_date ? (
           <div className="flex items-center gap-2 text-sm text-ink-700 dark:text-ink-300">
             <Calendar className="w-4 h-4 text-content-subtle dark:text-content-muted" />
-            {format(
-              new Date(recurring.next_generation_date),
+            {formatCalendarDay(
+              recurring.next_generation_date,
               "MMM d, yyyy",
             )}
           </div>

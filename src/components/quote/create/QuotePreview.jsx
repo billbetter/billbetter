@@ -1,5 +1,5 @@
 import React from "react";
-import { format } from "date-fns";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 /** The live preview beside the form: the quote as it stands, laid out like the PDF. */
 const QuotePreview = ({ quote, settings }) => {
@@ -54,7 +54,7 @@ const QuotePreview = ({ quote, settings }) => {
             </p>
             <p className="text-xs sm:text-sm font-medium text-content dark:text-ink-100">
               {quote.expiry_date
-                ? format(new Date(quote.expiry_date), "MMM dd, yyyy")
+                ? formatCalendarDay(quote.expiry_date, "MMM dd, yyyy")
                 : "Not set"}
             </p>
           </div>

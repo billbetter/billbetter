@@ -1,5 +1,5 @@
 import { Ban, CheckCircle2, Pause } from "lucide-react";
-import { format } from "date-fns";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 /** How each recurring-invoice status looks: badge colours, icon, stripe, label. */
 export const statusConfig = {
@@ -51,6 +51,6 @@ export const getEndLabel = (recurring) => {
   if (recurring.end_type === "after")
     return `After ${recurring.occurrences} invoices`;
   if (recurring.end_type === "on_date")
-    return `Ends ${format(new Date(recurring.end_date), "MMM d, yyyy")}`;
+    return `Ends ${formatCalendarDay(recurring.end_date, "MMM d, yyyy")}`;
   return "N/A";
 };

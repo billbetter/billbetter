@@ -22,6 +22,7 @@ import { CrewInvite } from "@/entities/CrewInvite";
 import { CrewMemberSettings } from "@/entities/CrewMemberSettings";
 import { TimeEntry } from "@/entities/TimeEntry";
 import { buildLoginUrl } from "@/lib/auth-redirects";
+import { isPastDay } from "@/lib/calendarDate";
 
 function buildPDFBlobUrl(title) {
   const html = `
@@ -488,11 +489,10 @@ async function handleFunctionInvoke(name, payload = {}) {
     let updated = 0;
     const now = new Date();
     for (const inv of invoices) {
-      if (
-        inv.status === "sent" &&
-        inv.due_date &&
-        new Date(inv.due_date) < now
-      ) {
+      // A calendar day, so an invoice is overdue the day AFTER its due
+      // date -- not at 20:00 the evening before, which is where UTC
+      // midnight lands in Canada.
+      if (inv.status === "sent" && isPastDay(inv.due_date, now)) {
         await localDataEngine.update("Invoice", inv.id, { status: "overdue" });
         updated++;
       }

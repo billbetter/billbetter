@@ -2,8 +2,8 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Calendar, Mail, MessageSquare, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
-import { format } from "date-fns";
 import { statusColors, statusIcons } from "@/components/quote/detail/quoteDetailStatus";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 /** The quote's headline card: number, status and response, client, dates, total. */
 export default function QuoteSummaryCard({
@@ -77,12 +77,12 @@ export default function QuoteSummaryCard({
             </div>
             <p className="text-sm text-content-body dark:text-ink-300">
               <span className="font-medium">Issued:</span>{" "}
-              {format(new Date(quote.date_issued), "MMM d, yyyy")}
+              {formatCalendarDay(quote.date_issued, "MMM d, yyyy")}
             </p>
             {quote.expiry_date && (
               <p className="text-sm text-content-body dark:text-ink-300 mt-1">
                 <span className="font-medium">Expires:</span>{" "}
-                {format(new Date(quote.expiry_date), "MMM d, yyyy")}
+                {formatCalendarDay(quote.expiry_date, "MMM d, yyyy")}
               </p>
             )}
           </div>

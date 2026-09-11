@@ -48,6 +48,11 @@ import PullToRefresh from "@/components/utils/PullToRefresh";
 import DailyDigest from "@/components/dashboard/DailyDigest";
 import ReadReceiptBadge from "@/components/invoice/ReadReceiptBadge";
 import { indexPaymentsByInvoice, revenueDate } from "@/lib/invoicePayments";
+import {
+  formatCalendarDay,
+  isPastDay,
+  parseCalendarDay,
+} from "@/lib/calendarDate";
 
 // Invoice Row Component
 const InvoiceRow = ({ invoice, onClick }) => {
@@ -306,7 +311,7 @@ export default function Dashboard() {
           inv.created_date
             ? format(new Date(inv.created_date), "yyyy-MM-dd")
             : "",
-          inv.due_date ? format(new Date(inv.due_date), "yyyy-MM-dd") : "",
+          formatCalendarDay(inv.due_date, "yyyy-MM-dd"),
           inv.total?.toFixed(2) || "0.00",
           inv.status || "",
         ]),
@@ -360,8 +365,7 @@ export default function Dashboard() {
 
     const overdueInvoices = invoices.filter((inv) => {
       if (inv.status === "overdue") return true;
-      if (inv.status === "sent" && inv.due_date && new Date(inv.due_date) < now)
-        return true;
+      if (inv.status === "sent" && isPastDay(inv.due_date, now)) return true;
       return false;
     });
 
@@ -411,7 +415,8 @@ export default function Dashboard() {
       .filter((r) => r.status === "active" && r.next_generation_date)
       .sort(
         (a, b) =>
-          new Date(a.next_generation_date) - new Date(b.next_generation_date),
+          parseCalendarDay(a.next_generation_date) -
+          parseCalendarDay(b.next_generation_date),
       )
       .slice(0, 3);
   }, [recurringInvoices]);
@@ -809,8 +814,8 @@ export default function Dashboard() {
                       </p>
                       <p className="text-sm text-content-muted dark:text-content-subtle">
                         Next:{" "}
-                        {format(
-                          new Date(rec.next_generation_date),
+                        {formatCalendarDay(
+                          rec.next_generation_date,
                           "MMM d, yyyy",
                         )}
                       </p>

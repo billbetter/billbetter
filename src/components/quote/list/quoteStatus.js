@@ -1,5 +1,5 @@
+import { daysUntilDay } from "@/lib/calendarDate";
 import { CheckCircle2, Clock, FileCheck, FileText, XCircle } from "lucide-react";
-import { differenceInDays } from "date-fns";
 
 /** How each quote status looks in the list: badge colours, icon, row stripe. */
 export const statusConfig = {
@@ -57,7 +57,14 @@ export const respondedBy = (quote) => {
 
 /** The expiry badge for a quote: label and colours by days remaining. */
 export const getExpiryStatus = (expiryDate) => {
-  const days = differenceInDays(new Date(expiryDate), new Date());
+  const days = daysUntilDay(expiryDate);
+  if (days === null)
+    return {
+      text: "No expiry",
+      color: "text-content-body dark:text-content-subtle",
+      bgColor: "bg-ink-100 dark:bg-ink-800",
+      indicator: "bg-ink-400",
+    };
   if (days < 0)
     return {
       text: "Expired",

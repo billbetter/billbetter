@@ -1,4 +1,5 @@
 import { format } from "date-fns";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 /** Download the given invoices as a CSV, one row each. */
 export function exportInvoicesCsv(invoices) {
@@ -24,9 +25,7 @@ export function exportInvoicesCsv(invoices) {
       const createdDate = invoice.created_date
         ? format(new Date(invoice.created_date), "yyyy-MM-dd")
         : "";
-      const dueDate = invoice.due_date
-        ? format(new Date(invoice.due_date), "yyyy-MM-dd")
-        : "";
+      const dueDate = formatCalendarDay(invoice.due_date, "yyyy-MM-dd");
       const total = invoice.total?.toFixed(2) || "0.00";
       const status = invoice.status || "";
 

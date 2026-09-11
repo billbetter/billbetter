@@ -1,3 +1,4 @@
+import { parseCalendarDay } from "@/lib/calendarDate";
 /**
  * What has been paid on an invoice, and what happened to it.
  *
@@ -383,7 +384,10 @@ export function indexPaymentsByInvoice(payments = []) {
  * invoice sent in January and paid in April counted as January revenue.
  */
 export function revenueDate(invoice, payments = []) {
-  if (invoice?.paid_date) return new Date(invoice.paid_date);
+  // paid_date is a calendar day (settledDate writes "yyyy-MM-dd"). Read as
+  // UTC it slides into the previous evening, so an invoice paid on the 1st
+  // was counted as the month before's revenue.
+  if (invoice?.paid_date) return parseCalendarDay(invoice.paid_date);
   const dates = (payments || []).map((p) => p?.paid_at).filter(Boolean).sort();
   if (dates.length) return new Date(`${String(dates[dates.length - 1]).slice(0, 10)}T12:00:00Z`);
   return new Date(invoice?.created_at || invoice?.created_date || Date.now());

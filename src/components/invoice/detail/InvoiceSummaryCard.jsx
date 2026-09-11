@@ -3,6 +3,7 @@ import { Badge } from "@/components/ui/badge";
 import { Calendar, Mail, MessageSquare, User } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 const statusColors = {
   draft: "bg-ink-100 text-ink-800",
@@ -86,13 +87,13 @@ export default function InvoiceSummaryCard({
                 <span className="font-medium text-content dark:text-content-inverted">
                   Due:
                 </span>{" "}
-                {format(new Date(invoice.due_date), "MMM d, yyyy")}
+                {formatCalendarDay(invoice.due_date, "MMM d, yyyy")}
               </p>
             )}
             {invoice.paid_date && (
               <p className="text-sm text-success-600 dark:text-success-400 mt-1">
                 <span className="font-medium">Paid:</span>{" "}
-                {format(new Date(invoice.paid_date), "MMM d, yyyy")}
+                {formatCalendarDay(invoice.paid_date, "MMM d, yyyy")}
               </p>
             )}
           </div>

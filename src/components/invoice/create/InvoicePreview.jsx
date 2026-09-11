@@ -1,5 +1,5 @@
 import React from "react";
-import { format } from "date-fns";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 /** The live preview beside the form: the invoice as it stands, laid out like the PDF. */
 const InvoicePreview = ({ invoice, settings }) => {
@@ -53,9 +53,7 @@ const InvoicePreview = ({ invoice, settings }) => {
               Due Date
             </p>
             <p className="text-xs sm:text-sm font-medium text-content dark:text-ink-100">
-              {invoice.due_date
-                ? format(new Date(invoice.due_date), "MMM dd, yyyy")
-                : "Not set"}
+              {formatCalendarDay(invoice.due_date, "MMM dd, yyyy", "Not set")}
             </p>
           </div>
         </div>

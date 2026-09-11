@@ -1,3 +1,4 @@
+import { formatCalendarDay } from "@/lib/calendarDate";
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
 
@@ -129,7 +130,7 @@ export default function CustomTemplatePreview({ config, settings }) {
                 </p>
                 <p>
                   <span className="font-medium">Due:</span>{" "}
-                  {new Date(sampleInvoice.due_date).toLocaleDateString()}
+                  {formatCalendarDay(sampleInvoice.due_date, "P")}
                 </p>
               </div>
             </div>
