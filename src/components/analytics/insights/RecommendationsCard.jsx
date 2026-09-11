@@ -2,6 +2,7 @@ import React from "react";
 import { AlertCircle, CheckCircle2, Clock, FileText, TrendingUp, Users, Zap } from "lucide-react";
 import FadeIn from "@/components/analytics/FadeIn";
 import { motion } from "framer-motion";
+import { isWonQuote } from "@/lib/quoteStatus";
 
 const PRIORITY_COLORS = {
   red: {
@@ -43,7 +44,7 @@ const PRIORITY_COLORS = {
 
 /**
  * What to do next, most urgent first; "Everything looks great!" when nothing
- * applies. NOTE: an "approved" quote counts as unconverted -- docs/issues/10.
+ * applies. A quote the client has approved is not chased.
  */
 function recommendedActions({
   clients,
@@ -99,10 +100,7 @@ function recommendedActions({
   }
 
   if (quotes.length > 0) {
-    const unconverted = quotes.filter(
-      (q) =>
-        q.status !== "accepted" && q.status !== "converted",
-    );
+    const unconverted = quotes.filter((q) => !isWonQuote(q));
     if (unconverted.length > 0) {
       actions.push({
         priority: "low",

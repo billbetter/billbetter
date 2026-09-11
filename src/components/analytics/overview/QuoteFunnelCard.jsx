@@ -1,25 +1,18 @@
 import React from "react";
 import FadeIn from "@/components/analytics/FadeIn";
 import { FileText } from "lucide-react";
+import {
+  isDeclinedQuote,
+  isPendingQuote,
+  isWonQuote,
+} from "@/lib/quoteStatus";
 
-/**
- * The funnel's figures. NOTE: "won" is "accepted" or "converted", but quotes
- * are marked "approved" everywhere else in the app -- see docs/issues/10.
- */
+/** The funnel's figures. What counts as won lives in lib/quoteStatus. */
 function quoteFunnel(quotes) {
   const total = quotes.length;
-  const accepted = quotes.filter(
-    (q) => q.status === "accepted" || q.status === "converted",
-  ).length;
-  const pending = quotes.filter(
-    (q) =>
-      q.status === "sent" ||
-      q.status === "pending" ||
-      q.status === "viewed",
-  ).length;
-  const declined = quotes.filter(
-    (q) => q.status === "declined" || q.status === "rejected",
-  ).length;
+  const accepted = quotes.filter(isWonQuote).length;
+  const pending = quotes.filter(isPendingQuote).length;
+  const declined = quotes.filter(isDeclinedQuote).length;
   const conversionRate =
     total > 0 ? Math.round((accepted / total) * 100) : 0;
 
