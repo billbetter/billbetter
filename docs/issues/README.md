@@ -15,3 +15,5 @@ written so it can be pasted into GitHub as-is:
 | 05 | [Three unguarded crashes: photo without taken_date, quote without date_issued, PaymentSuccess logged out](05-unguarded-crashes.md) | Low today (no live data hits them) |
 | 06 | ["Edit Quote" from the quote list opens a blank quote](06-edit-quote-opens-blank-quote.md) | Medium: an edit silently becomes a duplicate quote |
 | 07 | [Quotes "Export to Excel" is a stub, and using it jams the button](07-quotes-excel-export-sticks.md) | Low: dead menu item that disables itself |
+| 08 | [The quote builder's "upload a photo" never reads the photo](08-quote-photo-analyzer-ignores-photo.md) | Medium: a feature that pretends to work |
+| 09 | [Line-item autofill shows nothing if any service preset lacks a name or description](09-service-autofill-fails-on-one-bad-row.md) | Medium: happening on live data now |
