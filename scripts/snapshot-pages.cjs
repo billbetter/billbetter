@@ -668,6 +668,70 @@ SCENARIOS.push(
   createQuote("edit", { query: `?edit=${DETAIL_QUOTE.id}`, steps: () => [{ wait: 800 }] }),
 );
 
+// ---- Analytics, from a fixed year of business -------------------------------
+// Dates are relative to FROZEN_NOW (2026-09-09): paid work in most of the last
+// six months so every chart has a shape, sent and overdue invoices for the
+// pipeline, quotes in every status for the funnel, and jobs whose titles hit
+// the category matcher, one completed this month.
+const A_CLIENTS = ["Dana Reyes", "Morgan Lee", "Priya Nair", "Sam Okafor"].map((name, i) => ({
+  id: `66666666-0000-4000-8000-00000000010${i}`, user_id: config.session.user.id, name,
+  email: `${name.split(" ")[0].toLowerCase()}@example.com`, created_date: "2026-03-01T15:00:00Z",
+}));
+const aInvoice = (n, status, total, created, extra = {}) => ({
+  id: `44444444-0000-4000-8000-0000000002${String(n).padStart(2, "0")}`, user_id: config.session.user.id,
+  invoice_number: `INV-${1000 + n}`, status, total, client_id: A_CLIENTS[n % 4].id,
+  client_name: A_CLIENTS[n % 4].name, created_date: created, due_date: created.slice(0, 10), ...extra,
+});
+const A_INVOICES = [
+  aInvoice(1, "paid", 1800, "2026-04-03T15:00:00Z", { paid_date: "2026-04-20" }),
+  aInvoice(2, "paid", 2450, "2026-05-11T15:00:00Z", { paid_date: "2026-05-30" }),
+  aInvoice(3, "paid", 900, "2026-06-02T15:00:00Z", { paid_date: "2026-06-15" }),
+  aInvoice(4, "paid", 3200, "2026-07-08T15:00:00Z", { paid_date: "2026-08-02" }),
+  aInvoice(5, "paid", 1250, "2026-08-14T15:00:00Z", { paid_date: "2026-08-28" }),
+  aInvoice(6, "paid", 2100, "2026-09-01T15:00:00Z", { paid_date: "2026-09-05" }),
+  aInvoice(7, "sent", 1500, "2026-08-25T15:00:00Z"),
+  aInvoice(8, "sent", 640, "2026-09-03T15:00:00Z"),
+  aInvoice(9, "overdue", 980, "2026-07-01T15:00:00Z"),
+  aInvoice(10, "draft", 400, "2026-09-07T15:00:00Z"),
+];
+const A_QUOTES = ["approved", "approved", "sent", "sent", "declined", "converted", "draft"].map((status, i) => ({
+  id: `55555555-0000-4000-8000-0000000002${String(i).padStart(2, "0")}`, user_id: config.session.user.id,
+  quote_number: `QTE-${2000 + i}`, status, total: 1000 + i * 250, client_name: A_CLIENTS[i % 4].name,
+  created_date: `2026-0${3 + (i % 6)}-10T15:00:00Z`, date_issued: `2026-0${3 + (i % 6)}-10`,
+}));
+const A_JOBS = [
+  { id: "j1", job_title: "HVAC service", status: "completed", completed_at: "2026-09-04T15:00:00Z",
+    linked_invoice_id: A_INVOICES[5].id, created_date: "2026-08-20T15:00:00Z" },
+  { id: "j2", job_title: "Kitchen plumbing", status: "completed", completed_at: "2026-08-01T15:00:00Z",
+    linked_invoice_id: A_INVOICES[3].id, created_date: "2026-07-01T15:00:00Z" },
+  { id: "j3", job_title: "Deck repair", description: "carpentry", status: "in_progress",
+    linked_invoice_id: A_INVOICES[1].id, created_date: "2026-05-01T15:00:00Z" },
+  { id: "j4", job_title: "Fence", status: "completed", completed_at: "2026-06-10T15:00:00Z",
+    linked_invoice_id: A_INVOICES[2].id, created_date: "2026-06-01T15:00:00Z" },
+].map((j) => ({ user_id: config.session.user.id, ...j }));
+const analytics = (name, { empty = false, steps = () => [] } = {}) => ({
+  name: `analytics-${name}`, route: "/Analytics",
+  mocks: [
+    { match: /^Invoice\?/, body: empty ? [] : A_INVOICES },
+    { match: /^Client\?/, body: empty ? [] : A_CLIENTS },
+    { match: /^Quote\?/, body: empty ? [] : A_QUOTES },
+    { match: /^Job\?/, body: empty ? [] : A_JOBS },
+    { match: /^InvoicePayment\?/, body: [] },
+  ],
+  steps: (p) => [{ waitFor: "text/Track revenue" }, { wait: 1200 }, ...steps(p)],
+});
+const aInsights = [{ click: "button[role='tab']:nth-of-type(2)" }, { wait: 1200 }];
+const aRange = (preset) => [{ domClick: "div.relative > button:has(svg.lucide-chevron-down)" },
+  { waitFor: "[data-select-item-value]" }, { domClick: `[data-select-item-value='${preset}']` }, { wait: 1200 }];
+SCENARIOS.push(
+  analytics("overview"),
+  analytics("insights", { steps: () => aInsights }),
+  analytics("this-month", { steps: () => aRange("thisMonth") }),
+  analytics("this-month-insights", { steps: () => [...aRange("thisMonth"), ...aInsights] }),
+  analytics("empty", { empty: true }),
+  analytics("empty-insights", { empty: true, steps: () => aInsights }),
+);
+
 // 15:00 UTC on a fixed weekday: an afternoon greeting, and far enough from
 // midnight that no timezone flips the date.
 const FROZEN_NOW = Date.parse("2026-09-09T15:00:00Z");
