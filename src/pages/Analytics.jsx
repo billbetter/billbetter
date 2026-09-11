@@ -214,7 +214,7 @@ export default function Analytics() {
                 </div>
               </div>
               <SmartInsights
-                invoices={filteredInvoices}
+                invoices={invoices}
                 clients={clients}
                 jobs={jobs}
                 quotes={quotes}

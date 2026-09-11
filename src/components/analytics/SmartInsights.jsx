@@ -10,13 +10,13 @@ import {
   Clock,
 } from "lucide-react";
 import { subDays, subWeeks } from "date-fns";
+import { isPastDay, parseCalendarDay } from "@/lib/calendarDate";
 
 export default function SmartInsights({
   invoices,
   quotes,
   jobs,
   clients,
-  dateRange,
 }) {
   const insights = useMemo(() => {
     const now = new Date();
@@ -32,13 +32,13 @@ export default function SmartInsights({
       .filter(
         (inv) =>
           inv.status === "paid" &&
-          new Date(inv.paid_date || inv.created_date) >= weekAgo,
+          parseCalendarDay(inv.paid_date || inv.created_date) >= weekAgo,
       )
       .reduce((sum, inv) => sum + (inv.total || 0), 0);
 
     const lastWeekRevenue = invoices
       .filter((inv) => {
-        const date = new Date(inv.paid_date || inv.created_date);
+        const date = parseCalendarDay(inv.paid_date || inv.created_date);
         return inv.status === "paid" && date >= twoWeeksAgo && date < weekAgo;
       })
       .reduce((sum, inv) => sum + (inv.total || 0), 0);
@@ -103,8 +103,7 @@ export default function SmartInsights({
     // 3. Overdue Invoice Alert
     const overdueInvoices = invoices.filter((inv) => {
       if (inv.status === "paid" || inv.status === "cancelled") return false;
-      const dueDate = inv.due_date ? new Date(inv.due_date) : null;
-      return dueDate && dueDate < now;
+      return isPastDay(inv.due_date, now);
     });
 
     if (overdueInvoices.length > 0) {
@@ -198,7 +197,7 @@ export default function SmartInsights({
     }
 
     return results.sort((a, b) => a.priority - b.priority);
-  }, [invoices, quotes, jobs, clients, dateRange]);
+  }, [invoices, quotes, jobs, clients]);
 
   const typeStyles = {
     positive:
@@ -257,6 +256,11 @@ export default function SmartInsights({
           </div>
         </div>
       ))}
+      <p className="text-xs text-content-muted dark:text-content-subtle">
+        Based on recent activity — this week against last, and the last 30
+        days against the 30 before. These comparisons do not follow the date
+        range above.
+      </p>
     </div>
   );
 }
