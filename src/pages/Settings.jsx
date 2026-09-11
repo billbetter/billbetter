@@ -117,14 +117,8 @@ export default function Settings() {
     payment_methods: [],
   });
   const [loadingBilling, setLoadingBilling] = useState(false);
-  const [userSpecialty, setUserSpecialty] = useState(null);
   const { enabled: shaderBackground, preset: shaderPreset } =
     useShaderAppearance();
-  const [darkMode, setDarkMode] = useState(() => {
-    const stored = localStorage.getItem("invoicium-dark-mode");
-    if (stored !== null) return stored === "true";
-    return window.matchMedia("(prefers-color-scheme: dark)").matches;
-  });
 
   const initialFormData = {
     business_name: "",
@@ -196,12 +190,10 @@ export default function Settings() {
       // "System" resets to the product default, which is light — matching the
       // marketing site. Dark stays available as an explicit choice below.
       localStorage.removeItem("invoicium-dark-mode");
-      setDarkMode(false);
       document.documentElement.classList.remove("dark");
     } else {
       const isDark = mode === "dark";
       localStorage.setItem("invoicium-dark-mode", isDark.toString());
-      setDarkMode(isDark);
       document.documentElement.classList.toggle("dark", isDark);
     }
   };
@@ -289,14 +281,6 @@ export default function Settings() {
         subscriptionData[0].stripe_customer_id
       ) {
         loadBillingHistory();
-      }
-
-      // Load user specialty
-      const specialtyData = await sdk.entities.UserSpecialty.filter({
-        user_id: currentUser.id,
-      });
-      if (specialtyData.length > 0) {
-        setUserSpecialty(specialtyData[0]);
       }
     } catch (error) {
       console.error("Error loading settings:", error);
@@ -563,35 +547,6 @@ export default function Settings() {
       setResetting(false);
     }
   };
-
-  const templateOptions = [
-    {
-      id: "professional",
-      name: "Professional",
-      description:
-        "Detailed layout with clear sections for company and client info",
-      preview: "📄 Full layout with From/Bill To sections",
-    },
-    {
-      id: "compact",
-      name: "Compact",
-      description: "Clean design with logo support and order details focus",
-      preview: "📋 Modern single-page with logo placement",
-    },
-    {
-      id: "simple",
-      name: "Simple",
-      description: "Minimalist invoice perfect for quick billing",
-      preview: "📝 Streamlined one-page format",
-    },
-    {
-      id: "custom",
-      name: "Custom Template",
-      description:
-        "Build your own template with customizable sections and styling",
-      preview: "🎨 Your custom design",
-    },
-  ];
 
   if (loading) {
     return (

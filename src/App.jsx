@@ -7,7 +7,6 @@ import Register from "./pages/Register";
 import { Toaster } from "@/components/ui/toaster";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { queryClientInstance } from "@/lib/query-client";
-import VisualEditAgent from "@/lib/VisualEditAgent";
 import NavigationTracker from "@/lib/NavigationTracker";
 import { pagesConfig } from "./pages.config";
 import { BrowserRouter as Router, Route, Routes } from "react-router-dom";
@@ -36,16 +35,10 @@ const LayoutWrapper = ({ children, currentPageName }) => {
 };
 
 const AuthenticatedApp = () => {
-  const {
-    isLoadingAuth,
-    isLoadingPublicSettings,
-    authError,
-    isAuthenticated,
-    navigateToLogin,
-  } = useAuth();
+  const { isLoadingAuth, authError, navigateToLogin } = useAuth();
 
-  // Show loading spinner while checking app public settings or auth
-  if (isLoadingPublicSettings || isLoadingAuth) {
+  // Show loading spinner while checking auth
+  if (isLoadingAuth) {
     return (
       <div className="fixed inset-0 flex items-center justify-center">
         <div className="w-8 h-8 border-4 border-line border-t-slate-800 rounded-full animate-spin dark:border-ink-700"></div>
@@ -136,15 +129,6 @@ function App() {
           <AuthenticatedApp />
         </Router>
         <Toaster />
-        {/* Dev-only. VisualEditAgent registers a window 'message' listener whose
-            origin check was commented out, and it acts on messages that reload
-            the page and rewrite element content. In production it is both
-            dangerous and useless -- X-Frame-Options: DENY already stops the
-            editor parent frame from loading the app -- so it is excluded from
-            the production bundle entirely. import.meta.env.DEV is true only
-            under `vite dev`. The listener itself also enforces an origin
-            allowlist now (see VisualEditAgent.jsx). */}
-        {import.meta.env.DEV && <VisualEditAgent />}
       </QueryClientProvider>
     </AuthProvider>
   );

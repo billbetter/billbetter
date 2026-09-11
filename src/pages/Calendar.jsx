@@ -23,10 +23,9 @@ import {
   isTomorrow,
   addDays,
   isWithinInterval,
-  set,
   format,
 } from "date-fns";
-import { Link, useNavigate } from "react-router-dom";
+import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { motion, AnimatePresence } from "framer-motion";
 import EventDetailsDialog from "@/components/calendar/EventDetailsDialog";
@@ -162,20 +161,16 @@ function DateSectionHeader({ label, count }) {
 }
 
 export default function Calendar() {
-  const navigate = useNavigate();
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
-  const [error, setError] = useState(null);
   const [settings, setSettings] = useState(null);
-  const [isConnected, setIsConnected] = useState(false);
 
   // View & filter state
   const [viewMode, setViewMode] = useState("list");
   const [currentDate, setCurrentDate] = useState(new Date());
   const [dateFilter, setDateFilter] = useState("upcoming");
   const [statusFilter, setStatusFilter] = useState("all");
-  const [searchQuery, setSearchQuery] = useState("");
   const [selectedEvent, setSelectedEvent] = useState(null);
   const [mobileFiltersOpen, setMobileFiltersOpen] = useState(false);
 
@@ -219,7 +214,6 @@ export default function Calendar() {
       let allEvents = [...jobEvents];
 
       if (s?.google_calendar_connected) {
-        setIsConnected(true);
         try {
           const gcalResponse = await sdk.functions.invoke(
             "fetchGoogleCalendarEvents",
@@ -253,80 +247,16 @@ export default function Calendar() {
         } catch (e) {
           console.warn("Google Calendar fetch error", e);
         }
-      } else {
-        setIsConnected(false);
       }
 
       setEvents(allEvents);
-      setError(null);
     } catch (err) {
       console.error("Error loading calendar:", err);
-      setError("Failed to load calendar events");
     } finally {
       setLoading(false);
       setRefreshing(false);
       isLoadingRef.current = false;
     }
-  };
-
-  const handleEventDrop = async (event, newDate) => {
-    if (event.type !== "job") return;
-    try {
-      const oldStart = parseISO(event.start_time);
-      const oldEnd = parseISO(event.end_time);
-      const duration = oldEnd.getTime() - oldStart.getTime();
-      const newStart = set(newDate, {
-        hours: oldStart.getHours(),
-        minutes: oldStart.getMinutes(),
-        seconds: oldStart.getSeconds(),
-      });
-      const newEnd = new Date(newStart.getTime() + duration);
-
-      setEvents((prev) =>
-        prev.map((e) =>
-          e.id === event.id
-            ? {
-                ...e,
-                start_time: newStart.toISOString(),
-                end_time: newEnd.toISOString(),
-              }
-            : e,
-        ),
-      );
-      await sdk.entities.Job.update(event.id, {
-        scheduled_start_time: newStart.toISOString(),
-        scheduled_end_time: newEnd.toISOString(),
-      });
-      try {
-        await sdk.functions.invoke("syncJobToGoogleCalendar", {
-          job_id: event.id,
-          action: "update",
-        });
-      } catch {}
-    } catch (err) {
-      console.error("Error rescheduling job:", err);
-      loadCalendarData();
-    }
-  };
-
-  const handleConvertToJob = (event, clientName, clientEmail) => {
-    const params = new URLSearchParams({
-      client_name: clientName || "",
-      client_email: clientEmail || "",
-      job_title: event.name || "New Job",
-      from_calendly: "true",
-    });
-    navigate(`${createPageUrl("CreateJob")}?${params.toString()}`);
-  };
-
-  const handleConvertToInvoice = (event, clientName, clientEmail) => {
-    const params = new URLSearchParams({
-      client_name: clientName || "",
-      client_email: clientEmail || "",
-      description: event.name || "",
-      from_calendly: "true",
-    });
-    navigate(`${createPageUrl("CreateInvoice")}?${params.toString()}`);
   };
 
   const filteredEvents = useMemo(() => {
@@ -375,18 +305,9 @@ export default function Calendar() {
       });
     }
 
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase();
-      result = result.filter(
-        (event) =>
-          event.name?.toLowerCase().includes(q) ||
-          event.invitees?.[0]?.name?.toLowerCase().includes(q),
-      );
-    }
-
     result.sort((a, b) => new Date(a.start_time) - new Date(b.start_time));
     return result;
-  }, [events, dateFilter, statusFilter, searchQuery]);
+  }, [events, dateFilter, statusFilter]);
 
   // Group events by date label for mobile list
   const groupedEvents = useMemo(() => {

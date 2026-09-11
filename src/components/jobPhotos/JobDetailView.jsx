@@ -33,8 +33,9 @@ import PhotoUploadModal from "./PhotoUploadModal";
 import PhotoDetailModal from "./PhotoDetailModal";
 import ShareAlbumModal from "./ShareAlbumModal";
 import JobExpensesTab from "./JobExpensesTab";
+import { PHOTO_CATEGORIES } from "./photoCategories";
 
-export default function JobDetailView({ job, onBack, onUpdate }) {
+export default function JobDetailView({ job, onBack }) {
   const navigate = useNavigate();
   const [photos, setPhotos] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -182,15 +183,7 @@ export default function JobDetailView({ job, onBack, onUpdate }) {
     return colors[status] || colors.planning;
   };
 
-  const categories = [
-    { value: "all", label: "All" },
-    { value: "before", label: "Before" },
-    { value: "during", label: "During" },
-    { value: "after", label: "After" },
-    { value: "issue", label: "Issue" },
-    { value: "receipt", label: "Receipt" },
-    { value: "other", label: "Other" },
-  ];
+  const categories = [{ value: "all", label: "All" }, ...PHOTO_CATEGORIES];
 
   // Derived the same way the jobs list derives it, from the same module, so
   // the badge on the card and the line on this screen cannot disagree.

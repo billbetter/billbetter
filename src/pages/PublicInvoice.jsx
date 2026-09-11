@@ -10,8 +10,12 @@ import {
   Loader2,
   Lock,
 } from "lucide-react";
-import { format } from "date-fns";
 import SEO from "@/components/seo/SEO";
+import {
+  formatCurrency,
+  Notice,
+  safeDate,
+} from "@/components/public/documentFormat";
 
 /**
  * The invoice a client sees. No account, no login -- the URL token is the whole
@@ -30,37 +34,6 @@ import SEO from "@/components/seo/SEO";
  * does -- straight in App.jsx, no Layout -- means there is no gate to get wrong,
  * and no sidebar or marketing header on a document meant to look like a bill.
  */
-
-function money(amount, currency) {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency || "CAD",
-    }).format(Number(amount) || 0);
-  } catch {
-    // An unknown currency code from settings must not blank the total.
-    return `${(Number(amount) || 0).toFixed(2)} ${currency || ""}`.trim();
-  }
-}
-
-function safeDate(value, pattern) {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : format(parsed, pattern);
-}
-
-/** Full-page message, used for every state that is not a rendered invoice. */
-function Notice({ icon: Icon, tone, title, children }) {
-  return (
-    <div className="min-h-screen bg-surface-sunken flex items-center justify-center p-4">
-      <div className="text-center max-w-md">
-        <Icon className={`w-16 h-16 mx-auto mb-4 ${tone}`} />
-        <h1 className="text-2xl font-black text-ink-800">{title}</h1>
-        <p className="text-content-body mt-2">{children}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function PublicInvoice() {
   const { token } = useParams();
@@ -301,11 +274,11 @@ export default function PublicInvoice() {
                 <div className="pr-4">
                   <p className="font-medium text-content">{item.description}</p>
                   <p className="text-sm text-content-body">
-                    {item.quantity} × {money(item.rate, invoice.currency)}
+                    {item.quantity} × {formatCurrency(item.rate, invoice.currency)}
                   </p>
                 </div>
                 <p className="font-medium text-content whitespace-nowrap">
-                  {money(item.amount, invoice.currency)}
+                  {formatCurrency(item.amount, invoice.currency)}
                 </p>
               </div>
             ))}
@@ -314,17 +287,17 @@ export default function PublicInvoice() {
           <div className="mt-6 pt-6 border-t-2 border-line space-y-2">
             <div className="flex justify-between text-content-body">
               <span>Subtotal</span>
-              <span>{money(invoice.subtotal, invoice.currency)}</span>
+              <span>{formatCurrency(invoice.subtotal, invoice.currency)}</span>
             </div>
             {invoice.tax_rate > 0 && (
               <div className="flex justify-between text-content-body">
                 <span>Tax ({invoice.tax_rate}%)</span>
-                <span>{money(invoice.tax_amount, invoice.currency)}</span>
+                <span>{formatCurrency(invoice.tax_amount, invoice.currency)}</span>
               </div>
             )}
             <div className="flex justify-between text-content-body pt-2 border-t border-line-subtle">
               <span>Total</span>
-              <span>{money(invoice.total, invoice.currency)}</span>
+              <span>{formatCurrency(invoice.total, invoice.currency)}</span>
             </div>
 
             {/* Only shown when something HAS been paid. An invoice with no
@@ -335,13 +308,13 @@ export default function PublicInvoice() {
             {amountPaid > 0 && (
               <div className="flex justify-between text-content-body">
                 <span>Already paid</span>
-                <span>-{money(amountPaid, invoice.currency)}</span>
+                <span>-{formatCurrency(amountPaid, invoice.currency)}</span>
               </div>
             )}
 
             <div className="flex justify-between text-2xl font-bold text-content pt-2">
               <span>{isPaid ? "Paid in full" : "Amount Due"}</span>
-              <span>{money(isPaid ? invoice.total : balanceDue, invoice.currency)}</span>
+              <span>{formatCurrency(isPaid ? invoice.total : balanceDue, invoice.currency)}</span>
             </div>
           </div>
 
@@ -373,7 +346,7 @@ export default function PublicInvoice() {
                   ) : (
                     <CreditCard className="w-5 h-5 mr-2" />
                   )}
-                  Pay {money(balanceDue, invoice.currency)}
+                  Pay {formatCurrency(balanceDue, invoice.currency)}
                 </Button>
               )}
               {capabilities.can_download_pdf && (

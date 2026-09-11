@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import PeriodNavigation from "./PeriodNavigation";
+import { jobStatusColor } from "./jobStatusColor";
 import { format, addDays, subDays, isSameDay } from "date-fns";
 
 export default function DayView({ events, currentDate, setCurrentDate }) {
@@ -14,39 +14,16 @@ export default function DayView({ events, currentDate, setCurrentDate }) {
     });
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      planning: "bg-brand-600",
-      in_progress: "bg-caution-500",
-      completed: "bg-positive-500",
-      cancelled: "bg-danger-500",
-    };
-    return colors[status] || "bg-ink-500";
-  };
-
   return (
     <Card className="border-none shadow-lg">
       <CardContent className="p-6">
-        {/* Day Navigation */}
-        <div className="flex items-center justify-between mb-6">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentDate(subDays(currentDate, 1))}
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <h2 className="text-2xl font-bold text-content dark:text-content-inverted">
-            {format(currentDate, "EEEE, MMMM d, yyyy")}
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentDate(addDays(currentDate, 1))}
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
+        <PeriodNavigation
+          title={format(currentDate, "EEEE, MMMM d, yyyy")}
+          onPrevious={() => setCurrentDate(subDays(currentDate, 1))}
+          onNext={() => setCurrentDate(addDays(currentDate, 1))}
+          spacingClassName="mb-6"
+          titleSizeClassName="text-2xl"
+        />
 
         {/* Day Schedule */}
         <div className="space-y-1 max-h-[600px] overflow-y-auto">
@@ -61,7 +38,7 @@ export default function DayView({ events, currentDate, setCurrentDate }) {
                   {hourEvents.map((event, idx) => (
                     <div
                       key={idx}
-                      className={`p-3 rounded-lg text-content-inverted shadow-sm cursor-pointer hover:opacity-90 transition-opacity ${getStatusColor(event.status)}`}
+                      className={`p-3 rounded-lg text-content-inverted shadow-sm cursor-pointer hover:opacity-90 transition-opacity ${jobStatusColor(event.status)}`}
                     >
                       <div className="font-semibold text-sm">
                         {format(new Date(event.start), "h:mm a")} -{" "}

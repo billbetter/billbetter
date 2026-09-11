@@ -93,10 +93,8 @@ async function updateClientWithOwnerSafety(id, payload) {
   }
 }
 
-import { useNavigate } from "react-router-dom";
 
 export default function Clients() {
-  const navigate = useNavigate();
   const [clients, setClients] = useState([]);
   const [loading, setLoading] = useState(true);
   const [dialogOpen, setDialogOpen] = useState(false);

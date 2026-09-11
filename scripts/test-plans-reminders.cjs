@@ -30,9 +30,19 @@ function check(label, cond, detail) {
   else { failed++; console.log(`  FAIL  ${label}${detail !== undefined ? ` -- ${detail}` : ""}`); }
 }
 
+// Bundled rather than transformed, so a module that imports a sibling
+// (paymentPlan.js -> ./money.js) loads the way the app loads it. transform()
+// sees one file and leaves the import pointing at a path that is not there.
 async function load(rel) {
-  const src = fs.readFileSync(path.join(ROOT, rel), "utf8");
-  const { code } = await esbuild.transform(src, { loader: "js", format: "esm", target: "es2022" });
+  const result = await esbuild.build({
+    entryPoints: [path.join(ROOT, rel)],
+    bundle: true,
+    write: false,
+    format: "esm",
+    target: "es2022",
+    logLevel: "silent",
+  });
+  const code = result.outputFiles[0].text;
   const tmp = path.join(os.tmpdir(), `${path.basename(rel)}-${process.pid}.mjs`);
   fs.writeFileSync(tmp, code);
   const mod = await import("file://" + tmp.replace(/\\/g, "/"));

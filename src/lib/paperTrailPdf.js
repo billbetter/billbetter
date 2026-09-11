@@ -118,5 +118,3 @@ export async function renderPaperTrailPdf({ document, entries = [], settings, ch
 
   return URL.createObjectURL(blob);
 }
-
-export default renderPaperTrailPdf;

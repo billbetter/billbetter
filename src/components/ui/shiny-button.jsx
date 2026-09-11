@@ -33,5 +33,3 @@ export function ShinyButton({
     </button>
   );
 }
-
-export default ShinyButton;

@@ -14,6 +14,7 @@ import React from "react";
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { resolveInvoiceTheme } from "@/lib/invoiceTheme";
 import "@/lib/invoicePdfFont";
+import { formatPdfMoney } from "./pdfMoney";
 
 const makeStyles = (t, fontFamily = "Inter") =>
   StyleSheet.create({
@@ -100,12 +101,6 @@ const makeStyles = (t, fontFamily = "Inter") =>
     poweredBy: { marginTop: 8, fontSize: 7.5, color: t.mutedTextColor },
   });
 
-const money = (n) =>
-  `$${Number(n || 0).toLocaleString("en-CA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-
 /**
  * @param {import("./InvoiceDocument").InvoiceData} data
  */
@@ -163,9 +158,9 @@ export const InvoiceDocumentSimple = (data) => {
           <View style={styles.row} key={i} wrap={false}>
             <Text style={[styles.cell, styles.colDesc]}>{li.description}</Text>
             <Text style={[styles.cell, styles.colQty]}>{li.qty}</Text>
-            <Text style={[styles.cell, styles.colRate]}>{money(li.rate)}</Text>
+            <Text style={[styles.cell, styles.colRate]}>{formatPdfMoney(li.rate)}</Text>
             <Text style={[styles.cell, styles.colAmount]}>
-              {money(Number(li.qty || 0) * Number(li.rate || 0))}
+              {formatPdfMoney(Number(li.qty || 0) * Number(li.rate || 0))}
             </Text>
           </View>
         ))}
@@ -173,17 +168,17 @@ export const InvoiceDocumentSimple = (data) => {
         <View style={styles.totals} wrap={false}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>{money(subtotal)}</Text>
+            <Text style={styles.totalValue}>{formatPdfMoney(subtotal)}</Text>
           </View>
           {data.taxRate ? (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Tax ({Math.round(data.taxRate * 100)}%)</Text>
-              <Text style={styles.totalValue}>{money(tax)}</Text>
+              <Text style={styles.totalValue}>{formatPdfMoney(tax)}</Text>
             </View>
           ) : null}
           <View style={styles.totalRowFinal}>
             <Text style={styles.totalLabelFinal}>{data.totalLabel || "Total"}</Text>
-            <Text style={styles.totalValueFinal}>{money(total)}</Text>
+            <Text style={styles.totalValueFinal}>{formatPdfMoney(total)}</Text>
           </View>
         </View>
 

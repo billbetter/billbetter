@@ -44,11 +44,8 @@ export default function QuoteDetail() {
   const [client, setClient] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
-  const [settings, setSettings] = useState(null);
   const [deleting, setDeleting] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(false);
-  const [resendingEmail, setResendingEmail] = useState(false);
-  const [resendingSMS, setResendingSMS] = useState(false);
   const [sendingNotifications, setSendingNotifications] = useState(false);
   const [notificationResult, setNotificationResult] = useState(null);
 
@@ -64,10 +61,9 @@ export default function QuoteDetail() {
     try {
       const user = await sdk.auth.me();
 
-      const [quoteResults, clientResults, settingsResults] = await Promise.all([
+      const [quoteResults, clientResults] = await Promise.all([
         sdk.entities.Quote.filter({ id: quoteId }),
         sdk.entities.Client.filter({ user_id: user.id }),
-        sdk.entities.BusinessSettings.filter({ user_id: user.id }),
       ]);
 
       if (quoteResults.length > 0) {
@@ -77,10 +73,6 @@ export default function QuoteDetail() {
         setClient(relatedClient || null);
       } else {
         setError("Quote not found.");
-      }
-
-      if (settingsResults.length > 0) {
-        setSettings(settingsResults[0]);
       }
     } catch (e) {
       console.error("Error loading quote:", e);

@@ -54,7 +54,6 @@ export default function Jobs() {
   const [selectedClientFilter, setSelectedClientFilter] = useState("all");
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [selectedJob, setSelectedJob] = useState(null);
-  const [user, setUser] = useState(null);
   const [showFilters, setShowFilters] = useState(false);
   const [scrolled, setScrolled] = useState(false);
 
@@ -74,7 +73,6 @@ export default function Jobs() {
     try {
       setLoading(true);
       const currentUser = await sdk.auth.me();
-      setUser(currentUser);
 
       // Invoices are loaded here so every job on this page can say where it
       // stands with billing. list() drops pdf_url, which is the column that
@@ -208,7 +206,6 @@ export default function Jobs() {
           setSelectedJob(null);
           loadData();
         }}
-        onUpdate={loadData}
       />
     );
   }
@@ -562,7 +559,7 @@ export default function Jobs() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-4 sm:gap-6">
-              {filteredJobs.map((job, index) => (
+              {filteredJobs.map((job) => (
                 <div
                   key={job.id}
                   onClick={() => setSelectedJob(job)}

@@ -1,5 +1,4 @@
 import React, { useEffect, useRef, useState } from "react";
-import { CheckCircle } from "lucide-react";
 
 /**
  * Shared marketing primitives extracted from src/pages/Home.jsx.
@@ -7,7 +6,7 @@ import { CheckCircle } from "lucide-react";
  * truth — these components mirror it so other pages stop duplicating classes.
  */
 
-/* ── Scroll reveal (same observer + timings as Home.jsx) ─────────────── */
+/* ── Scroll reveal: fade + rise the first time an element scrolls in ─── */
 export const useInView = (options = {}) => {
   const [isInView, setIsInView] = useState(false);
   const ref = useRef(null);
@@ -218,72 +217,5 @@ export const SectionHeading = ({
         {subtitle}
       </p>
     )}
-  </div>
-);
-
-/* ── Surface card: the homepage testimonial/plan card ────────────────── */
-export const SurfaceCard = ({
-  featured = false,
-  hoverLift = true,
-  className = "",
-  children,
-  ...props
-}) => (
-  <div
-    className={`bg-surface rounded-2xl transition-all duration-300 ${
-      featured
-        ? "ring-2 ring-brand-600 shadow-2xl shadow-brand-600/15"
-        : "border border-line hover:border-brand-300 shadow-sm hover:shadow-md"
-    } ${hoverLift ? "hover:-translate-y-1" : ""} ${className}`}
-    {...props}
-  >
-    {children}
-  </div>
-);
-
-/* ── Icon chip ───────────────────────────────────────────────────────── */
-const CHIP_SIZES = {
-  sm: "w-8 h-8 rounded-lg",
-  md: "w-10 h-10 rounded-xl",
-  lg: "w-12 h-12 rounded-xl",
-  xl: "w-16 h-16 rounded-2xl",
-};
-const CHIP_TONES = {
-  sky: "bg-brand-100 text-brand-700",
-  emerald: "bg-success-100 text-success-600",
-  amber: "bg-warning-100 text-warning-600",
-  slate: "bg-ink-100 text-content-body",
-};
-const CHIP_ICON = {
-  sm: "w-4 h-4",
-  md: "w-5 h-5",
-  lg: "w-6 h-6",
-  xl: "w-8 h-8",
-};
-
-export const IconChip = ({
-  icon: Icon,
-  tone = "sky",
-  size = "md",
-  className = "",
-}) => (
-  <div
-    className={`${CHIP_SIZES[size]} ${CHIP_TONES[tone]} flex items-center justify-center flex-shrink-0 ${className}`}
-  >
-    <Icon className={CHIP_ICON[size]} />
-  </div>
-);
-
-/* ── Emerald trust ticks under a CTA ─────────────────────────────────── */
-export const TrustRow = ({ items, className = "" }) => (
-  <div className={`flex flex-wrap gap-5 text-sm ${className}`}>
-    {items.map((t) => (
-      <div
-        key={t}
-        className="flex items-center gap-2 text-success-600 font-semibold"
-      >
-        <CheckCircle className="w-4 h-4 flex-shrink-0" /> {t}
-      </div>
-    ))}
   </div>
 );

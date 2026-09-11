@@ -36,6 +36,8 @@
 
 // ---- Delimited text ------------------------------------------------------
 
+import { roundToCents } from "./money";
+
 /** Strip the BOM Excel writes at the head of a UTF-8 CSV. */
 function stripBom(text) {
   return typeof text === "string" && text.charCodeAt(0) === 0xfeff ? text.slice(1) : text;
@@ -419,11 +421,6 @@ function isoOrNull(year, month, day) {
   return `${String(year).padStart(4, "0")}-${String(month).padStart(2, "0")}-${String(day).padStart(2, "0")}`;
 }
 
-/** Two decimal places, matching the rounding used everywhere else. */
-function money(n) {
-  return Math.round((Number(n) || 0) * 100) / 100;
-}
-
 const normaliseName = (s) => String(s || "").trim().replace(/\s+/g, " ").toLowerCase();
 
 // ---- The plan ------------------------------------------------------------
@@ -541,9 +538,9 @@ export function buildImportPlan(rows = [], mapping = {}, opts = {}) {
     } else {
       group.items.push({
         description,
-        quantity: money(quantity),
-        rate: money(rate),
-        amount: money(quantity * rate),
+        quantity: roundToCents(quantity),
+        rate: roundToCents(rate),
+        amount: roundToCents(quantity * rate),
       });
     }
 
@@ -577,10 +574,10 @@ export function buildImportPlan(rows = [], mapping = {}, opts = {}) {
       errors.push("Nothing to bill on this invoice");
     }
 
-    const subtotal = money(group.items.reduce((sum, i) => sum + i.amount, 0));
+    const subtotal = roundToCents(group.items.reduce((sum, i) => sum + i.amount, 0));
     const taxRate = group.tax_rate ?? Number(settings?.tax_rate) ?? 0;
-    const tax_amount = money((subtotal * (Number(taxRate) || 0)) / 100);
-    const total = money(subtotal + tax_amount);
+    const tax_amount = roundToCents((subtotal * (Number(taxRate) || 0)) / 100);
+    const total = roundToCents(subtotal + tax_amount);
 
     if (!errors.length && total <= 0) {
       errors.push("This invoice comes to $0.00");
@@ -644,16 +641,16 @@ export function buildPlanFromClients(clients = [], template = {}, opts = {}) {
       const rate = Number(i.rate) || 0;
       return {
         description: String(i.description).trim(),
-        quantity: money(quantity),
-        rate: money(rate),
-        amount: money(quantity * rate),
+        quantity: roundToCents(quantity),
+        rate: roundToCents(rate),
+        amount: roundToCents(quantity * rate),
       };
     });
 
-  const subtotal = money(items.reduce((sum, i) => sum + i.amount, 0));
+  const subtotal = roundToCents(items.reduce((sum, i) => sum + i.amount, 0));
   const taxRate = Number(template.tax_rate ?? settings?.tax_rate ?? 0) || 0;
-  const tax_amount = money((subtotal * taxRate) / 100);
-  const total = money(subtotal + tax_amount);
+  const tax_amount = roundToCents((subtotal * taxRate) / 100);
+  const total = roundToCents(subtotal + tax_amount);
 
   const invoices = clients.map((client) => {
     const errors = [];

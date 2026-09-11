@@ -31,5 +31,3 @@ export function registerInvoiceFont() {
 }
 
 registerInvoiceFont();
-
-export default registerInvoiceFont;

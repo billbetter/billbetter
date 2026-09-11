@@ -419,8 +419,6 @@ export default function FeatureTour({ isOpen, onClose, onComplete }) {
   ]);
   const [demoAiInput, setDemoAiInput] = useState("");
   const [quotePhotoUploaded, setQuotePhotoUploaded] = useState(false);
-  const [quoteAnalyzing, setQuoteAnalyzing] = useState(false);
-  const [quoteAnalyzed, setQuoteAnalyzed] = useState(false);
   const [quoteSending, setQuoteSending] = useState(false);
   const [quoteSent, setQuoteSent] = useState(false);
   const navigate = useNavigate();
@@ -526,8 +524,6 @@ export default function FeatureTour({ isOpen, onClose, onComplete }) {
     setDemoItems([{ description: "", quantity: 1, rate: 0 }]);
     setDemoAiInput("");
     setQuotePhotoUploaded(false);
-    setQuoteAnalyzing(false);
-    setQuoteAnalyzed(false);
     setQuoteSending(false);
     setQuoteSent(false);
   };
@@ -566,11 +562,6 @@ export default function FeatureTour({ isOpen, onClose, onComplete }) {
   };
   const handleQuotePhotoUpload = () => {
     setQuotePhotoUploaded(true);
-    setQuoteAnalyzing(true);
-    setTimeout(() => {
-      setQuoteAnalyzing(false);
-      setQuoteAnalyzed(true);
-    }, 2000);
   };
   const handleQuoteSend = () => {
     setQuoteSending(true);

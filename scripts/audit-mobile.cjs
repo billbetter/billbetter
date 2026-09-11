@@ -17,16 +17,12 @@
  *
  * Usage: node scripts/audit-mobile.cjs <origin> <configJson> <outDir>
  */
-const puppeteer = require("puppeteer-core");
 const fs = require("fs");
 const path = require("path");
+const harness = require("./_page-harness.cjs");
 
-const CHROME =
-  process.env.CHROME_PATH ||
-  "C:\\Program Files\\Google\\Chrome\\Application\\chrome.exe";
 const [origin, configPath, outDir] = process.argv.slice(2);
-const config = JSON.parse(fs.readFileSync(configPath, "utf8"));
-const STORAGE_KEY = "invoicium-auth";
+const config = harness.readConfig(configPath);
 
 // The narrowest phone in common use, and a current iPhone. 360 is the one
 // that overflows first; 390 is the one screenshotted.
@@ -35,86 +31,6 @@ const PROFILES = [
   { name: "android-360", width: 360, height: 780, dpr: 2, shots: false },
   { name: "desktop-1440", width: 1440, height: 900, dpr: 1, shots: false, desktop: true },
 ];
-const IPHONE_UA =
-  "Mozilla/5.0 (iPhone; CPU iPhone OS 17_5 like Mac OS X) AppleWebKit/605.1.15 " +
-  "(KHTML, like Gecko) Version/17.5 Mobile/15E148 Safari/604.1";
-
-const q = (s) => encodeURIComponent(s || "");
-const PUBLIC_ROUTES = [
-  "/",
-  "/Pricing",
-  "/Features",
-  "/BookDemo",
-  "/Contact",
-  "/Login",
-  "/Register",
-  "/TermsOfService",
-  "/PrivacyPolicy",
-  // What a contractor's CLIENT sees -- on a phone far more often than not.
-  // Opt-in (--public-links): each load logs a rate-limiter row. preview=1 so
-  // the server declines to record a view (see audit-mobile.py).
-  config.publicLinks && config.invoiceToken && `/i/${q(config.invoiceToken)}?preview=1`,
-  config.publicLinks && config.quotePublicId &&
-    `/PublicQuote?id=${q(config.quotePublicId)}&preview=1`,
-].filter(Boolean);
-
-const APP_ROUTES = [
-  "/Dashboard",
-  "/Invoices",
-  "/CreateInvoice",
-  config.invoiceId && `/InvoiceDetail?id=${q(config.invoiceId)}`,
-  "/Quotes",
-  "/CreateQuote",
-  config.quoteId && `/QuoteDetail?id=${q(config.quoteId)}`,
-  "/QuickInvoice",
-  "/QuickQuote",
-  "/Clients",
-  "/Calendar",
-  "/ChaseInvoice",
-  "/PaperTrail",
-  "/RecurringInvoices",
-  "/BatchInvoices",
-  "/JobPhotos",
-  "/Analytics",
-  "/PaymentPlans",
-  "/Settings",
-].filter(Boolean);
-
-// ---- Nothing leaves the browser that could change anything ---------------
-const READ_RPCS = new Set(["audit_verify", "my_app_access", "paper_trail_summary"]);
-const READ_FUNCTIONS = new Set([
-  "get-public-invoice",
-  "get-public-quote",
-  "get-billing-history",
-]);
-const blocked = new Map();
-
-function guard(req) {
-  const url = req.url();
-  const method = req.method();
-  const note = (why) => {
-    blocked.set(why, (blocked.get(why) || 0) + 1);
-    return req.abort("blockedbyclient");
-  };
-  if (/\/functions\/v1\//.test(url)) {
-    if (method === "OPTIONS") return req.continue();
-    const name = url.split("/functions/v1/")[1].split(/[?/]/)[0];
-    if (!READ_FUNCTIONS.has(name)) return note(`function ${name}`);
-    // The one read function that can also write: a view record. Aborted here
-    // even though preview=1 already stops the server recording it.
-    if (/record_view/.test(req.postData() || "")) return note(`${name} record_view`);
-    return req.continue();
-  }
-  if (/\/rest\/v1\/rpc\//.test(url)) {
-    const name = url.split("/rest/v1/rpc/")[1].split("?")[0];
-    return READ_RPCS.has(name) ? req.continue() : note(`rpc ${name}`);
-  }
-  if (/\/(rest|storage)\/v1\//.test(url) && !["GET", "HEAD", "OPTIONS"].includes(method)) {
-    return note(`${method} ${url.split("/v1/")[1].split("?")[0]}`);
-  }
-  if (/api\.stripe\.com/.test(url) && method !== "GET") return note("stripe write");
-  return req.continue();
-}
 
 // ---- The measurement ------------------------------------------------------
 function measure() {
@@ -218,29 +134,7 @@ function measure() {
 }
 
 async function auditRoute(context, profile, route, results) {
-  const page = await context.newPage();
-  if (!profile.desktop) await page.setUserAgent(IPHONE_UA);
-  await page.setViewport({
-    width: profile.width,
-    height: profile.height,
-    deviceScaleFactor: profile.dpr,
-    isMobile: !profile.desktop,
-    hasTouch: !profile.desktop,
-  });
-  await page.setRequestInterception(true);
-  page.on("request", guard);
-  const errors = [];
-  page.on("pageerror", (e) => errors.push(e.message.slice(0, 120)));
-
-  try {
-    await page.goto(origin + route, { waitUntil: "networkidle2", timeout: 60000 });
-  } catch (e) {
-    errors.push("goto: " + e.message.slice(0, 80));
-  }
-  // Entrance animations (framer-motion slide-ins) translate content in from
-  // off-screen; measuring mid-flight reports overflow that is not there.
-  await new Promise((r) => setTimeout(r, 1800));
-
+  const { page, errors } = await harness.openPage(context, origin, profile, route);
   const m = await page.evaluate(measure).catch((e) => ({ error: e.message }));
   m.route = route;
   m.errors = errors;
@@ -254,13 +148,40 @@ async function auditRoute(context, profile, route, results) {
   await page.close();
 }
 
+function report(profile, results) {
+  let bad = 0;
+  console.log(`\n=== ${profile.name} (${profile.width}px) ===`);
+  for (const m of results) {
+    const over = m.overflowPx > 0;
+    // Desktop keeps 14px fields on purpose; only overflow fails there.
+    const small = profile.desktop ? 0 : (m.smallFields || []).length;
+    const landed = m.url && !m.route.startsWith(m.url.split("?")[0]) ? `  -> landed on ${m.url}` : "";
+    const flag = over || small || m.error ? "FAIL" : " ok ";
+    if (flag === "FAIL") bad++;
+    console.log(
+      `  ${flag}  ${m.route.slice(0, 44).padEnd(44)} overflow=${String(m.overflowPx ?? "?").padStart(4)}px  smallFields=${small}${m.coarse === !!profile.desktop ? `  (coarse=${m.coarse}: emulation wrong)` : ""}${landed}`,
+    );
+    if (m.error) console.log(`          error: ${m.error}`);
+    for (const o of m.offenders || []) console.log(`          wide: ${o}`);
+    if (!profile.desktop) {
+      for (const q of m.squeezed || []) console.log(`          squeezed by 16px: ${q}`);
+    }
+    const seen = new Set();
+    for (const f of profile.desktop ? [] : m.smallFields || []) {
+      const key = `${f.size}px ${f.what}`;
+      if (seen.has(key)) continue;
+      seen.add(key);
+      if (seen.size <= 5) console.log(`          field: ${key}`);
+    }
+    if (seen.size > 5) console.log(`          ...and ${seen.size - 5} more distinct fields`);
+    for (const e of (m.errors || []).slice(0, 2)) console.log(`          pageerror: ${e}`);
+  }
+  return bad;
+}
+
 async function main() {
   fs.mkdirSync(outDir, { recursive: true });
-  const browser = await puppeteer.launch({
-    executablePath: CHROME,
-    headless: "new",
-    args: ["--no-sandbox", "--disable-dev-shm-usage"],
-  });
+  const browser = await harness.launch();
 
   let bad = 0;
   for (const profile of PROFILES) {
@@ -269,63 +190,21 @@ async function main() {
     // Public pages in a context with no session: a signed-in visitor to "/"
     // is sent to the dashboard, and would audit the wrong page.
     const anon = await browser.createBrowserContext();
-    for (const r of PUBLIC_ROUTES) await auditRoute(anon, profile, r, results);
+    for (const r of harness.publicRoutes(config)) await auditRoute(anon, profile, r, results);
     await anon.close();
 
-    const authed = await browser.createBrowserContext();
-    const seed = await authed.newPage();
-    await seed.goto(origin + "/Login", { waitUntil: "domcontentloaded" });
-    await seed.evaluate(
-      (k, s) => {
-        localStorage.setItem(k, s);
-        localStorage.setItem("invoicium-remember-me", "true");
-      },
-      STORAGE_KEY,
-      JSON.stringify(config.session),
-    );
-    await seed.close();
-    for (const r of APP_ROUTES) await auditRoute(authed, profile, r, results);
+    const authed = await harness.signedInContext(browser, origin, config.session);
+    for (const r of harness.appRoutes(config)) await auditRoute(authed, profile, r, results);
     await authed.close();
 
     if (profile.desktop) {
       const dump = Object.fromEntries(results.map((m) => [m.route, m.fields || []]));
       fs.writeFileSync(path.join(outDir, "desktop-fields.json"), JSON.stringify(dump, null, 1));
     }
-
-    console.log(`\n=== ${profile.name} (${profile.width}px) ===`);
-    for (const m of results) {
-      const over = m.overflowPx > 0;
-      // Desktop keeps 14px fields on purpose; only overflow fails there.
-      const small = profile.desktop ? 0 : (m.smallFields || []).length;
-      const landed = m.url && !m.route.startsWith(m.url.split("?")[0]) ? `  -> landed on ${m.url}` : "";
-      const flag = over || small || m.error ? "FAIL" : " ok ";
-      if (flag === "FAIL") bad++;
-      console.log(
-        `  ${flag}  ${m.route.slice(0, 44).padEnd(44)} overflow=${String(m.overflowPx ?? "?").padStart(4)}px  smallFields=${small}${m.coarse === !!profile.desktop ? `  (coarse=${m.coarse}: emulation wrong)` : ""}${landed}`,
-      );
-      if (m.error) console.log(`          error: ${m.error}`);
-      for (const o of m.offenders || []) console.log(`          wide: ${o}`);
-      if (!profile.desktop) {
-        for (const q of m.squeezed || []) console.log(`          squeezed by 16px: ${q}`);
-      }
-      const seen = new Set();
-      for (const f of profile.desktop ? [] : m.smallFields || []) {
-        const key = `${f.size}px ${f.what}`;
-        if (seen.has(key)) continue;
-        seen.add(key);
-        if (seen.size <= 5) console.log(`          field: ${key}`);
-      }
-      if (seen.size > 5) console.log(`          ...and ${seen.size - 5} more distinct fields`);
-      for (const e of (m.errors || []).slice(0, 2)) console.log(`          pageerror: ${e}`);
-    }
+    bad += report(profile, results);
   }
 
-  console.log(
-    config.publicLinks
-      ? "\nrequests aborted (the public-link loads each logged one rate-limit row):"
-      : "\nrequests aborted (no application data written):",
-  );
-  for (const [why, n] of [...blocked.entries()].sort()) console.log(`  ${String(n).padStart(3)}  ${why}`);
+  harness.printBlocked(config);
   console.log(`\n${bad === 0 ? "CLEAN" : `${bad} page checks failed`} -- screenshots in ${outDir}`);
   await browser.close();
   process.exit(bad === 0 ? 0 : 1);

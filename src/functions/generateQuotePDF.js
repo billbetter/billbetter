@@ -12,7 +12,4 @@
 // called. Deleting it is a separate decision: it is the only thing that can
 // still produce a quote PDF without a browser, and nothing needs that today.
 
-export {
-  generateQuotePDF,
-  renderQuotePdfBlob,
-} from "@/lib/invoicePdf";
+export { generateQuotePDF } from "@/lib/invoicePdf";

@@ -64,17 +64,6 @@ export default function GlobalVoiceAssistant({ onCommand }) {
     };
   }, []);
 
-  const startListening = () => {
-    if (recognitionRef.current && !isListening && !isProcessing) {
-      setShowPanel(true);
-      setTranscript("");
-      setAiResponse("");
-      isProcessingRef.current = false;
-      recognitionRef.current.start();
-      setIsListening(true);
-    }
-  };
-
   const stopListening = () => {
     if (recognitionRef.current) {
       recognitionRef.current.stop();

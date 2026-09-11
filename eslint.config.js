@@ -46,6 +46,12 @@ export default [
       // list. Re-enable it explicitly rather than reordering the spreads, so it
       // cannot be lost again by a later edit.
       "no-undef": "error",
+      // no-undef does not look inside JSX, so <Widget /> or <motion.div> with
+      // no import passed lint and threw a ReferenceError the first time it
+      // rendered -- found by a refactor snapshot, on a sheet that only mounts
+      // after a tap. Same class of bug as the note above, in the place that
+      // rule cannot see.
+      "react/jsx-no-undef": "error",
       "no-unused-vars": "off",
       "react/jsx-uses-vars": "error",
       "react/jsx-uses-react": "error",

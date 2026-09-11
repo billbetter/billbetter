@@ -14,7 +14,6 @@ export default function InstallPWA({ className = "" }) {
   const [isInstalled, setIsInstalled] = useState(false);
   const [showIOSModal, setShowIOSModal] = useState(false);
   const [isIOS, setIsIOS] = useState(false);
-  const [isAndroid, setIsAndroid] = useState(false);
 
   useEffect(() => {
     // Check if app is already installed
@@ -29,10 +28,8 @@ export default function InstallPWA({ className = "" }) {
     // Detect platform
     const userAgent = window.navigator.userAgent.toLowerCase();
     const iOS = /iphone|ipad|ipod/.test(userAgent);
-    const android = /android/.test(userAgent);
 
     setIsIOS(iOS);
-    setIsAndroid(android);
 
     // Listen for beforeinstallprompt event (Android/Chrome)
     const handleBeforeInstall = (e) => {

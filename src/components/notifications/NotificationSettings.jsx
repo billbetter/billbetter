@@ -5,7 +5,6 @@ import {
   getNotificationPermission,
   requestNotificationPermission,
   showBrowserNotification,
-  getEnvironmentType,
 } from "@/lib/notificationSupport";
 import {
   Card,
@@ -42,14 +41,11 @@ export default function NotificationSettings() {
     system_alerts: true,
   });
   const [pushSupported] = useState(() => isBrowserNotificationSupported());
-  const [envType] = useState(() => getEnvironmentType());
   const [browserPermission, setBrowserPermission] = useState(() =>
     getNotificationPermission(),
   );
   const [loading, setLoading] = useState(false);
   const [saving, setSaving] = useState(false);
-  const [user, setUser] = useState(null);
-  const [settings, setSettings] = useState(null);
   const [analyticsFrequency, setAnalyticsFrequency] = useState("biweekly");
   const [analyticsDay, setAnalyticsDay] = useState(1);
   const [analyticsTime, setAnalyticsTime] = useState("09:00");
@@ -68,15 +64,12 @@ export default function NotificationSettings() {
     setLoading(true);
     try {
       const currentUser = await sdk.auth.me();
-      setUser(currentUser);
 
       // Load business settings for analytics frequency
       const businessSettings = await sdk.entities.BusinessSettings.filter({
         user_id: currentUser.id,
       });
       if (businessSettings.length > 0) {
-        setSettings(businessSettings[0]);
-
         // -- Preferences come from the settings row -----------------------
         //
         // This used to read currentUser.notification_preferences, which is

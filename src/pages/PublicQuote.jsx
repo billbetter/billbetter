@@ -11,8 +11,12 @@ import {
   ThumbsDown,
   ThumbsUp,
 } from "lucide-react";
-import { format } from "date-fns";
 import SEO from "@/components/seo/SEO";
+import {
+  formatCurrency,
+  Notice,
+  safeDate,
+} from "@/components/public/documentFormat";
 
 /**
  * The quote a client sees. No account, no login -- the public_id in the URL is
@@ -34,35 +38,6 @@ import SEO from "@/components/seo/SEO";
  * BY the quote's user_id and returns a narrowed payload. There is no
  * sdk.entities call left in this file.
  */
-
-function money(amount, currency) {
-  try {
-    return new Intl.NumberFormat(undefined, {
-      style: "currency",
-      currency: currency || "CAD",
-    }).format(Number(amount) || 0);
-  } catch {
-    return `${(Number(amount) || 0).toFixed(2)} ${currency || ""}`.trim();
-  }
-}
-
-function safeDate(value, pattern) {
-  if (!value) return null;
-  const parsed = new Date(value);
-  return Number.isNaN(parsed.getTime()) ? null : format(parsed, pattern);
-}
-
-function Notice({ icon: Icon, tone, title, children }) {
-  return (
-    <div className="min-h-screen bg-surface-sunken flex items-center justify-center p-4">
-      <div className="text-center max-w-md">
-        <Icon className={`w-16 h-16 mx-auto mb-4 ${tone}`} />
-        <h1 className="text-2xl font-black text-ink-800">{title}</h1>
-        <p className="text-content-body mt-2">{children}</p>
-      </div>
-    </div>
-  );
-}
 
 export default function PublicQuote() {
   const [searchParams] = useSearchParams();
@@ -374,11 +349,11 @@ export default function PublicQuote() {
                 <div className="pr-4">
                   <p className="font-medium text-content">{item.description}</p>
                   <p className="text-sm text-content-body">
-                    {item.quantity} × {money(item.rate, quote.currency)}
+                    {item.quantity} × {formatCurrency(item.rate, quote.currency)}
                   </p>
                 </div>
                 <p className="font-medium text-content whitespace-nowrap">
-                  {money(item.amount, quote.currency)}
+                  {formatCurrency(item.amount, quote.currency)}
                 </p>
               </div>
             ))}
@@ -387,17 +362,17 @@ export default function PublicQuote() {
           <div className="mt-6 pt-6 border-t-2 border-line space-y-2">
             <div className="flex justify-between text-content-body">
               <span>Subtotal</span>
-              <span>{money(quote.subtotal, quote.currency)}</span>
+              <span>{formatCurrency(quote.subtotal, quote.currency)}</span>
             </div>
             {quote.tax_rate > 0 && (
               <div className="flex justify-between text-content-body">
                 <span>Tax ({quote.tax_rate}%)</span>
-                <span>{money(quote.tax_amount, quote.currency)}</span>
+                <span>{formatCurrency(quote.tax_amount, quote.currency)}</span>
               </div>
             )}
             <div className="flex justify-between text-2xl font-bold text-content pt-2">
               <span>Total</span>
-              <span>{money(quote.total, quote.currency)}</span>
+              <span>{formatCurrency(quote.total, quote.currency)}</span>
             </div>
           </div>
 
@@ -492,7 +467,7 @@ export default function PublicQuote() {
               <h3 className="font-black text-ink-800 mb-1">
                 {isDeclining
                   ? "Decline this quote"
-                  : `Approve ${money(quote.total, quote.currency)} of work`}
+                  : `Approve ${formatCurrency(quote.total, quote.currency)} of work`}
               </h3>
               <p className="text-sm text-content-body mb-4">
                 {isDeclining

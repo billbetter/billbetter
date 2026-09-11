@@ -600,12 +600,6 @@ Details: ${detail}` : " Please try again."),
     );
   }
 
-  const titleByStep = [
-    "New " + (isQuote ? "quote" : "invoice"),
-    "Describe the work",
-    "Review",
-  ];
-
   return (
     /*
       Full-bleed backdrop, constrained column.

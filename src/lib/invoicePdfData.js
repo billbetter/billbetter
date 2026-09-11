@@ -318,5 +318,3 @@ export function mapQuoteToComplexPdfData(quote = {}, settings = {}, options = {}
   );
   return { ...complex, ...flat, sections: complex.sections, taxes: complex.taxes };
 }
-
-export default mapInvoiceToPdfData;

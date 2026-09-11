@@ -2,14 +2,6 @@ import { localDataEngine } from "@/api/localDataEngine";
 
 const OWNER_USER_ID = "usr_owner_001";
 
-const ownerUser = {
-  id: OWNER_USER_ID,
-  email: "james.miller@millerrenovations.com",
-  full_name: "James Miller",
-  onboarding_completed: true,
-  role: "admin",
-};
-
 const businessSettings = {
   id: "bs_001",
   user_id: OWNER_USER_ID,
@@ -275,22 +267,4 @@ export function seedAllDataForUser(userId) {
   localDataEngine.seed("Receipt", remapUserId(receipts, userId));
 
   localStorage.setItem(key, "true");
-}
-
-// Legacy wrapper for old callers
-export function seedAllData() {
-  seedAllDataForUser(OWNER_USER_ID);
-}
-
-export function getLocalUser() {
-  try {
-    const raw = localStorage.getItem("invoicium_user");
-    if (raw) {
-      const parsed = JSON.parse(raw);
-      if (parsed && parsed.id) return parsed;
-    }
-  } catch (e) {
-    console.error("Failed to parse local user", e);
-  }
-  return ownerUser;
 }

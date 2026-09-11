@@ -1224,10 +1224,6 @@ export default function Invoices() {
                   {filteredInvoices.map((invoice) => {
                     const StatusIcon =
                       statusConfig[invoice.status]?.icon || FileText;
-                    const isAssigned =
-                      invoice.assigned_to ||
-                      (invoice.assigned_to_users &&
-                        invoice.assigned_to_users.length > 0);
 
                     return (
                       <TableRow

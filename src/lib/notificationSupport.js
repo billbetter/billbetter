@@ -24,17 +24,6 @@ export function isAndroidWebView() {
 }
 
 /**
- * Returns true if running as an installed PWA (standalone mode).
- */
-export function isInstalledPWA() {
-  if (typeof window === 'undefined') return false;
-  return (
-    window.matchMedia('(display-mode: standalone)').matches ||
-    window.navigator.standalone === true
-  );
-}
-
-/**
  * Returns true if the browser Notification API is genuinely available and usable.
  * This is the ONLY safe gate you should use before calling any Notification API.
  */
@@ -77,19 +66,4 @@ export function showBrowserNotification(title, options = {}) {
   } catch {
     // silently swallow — some environments partially support the API
   }
-}
-
-/**
- * Returns a human-readable description of the current environment.
- * Useful for debugging and for showing the right UI message.
- *
- * @returns {'webview' | 'pwa' | 'mobile-browser' | 'desktop-browser'}
- */
-export function getEnvironmentType() {
-  if (typeof window === 'undefined') return 'desktop-browser';
-  if (isAndroidWebView()) return 'webview';
-  if (isInstalledPWA()) return 'pwa';
-  const ua = navigator.userAgent || '';
-  if (/Mobi|Android|iPhone|iPad|iPod/i.test(ua)) return 'mobile-browser';
-  return 'desktop-browser';
 }

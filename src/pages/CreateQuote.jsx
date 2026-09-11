@@ -351,7 +351,6 @@ export default function CreateQuote() {
   const [clients, setClients] = useState([]);
   const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
   const [showVoiceInput, setShowVoiceInput] = useState(false);
   const [sendingNotifications, setSendingNotifications] = useState(false);
   const [successDialog, setSuccessDialog] = useState({
@@ -378,7 +377,7 @@ export default function CreateQuote() {
   const prefillData = location.state?.prefillData;
   const urlParams = new URLSearchParams(location.search);
   const editId = urlParams.get("edit");
-  const [editMode, setEditMode] = useState(!!editId);
+  const [editMode] = useState(!!editId);
 
   const [formData, setFormData] = useState(
     prefillData || {
@@ -570,11 +569,11 @@ export default function CreateQuote() {
         client_email: client.email || "",
       });
 
-      await loadSimilarQuotes(clientId, client.name);
+      await loadSimilarQuotes(clientId);
     }
   };
 
-  const loadSimilarQuotes = async (clientId, clientName) => {
+  const loadSimilarQuotes = async (clientId) => {
     try {
       const pastQuotes = await sdk.entities.Quote.filter(
         { user_id: user.id, client_id: clientId },
@@ -599,7 +598,6 @@ export default function CreateQuote() {
   };
 
   const handleAISuggest = async (jobDescription) => {
-    setAiLoading(true);
     try {
       const response = await sdk.integrations.Core.InvokeLLM({
         prompt: `Based on this job description, suggest quote line items with clear, concise descriptions, quantities, and reasonable rates.
@@ -633,7 +631,6 @@ Provide line items in this format.`,
       console.error("Error getting AI suggestions:", error);
       alert(aiFailureMessage(error, "line items for this quote"));
     }
-    setAiLoading(false);
   };
 
   const handleVoiceTranscript = async (transcript) => {

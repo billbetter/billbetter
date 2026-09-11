@@ -1,6 +1,7 @@
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { FadeIn } from "@/components/marketing";
 import { hasAppAccess } from "@/lib/access";
 import { listPlans, getAmount } from "@/config/plans";
 import { TRADES } from "@/config/trades";
@@ -27,38 +28,6 @@ import {
   CreditCard,
   Building2,
 } from "lucide-react";
-
-const useInView = (options = {}) => {
-  const [isInView, setIsInView] = useState(false);
-  const ref = useRef(null);
-  useEffect(() => {
-    const observer = new IntersectionObserver(
-      ([entry]) => {
-        if (entry.isIntersecting) {
-          setIsInView(true);
-          observer.disconnect();
-        }
-      },
-      { threshold: 0.1, ...options },
-    );
-    if (ref.current) observer.observe(ref.current);
-    return () => observer.disconnect();
-  }, []);
-  return [ref, isInView];
-};
-
-const FadeIn = ({ children, delay = 0, className = "" }) => {
-  const [ref, isInView] = useInView();
-  return (
-    <div
-      ref={ref}
-      className={`transition-all duration-700 ${className} ${isInView ? "opacity-100 translate-y-0" : "opacity-0 translate-y-8"}`}
-      style={{ transitionDelay: `${delay}ms` }}
-    >
-      {children}
-    </div>
-  );
-};
 
 /**
  * The hero's call to action: one field, then Start.

@@ -423,7 +423,6 @@ export default function CreateInvoice() {
   const [templates, setTemplates] = useState([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-  const [aiLoading, setAiLoading] = useState(false);
   const [showVoiceInput, setShowVoiceInput] = useState(false);
   const [sendingStatus, setSendingStatus] = useState("idle");
   const [successDialog, setSuccessDialog] = useState({
@@ -451,7 +450,6 @@ export default function CreateInvoice() {
   const [deletingTemplate, setDeletingTemplate] = useState(false);
   const [user, setUser] = useState(null);
   const [subscription, setSubscription] = useState(null);
-  const [showOverageWarning, setShowOverageWarning] = useState(false);
   const [proceedWithOverage, setProceedWithOverage] = useState(false);
   const [showLimitReached, setShowLimitReached] = useState(false);
   const [userSpecialty, setUserSpecialty] = useState("general");
@@ -512,7 +510,6 @@ export default function CreateInvoice() {
     const editId = urlParams.get("edit");
 
     if (fromQuote === "true") {
-      const quoteId = urlParams.get("quoteId");
       const clientId = urlParams.get("clientId");
       const clientName = urlParams.get("clientName");
       const clientEmail = urlParams.get("clientEmail");
@@ -706,11 +703,11 @@ export default function CreateInvoice() {
         client_phone: client.phone || "",
         client_address: client.address || "",
       });
-      await loadSimilarInvoices(clientId, client.name);
+      await loadSimilarInvoices(clientId);
     }
   };
 
-  const loadSimilarInvoices = async (clientId, clientName) => {
+  const loadSimilarInvoices = async (clientId) => {
     try {
       const pastInvoices = await sdk.entities.Invoice.filter(
         { user_id: user.id, client_id: clientId },
@@ -840,7 +837,6 @@ export default function CreateInvoice() {
   };
 
   const handleAISuggest = async (jobDescription, fileUrl = null) => {
-    setAiLoading(true);
     try {
       const businessLocation = settings?.address || "";
       const isCanada =
@@ -937,7 +933,6 @@ Provide line items in this format.`,
       console.error("Error getting AI suggestions:", error);
       alert(aiFailureMessage(error, "line items for this job"));
     }
-    setAiLoading(false);
   };
 
   const handleVoiceTranscript = async (transcript) => {

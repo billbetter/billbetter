@@ -63,7 +63,6 @@ import ReadReceiptBadge from "@/components/invoice/ReadReceiptBadge";
 
 export default function Quotes() {
   const [quotes, setQuotes] = useState([]);
-  const [settings, setSettings] = useState(null);
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -105,15 +104,12 @@ export default function Quotes() {
     try {
       const user = await sdk.auth.me();
 
-      const [quoteData, settingsData] = await Promise.all([
-        sdk.entities.Quote.filter({ user_id: user.id }, "-created_date"),
-        sdk.entities.BusinessSettings.filter({ user_id: user.id }),
-      ]);
+      const quoteData = await sdk.entities.Quote.filter(
+        { user_id: user.id },
+        "-created_date",
+      );
 
       setQuotes(quoteData);
-      if (settingsData.length > 0) {
-        setSettings(settingsData[0]);
-      }
     } catch (error) {
       console.error("Error loading data:", error);
     }
@@ -773,13 +769,6 @@ export default function Quotes() {
                     const StatusIcon =
                       statusConfig[quote.status]?.icon || FileText;
                     const expiryStatus = getExpiryStatus(quote.expiry_date);
-                    const canConvert =
-                      quote.status === "approved" &&
-                      quote.status !== "converted";
-                    const isAssigned =
-                      quote.assigned_to ||
-                      (quote.assigned_to_users &&
-                        quote.assigned_to_users.length > 0);
 
                     return (
                       <TableRow

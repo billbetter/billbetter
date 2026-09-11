@@ -30,7 +30,6 @@ export default function OnboardingModal({ isOpen, onClose, user, onComplete }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [loading, setLoading] = useState(false);
   const [showFeatureTour, setShowFeatureTour] = useState(false);
-  const [selectedSpecialty, setSelectedSpecialty] = useState(null);
   const [tosAccepted, setTosAccepted] = useState(false);
   const [formData, setFormData] = useState({
     business_name: "",
@@ -306,23 +305,6 @@ export default function OnboardingModal({ isOpen, onClose, user, onComplete }) {
         );
       } else {
         await sdk.entities.BusinessSettings.create(settingsData);
-      }
-      if (selectedSpecialty) {
-        const existingSpecialty = await sdk.entities.UserSpecialty.filter({
-          user_id: user.id,
-        });
-        if (existingSpecialty.length > 0) {
-          await sdk.entities.UserSpecialty.update(existingSpecialty[0].id, {
-            primary_specialty: selectedSpecialty,
-            onboarding_completed: true,
-          });
-        } else {
-          await sdk.entities.UserSpecialty.create({
-            user_id: user.id,
-            primary_specialty: selectedSpecialty,
-            onboarding_completed: true,
-          });
-        }
       }
       await sdk.auth.updateMe({ onboarding_completed: true });
     } catch (error) {

@@ -11,13 +11,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import PhotoCategoryField from "./PhotoCategoryField";
 import {
   Star,
   MapPin,
@@ -192,22 +186,7 @@ export default function PhotoDetailModal({
             {editing ? (
               <>
                 {/* Edit Mode */}
-                <div>
-                  <Label>Category</Label>
-                  <Select value={category} onValueChange={setCategory}>
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="before">Before</SelectItem>
-                      <SelectItem value="during">During</SelectItem>
-                      <SelectItem value="after">After</SelectItem>
-                      <SelectItem value="issue">Issue</SelectItem>
-                      <SelectItem value="receipt">Receipt</SelectItem>
-                      <SelectItem value="other">Other</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
+                <PhotoCategoryField value={category} onChange={setCategory} />
 
                 <div>
                   <Label>Caption/Notes</Label>

@@ -25,19 +25,6 @@ export default function SmartInsights({
     const monthAgo = subDays(now, 30);
     const twoMonthsAgo = subDays(now, 60);
 
-    // Filter by date range if custom
-    const filterByDateRange = (items, dateField = "created_date") => {
-      if (!dateRange || dateRange.preset === "all") return items;
-      return items.filter((item) => {
-        const date = new Date(item[dateField]);
-        return date >= dateRange.start && date <= dateRange.end;
-      });
-    };
-
-    const filteredInvoices = filterByDateRange(invoices);
-    const filteredQuotes = filterByDateRange(quotes);
-    const filteredJobs = filterByDateRange(jobs);
-
     const results = [];
 
     // 1. Revenue Trend Analysis

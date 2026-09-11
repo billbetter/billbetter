@@ -10,13 +10,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
+import PhotoCategoryField from "./PhotoCategoryField";
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import {
   Camera,
@@ -41,7 +35,6 @@ export default function PhotoUploadModal({
   const [tags, setTags] = useState("");
   const [location, setLocation] = useState(null);
   const [locationLoading, setLocationLoading] = useState(false);
-  const [subscription, setSubscription] = useState(null);
   const [cameraPermission, setCameraPermission] = useState(null);
   const [locationPermission, setLocationPermission] = useState(null);
   const fileInputRef = useRef(null);
@@ -49,22 +42,9 @@ export default function PhotoUploadModal({
 
   useEffect(() => {
     if (isOpen) {
-      loadSubscription();
       checkPermissions();
     }
   }, [isOpen]);
-
-  const loadSubscription = async () => {
-    try {
-      const user = await sdk.auth.me();
-      const subs = await sdk.entities.Subscription.filter({ user_id: user.id });
-      if (subs.length > 0) {
-        setSubscription(subs[0]);
-      }
-    } catch (error) {
-      console.error("Error loading subscription:", error);
-    }
-  };
 
   const checkPermissions = async () => {
     // Check camera permission
@@ -328,23 +308,7 @@ export default function PhotoUploadModal({
             </div>
           )}
 
-          {/* Category */}
-          <div>
-            <Label>Category</Label>
-            <Select value={category} onValueChange={setCategory}>
-              <SelectTrigger>
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="before">Before</SelectItem>
-                <SelectItem value="during">During</SelectItem>
-                <SelectItem value="after">After</SelectItem>
-                <SelectItem value="issue">Issue</SelectItem>
-                <SelectItem value="receipt">Receipt</SelectItem>
-                <SelectItem value="other">Other</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
+          <PhotoCategoryField value={category} onChange={setCategory} />
 
           {/* Caption */}
           <div>

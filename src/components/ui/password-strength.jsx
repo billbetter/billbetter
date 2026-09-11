@@ -254,5 +254,3 @@ export function PasswordStrength({
     </div>
   );
 }
-
-export default PasswordStrength;

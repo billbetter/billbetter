@@ -24,15 +24,3 @@ export function token(name, alpha) {
     ? `rgb(${channels})`
     : `rgb(${channels} / ${alpha})`;
 }
-
-/** Ordered categorical palette for charts, drawn from the token ramps. */
-export const CHART_SERIES = [
-  "success-500",
-  "brand-600",
-  "brand-700",
-  "warning-500",
-  "magenta-500",
-  "accent-500",
-];
-
-export const chartColors = () => CHART_SERIES.map((t) => token(t));

@@ -250,8 +250,3 @@ export function can(ctx, capability) {
   const caps = ROLE_CAPABILITIES[ctx.role] || ROLE_CAPABILITIES.employee;
   return Boolean(caps[capability]);
 }
-
-/** Capability check that resolves the context itself. */
-export async function currentUserCan(capability) {
-  return can(await getBusinessContext(), capability);
-}

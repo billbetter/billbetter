@@ -40,6 +40,38 @@ import GlobalVoiceAssistant from "./components/voice/GlobalVoiceAssistant";
 import NotificationPermissionPrompt from "./components/notifications/NotificationPermissionPrompt";
 import NotificationBell from "./components/notifications/NotificationBell";
 
+/**
+ * The account menu's items. One menu with two triggers -- the account row at
+ * the foot of the desktop sidebar and the avatar in the phone top bar -- so
+ * the items live here once instead of being written out twice.
+ */
+function AccountMenuContent({ navigate, onLogout }) {
+  return (
+    <DropdownMenuContent align="end" className="w-56">
+      <DropdownMenuItem
+        onClick={() => navigate(createPageUrl("Settings") + "?tab=business")}
+      >
+        <Building2 className="w-4 h-4 mr-2" />
+        Business Information
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={() => navigate(createPageUrl("Settings"))}>
+        <Settings className="w-4 h-4 mr-2" />
+        Settings
+      </DropdownMenuItem>
+      <DropdownMenuItem
+        onClick={() => navigate(createPageUrl("Settings") + "?tab=billing")}
+      >
+        <CreditCard className="w-4 h-4 mr-2" />
+        Billing
+      </DropdownMenuItem>
+      <DropdownMenuItem onClick={onLogout} className="text-danger-600">
+        <LogOut className="w-4 h-4 mr-2" />
+        Logout
+      </DropdownMenuItem>
+    </DropdownMenuContent>
+  );
+}
+
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
   const navigate = useNavigate();
@@ -759,37 +791,7 @@ export default function Layout({ children, currentPageName }) {
                 )}
               </button>
             </DropdownMenuTrigger>
-            <DropdownMenuContent align="end" className="w-56">
-              <DropdownMenuItem
-                onClick={() =>
-                  navigate(createPageUrl("Settings") + "?tab=business")
-                }
-              >
-                <Building2 className="w-4 h-4 mr-2" />
-                Business Information
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() => navigate(createPageUrl("Settings"))}
-              >
-                <Settings className="w-4 h-4 mr-2" />
-                Settings
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={() =>
-                  navigate(createPageUrl("Settings") + "?tab=billing")
-                }
-              >
-                <CreditCard className="w-4 h-4 mr-2" />
-                Billing
-              </DropdownMenuItem>
-              <DropdownMenuItem
-                onClick={handleLogout}
-                className="text-danger-600"
-              >
-                <LogOut className="w-4 h-4 mr-2" />
-                Logout
-              </DropdownMenuItem>
-            </DropdownMenuContent>
+            <AccountMenuContent navigate={navigate} onLogout={handleLogout} />
           </DropdownMenu>
         </div>
       </aside>
@@ -834,37 +836,7 @@ export default function Layout({ children, currentPageName }) {
                   )}
                 </button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent align="end" className="w-56">
-                <DropdownMenuItem
-                  onClick={() =>
-                    navigate(createPageUrl("Settings") + "?tab=business")
-                  }
-                >
-                  <Building2 className="w-4 h-4 mr-2" />
-                  Business Information
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => navigate(createPageUrl("Settings"))}
-                >
-                  <Settings className="w-4 h-4 mr-2" />
-                  Settings
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() =>
-                    navigate(createPageUrl("Settings") + "?tab=billing")
-                  }
-                >
-                  <CreditCard className="w-4 h-4 mr-2" />
-                  Billing
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={handleLogout}
-                  className="text-danger-600"
-                >
-                  <LogOut className="w-4 h-4 mr-2" />
-                  Logout
-                </DropdownMenuItem>
-              </DropdownMenuContent>
+              <AccountMenuContent navigate={navigate} onLogout={handleLogout} />
             </DropdownMenu>
           </div>
         </div>

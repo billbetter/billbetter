@@ -1,7 +1,7 @@
 import React from "react";
 import { Card, CardContent } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { ChevronLeft, ChevronRight } from "lucide-react";
+import PeriodNavigation from "./PeriodNavigation";
+import { jobStatusColor } from "./jobStatusColor";
 import {
   format,
   startOfMonth,
@@ -47,41 +47,17 @@ export default function MonthView({
     });
   };
 
-  const getStatusColor = (status) => {
-    const colors = {
-      planning: "bg-brand-600",
-      in_progress: "bg-caution-500",
-      completed: "bg-positive-500",
-      cancelled: "bg-danger-500",
-    };
-    return colors[status] || "bg-ink-500";
-  };
-
   return (
     <Card className="border-none shadow-lg dark:bg-ink-800 dark:border-ink-700">
       <CardContent className="p-3 sm:p-6">
-        {/* Month Navigation */}
-        <div className="flex items-center justify-between mb-4 sm:mb-6">
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentDate(subMonths(currentDate, 1))}
-            className="h-8 w-8 sm:h-10 sm:w-auto sm:px-4 dark:bg-surface-inverted dark:border-ink-700 dark:text-ink-300"
-          >
-            <ChevronLeft className="w-4 h-4" />
-          </Button>
-          <h2 className="text-lg sm:text-2xl font-bold text-content dark:text-content-inverted">
-            {format(currentDate, "MMMM yyyy")}
-          </h2>
-          <Button
-            variant="outline"
-            size="sm"
-            onClick={() => setCurrentDate(addMonths(currentDate, 1))}
-            className="h-8 w-8 sm:h-10 sm:w-auto sm:px-4 dark:bg-surface-inverted dark:border-ink-700 dark:text-ink-300"
-          >
-            <ChevronRight className="w-4 h-4" />
-          </Button>
-        </div>
+        <PeriodNavigation
+          title={format(currentDate, "MMMM yyyy")}
+          onPrevious={() => setCurrentDate(subMonths(currentDate, 1))}
+          onNext={() => setCurrentDate(addMonths(currentDate, 1))}
+          spacingClassName="mb-4 sm:mb-6"
+          titleSizeClassName="text-lg sm:text-2xl"
+          buttonClassName="h-8 w-8 sm:h-10 sm:w-auto sm:px-4 dark:bg-surface-inverted dark:border-ink-700 dark:text-ink-300"
+        />
 
         {/* Weekday Headers */}
         <div className="grid grid-cols-7 gap-1 sm:gap-2 mb-2">
@@ -128,7 +104,7 @@ export default function MonthView({
                           <button
                             key={idx}
                             onClick={() => onEventClick?.(event)}
-                            className={`text-[9px] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded text-content-inverted truncate cursor-pointer hover:opacity-80 w-full text-left ${getStatusColor(event.status)}`}
+                            className={`text-[9px] sm:text-xs px-1 sm:px-2 py-0.5 sm:py-1 rounded text-content-inverted truncate cursor-pointer hover:opacity-80 w-full text-left ${jobStatusColor(event.status)}`}
                             title={`${event.title}\n${format(new Date(event.start), "h:mm a")}`}
                           >
                             <span className="hidden sm:inline">

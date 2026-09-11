@@ -161,12 +161,3 @@ export function useShaderAppearance() {
 
   return state;
 }
-
-/**
- * Subscribe to the setting.
- *
- * @returns {boolean} whether the animated background is currently on
- */
-export function useShaderBackground() {
-  return useShaderAppearance().enabled;
-}

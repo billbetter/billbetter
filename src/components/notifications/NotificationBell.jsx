@@ -17,7 +17,6 @@ export default function NotificationBell() {
   const navigate = useNavigate();
   const [notifications, setNotifications] = useState([]);
   const [unreadCount, setUnreadCount] = useState(0);
-  const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     loadNotifications();
@@ -76,7 +75,6 @@ export default function NotificationBell() {
     } catch (error) {
       console.error("Error loading notifications:", error);
     }
-    setLoading(false);
   };
 
   const markAsRead = async (notificationId) => {

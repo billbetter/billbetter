@@ -66,9 +66,7 @@ export default function RecurringInvoices() {
   const [deleting, setDeleting] = useState(false);
   const [updatingStatus, setUpdatingStatus] = useState(null);
   const [subscription, setSubscription] = useState(null);
-  const [userSpecialty, setUserSpecialty] = useState(null);
   const [recentServices, setRecentServices] = useState([]);
-  const [user, setUser] = useState(null);
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
   const [mobileMenuOpen, setMobileMenuOpen] = useState(null);
@@ -92,16 +90,14 @@ export default function RecurringInvoices() {
 
     try {
       const currentUser = await sdk.auth.me();
-      setUser(currentUser);
 
-      const [data, subscriptionData, specialtyData, customTemplates] =
+      const [data, subscriptionData, customTemplates] =
         await Promise.all([
           sdk.entities.RecurringInvoice.filter(
             { user_id: currentUser.id },
             "-created_date",
           ),
           sdk.entities.Subscription.filter({ user_id: currentUser.id }),
-          sdk.entities.UserSpecialty.filter({ user_id: currentUser.id }),
           sdk.entities.CustomServiceTemplate.filter(
             { user_id: currentUser.id },
             "-use_count",
@@ -111,7 +107,6 @@ export default function RecurringInvoices() {
 
       setRecurringInvoices(data);
       setSubscription(subscriptionData.length > 0 ? subscriptionData[0] : null);
-      setUserSpecialty(specialtyData.length > 0 ? specialtyData[0] : null);
       setRecentServices(customTemplates);
 
       const active = data.filter((inv) => inv.status === "active").length;

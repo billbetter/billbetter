@@ -26,10 +26,7 @@
  * be shown together, and that is the whole of the coupling.
  */
 
-/** Two decimal places, without the float dust `0.1 + 0.2` leaves behind. */
-function money(n) {
-  return Math.round((Number(n) || 0) * 100) / 100;
-}
+import { roundToCents } from "./money";
 
 /** The default a contractor is offered: deposit, work, completion. */
 export const DEFAULT_STAGES = [
@@ -76,16 +73,16 @@ export function validateStages(stages) {
  * so the parts always sum to the whole. See the note at the top of this file.
  */
 export function buildStages(totalAmount, stages) {
-  const total = money(totalAmount);
+  const total = roundToCents(totalAmount);
   const out = [];
   let allocated = 0;
 
   stages.forEach((stage, i) => {
     const isLast = i === stages.length - 1;
     const amount = isLast
-      ? money(total - allocated)
-      : money((total * (Number(stage.percent) || 0)) / 100);
-    allocated = money(allocated + amount);
+      ? roundToCents(total - allocated)
+      : roundToCents((total * (Number(stage.percent) || 0)) / 100);
+    allocated = roundToCents(allocated + amount);
     out.push({
       id: stage.id || `stg_${i + 1}_${Math.random().toString(36).slice(2, 8)}`,
       label: String(stage.label || "").trim(),
@@ -102,14 +99,14 @@ export function buildStages(totalAmount, stages) {
 
 /** Money already turned into an invoice, whether or not it has been paid. */
 export function releasedTotal(stages = []) {
-  return money(
+  return roundToCents(
     stages.filter((s) => s.released_at).reduce((sum, s) => sum + (Number(s.amount) || 0), 0),
   );
 }
 
 /** Money still to be billed. */
 export function remainingTotal(plan) {
-  return money((Number(plan?.total_amount) || 0) - releasedTotal(plan?.stages || []));
+  return roundToCents((Number(plan?.total_amount) || 0) - releasedTotal(plan?.stages || []));
 }
 
 /**
@@ -144,13 +141,13 @@ export function isPlanFullyBilled(plan) {
 export function buildStagePrefill({ plan, stage, client = null }) {
   if (!plan || !stage) return null;
 
-  const amount = money(stage.amount);
+  const amount = roundToCents(stage.amount);
   const description = plan.title
     ? `${stage.label} (${stage.percent}% of ${plan.title})`
     : stage.label;
 
   const rate = Number(plan.tax_rate) || 0;
-  const tax_amount = money((amount * rate) / 100);
+  const tax_amount = roundToCents((amount * rate) / 100);
 
   return {
     client_id: plan.client_id || client?.id || "",
@@ -162,7 +159,7 @@ export function buildStagePrefill({ plan, stage, client = null }) {
     subtotal: amount,
     tax_rate: rate,
     tax_amount,
-    total: money(amount + tax_amount),
+    total: roundToCents(amount + tax_amount),
     status: "draft",
     due_date: stage.due_date || undefined,
     notes: plan.notes || "",

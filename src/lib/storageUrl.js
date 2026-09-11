@@ -1,6 +1,5 @@
 import { supabase } from "@/api/supabaseClient";
 import { PRIVATE_BUCKET } from "@/api/sdk";
-import { useEffect, useState } from "react";
 
 /**
  * Turn a stored file reference back into something a browser can open.
@@ -103,37 +102,4 @@ export async function openStorageRef(ref) {
   }
   if (win) win.location.href = url;
   else window.open(url, "_blank", "noopener,noreferrer");
-}
-
-/**
- * React hook form, for anywhere the reference has to become an <img src>.
- *
- * Returns null while resolving and on failure, so `src={url || undefined}`
- * renders nothing rather than a broken-image icon.
- *
- * @param {string|null|undefined} ref
- * @returns {string|null}
- */
-export function useStorageUrl(ref) {
-  const [url, setUrl] = useState(() => (isPrivateRef(ref) ? null : ref || null));
-
-  useEffect(() => {
-    let cancelled = false;
-    if (!ref) {
-      setUrl(null);
-      return undefined;
-    }
-    if (!isPrivateRef(ref)) {
-      setUrl(ref);
-      return undefined;
-    }
-    resolveStorageUrl(ref).then((resolved) => {
-      if (!cancelled) setUrl(resolved);
-    });
-    return () => {
-      cancelled = true;
-    };
-  }, [ref]);
-
-  return url;
 }

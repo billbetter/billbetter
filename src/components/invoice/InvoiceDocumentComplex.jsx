@@ -18,6 +18,7 @@ import React from "react";
 import { Document, Page, View, Text, Image, StyleSheet } from "@react-pdf/renderer";
 import { resolveInvoiceTheme } from "@/lib/invoiceTheme";
 import "@/lib/invoicePdfFont";
+import { formatPdfMoney } from "./pdfMoney";
 
 // Colour roles in this layout:
 //   primaryColor   -> filled bars (section titles, the grand-total row)
@@ -224,12 +225,6 @@ const makeStyles = (t, fontFamily = "Inter") =>
  * @property {import("@/lib/invoiceTheme").InvoiceTheme} [theme]
  */
 
-const money = (n) =>
-  `$${Number(n || 0).toLocaleString("en-CA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-
 const lineTotal = (li) => Number(li?.qty || 0) * Number(li?.rate || 0);
 
 /** @param {ComplexInvoiceData} data */
@@ -340,13 +335,13 @@ export const InvoiceDocumentComplex = (data) => {
                 <Text style={[styles.cell, styles.colDesc]}>{li.description}</Text>
                 <Text style={[styles.cell, styles.colQty]}>{li.qty}</Text>
                 <Text style={[styles.cell, styles.colUnit]}>{li.unit ?? "ea"}</Text>
-                <Text style={[styles.cell, styles.colRate]}>{money(li.rate)}</Text>
-                <Text style={[styles.cell, styles.colAmount]}>{money(lineTotal(li))}</Text>
+                <Text style={[styles.cell, styles.colRate]}>{formatPdfMoney(li.rate)}</Text>
+                <Text style={[styles.cell, styles.colAmount]}>{formatPdfMoney(lineTotal(li))}</Text>
               </View>
             ))}
             <View style={styles.sectionSubtotalRow}>
               <Text style={styles.sectionSubtotalLabel}>Section Subtotal</Text>
-              <Text style={styles.sectionSubtotalValue}>{money(sectionSubtotals[si])}</Text>
+              <Text style={styles.sectionSubtotalValue}>{formatPdfMoney(sectionSubtotals[si])}</Text>
             </View>
           </View>
         ))}
@@ -365,23 +360,23 @@ export const InvoiceDocumentComplex = (data) => {
           <View style={styles.totalsBox}>
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>Subtotal</Text>
-              <Text style={styles.totalValue}>{money(subtotal)}</Text>
+              <Text style={styles.totalValue}>{formatPdfMoney(subtotal)}</Text>
             </View>
             {data.discount ? (
               <View style={styles.totalRow}>
                 <Text style={styles.totalLabel}>{data.discount.label}</Text>
-                <Text style={styles.totalValue}>-{money(discountAmount)}</Text>
+                <Text style={styles.totalValue}>-{formatPdfMoney(discountAmount)}</Text>
               </View>
             ) : null}
             {taxes.map((t, i) => (
               <View style={styles.totalRow} key={i}>
                 <Text style={styles.totalLabel}>{t.label}</Text>
-                <Text style={styles.totalValue}>{money(taxAmounts[i])}</Text>
+                <Text style={styles.totalValue}>{formatPdfMoney(taxAmounts[i])}</Text>
               </View>
             ))}
             <View style={styles.grandRow}>
               <Text style={styles.grandLabel}>{data.totalLabel || "Total Due"}</Text>
-              <Text style={styles.grandValue}>{money(total)}</Text>
+              <Text style={styles.grandValue}>{formatPdfMoney(total)}</Text>
             </View>
           </View>
         </View>

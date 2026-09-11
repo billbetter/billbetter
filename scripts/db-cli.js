@@ -1,4 +1,4 @@
-import { supabaseAdmin } from '../src/api/supabaseAdmin.js'
+import { supabaseAdmin } from './_supabase-admin.js'
 
 const action = process.argv[2]
 const table = process.argv[3]

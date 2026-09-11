@@ -35,15 +35,12 @@
  * exists means materials appear here the moment anything writes to it.
  */
 
-/** Two decimal places, without the float dust `0.1 + 0.2` leaves behind. */
-function money(n) {
-  return Math.round((Number(n) || 0) * 100) / 100;
-}
+import { roundToCents } from "./money";
 
 function lineItem(description, quantity, rate) {
   const q = Number(quantity) || 0;
   const r = Number(rate) || 0;
-  return { description, quantity: q, rate: money(r), amount: money(q * r) };
+  return { description, quantity: q, rate: roundToCents(r), amount: roundToCents(q * r) };
 }
 
 /**
@@ -139,9 +136,9 @@ export function buildJobInvoicePrefill({ job, client = null, materials = [], quo
   const { items, source, taxRate } = buildJobInvoiceItems({ job, materials, quote, settings });
   if (!items.length) return null;
 
-  const subtotal = money(items.reduce((sum, i) => sum + i.amount, 0));
+  const subtotal = roundToCents(items.reduce((sum, i) => sum + i.amount, 0));
   const rate = Number(taxRate) || 0;
-  const tax_amount = money((subtotal * rate) / 100);
+  const tax_amount = roundToCents((subtotal * rate) / 100);
 
   return {
     client_id: job.client_id || client?.id || "",
@@ -156,7 +153,7 @@ export function buildJobInvoicePrefill({ job, client = null, materials = [], quo
     subtotal,
     tax_rate: rate,
     tax_amount,
-    total: money(subtotal + tax_amount),
+    total: roundToCents(subtotal + tax_amount),
     status: "draft",
     notes: job.description || "",
     // Read by CreateInvoice after a successful save.

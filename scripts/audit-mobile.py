@@ -32,103 +32,21 @@ Requires a build (`npx vite build`); serves dist/ with `vite preview`.
 
 Usage: python scripts/audit-mobile.py [outDir] [--public-links]
 """
-import json
 import os
-import subprocess
 import sys
 import tempfile
-import time
-import urllib.request
 
-from _env import require
-from _session import session_for
+from _page_harness import run_browser_pass
 
-ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 PORT = 4181
-ORIGIN = f'http://localhost:{PORT}'
-URL = require('VITE_SUPABASE_URL').rstrip('/')
-ANON = require('VITE_SUPABASE_ANON_KEY')
-
-try:
-    sys.stdout.reconfigure(encoding='utf-8', errors='replace')
-except Exception:
-    pass
-
-
-def get(path, token):
-    req = urllib.request.Request(f'{URL}/rest/v1/{path}', headers={
-        'apikey': ANON,
-        'Authorization': f'Bearer {token}',
-        # Cloudflare answers a bare urllib request with 1010, which arrives
-        # looking exactly like an auth failure.
-        'User-Agent': 'invoicium-audit/1.0',
-    })
-    with urllib.request.urlopen(req) as r:
-        return json.loads(r.read().decode())
-
-
-def wait_for_server(timeout=60):
-    deadline = time.time() + timeout
-    while time.time() < deadline:
-        try:
-            urllib.request.urlopen(ORIGIN, timeout=2)
-            return True
-        except Exception:
-            time.sleep(0.5)
-    return False
 
 
 def main():
     args = [a for a in sys.argv[1:] if not a.startswith('--')]
-    public_links = '--public-links' in sys.argv[1:]
     out_dir = args[0] if args else os.path.join(
         tempfile.gettempdir(), 'invoicium-mobile-audit')
-    os.makedirs(out_dir, exist_ok=True)
-
-    sess = session_for('zbagzat9@gmail.com')
-    tok = sess['access_token']
-
-    inv = get('Invoice?select=id,public_token&public_token=not.is.null'
-              '&public_link_revoked_at=is.null&order=created_at.desc&limit=1', tok)
-    quo = get('Quote?select=id,public_id&order=created_at.desc&limit=1', tok)
-
-    config = {
-        'session': sess,
-        'invoiceId': inv[0]['id'] if inv else None,
-        'invoiceToken': inv[0]['public_token'] if inv else None,
-        'quoteId': quo[0]['id'] if quo else None,
-        'quotePublicId': quo[0].get('public_id') if quo else None,
-        'publicLinks': public_links,
-    }
-    cfg_path = os.path.join(out_dir, 'config.json')
-    with open(cfg_path, 'w', encoding='utf-8') as f:
-        json.dump(config, f)
-
-    server = subprocess.Popen(
-        ['npx', 'vite', 'preview', '--port', str(PORT), '--strictPort'],
-        cwd=ROOT, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL,
-        shell=(os.name == 'nt'),
-    )
-    try:
-        if not wait_for_server():
-            raise SystemExit('vite preview did not come up')
-        code = subprocess.call(
-            ['node', os.path.join(ROOT, 'scripts', 'audit-mobile.cjs'),
-             ORIGIN, cfg_path, out_dir],
-            cwd=ROOT,
-        )
-    finally:
-        # The session file holds a live access token; do not leave it behind.
-        try:
-            os.remove(cfg_path)
-        except OSError:
-            pass
-        if os.name == 'nt':
-            subprocess.call(['taskkill', '/F', '/T', '/PID', str(server.pid)],
-                            stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
-        else:
-            server.terminate()
-    sys.exit(code)
+    sys.exit(run_browser_pass('audit-mobile.cjs', out_dir, PORT,
+                              public_links='--public-links' in sys.argv[1:]))
 
 
 if __name__ == '__main__':

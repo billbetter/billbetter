@@ -8,8 +8,4 @@
 //
 // Quotes still go through the pdf-lib edge function -- see generateQuotePDF.js.
 
-export {
-  generateInvoicePDF,
-  renderInvoicePdfBlob,
-  downloadInvoicePdf,
-} from "@/lib/invoicePdf";
+export { generateInvoicePDF } from "@/lib/invoicePdf";

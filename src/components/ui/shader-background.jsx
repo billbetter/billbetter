@@ -379,5 +379,3 @@ export function ShaderBackground({
     />
   );
 }
-
-export default ShaderBackground;

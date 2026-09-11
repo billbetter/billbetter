@@ -40,6 +40,24 @@ import DateRangeFilter from "@/components/analytics/DateRangeFilter";
 import ChaseInvoiceBanner from "@/components/invoice/ChaseInvoiceBanner";
 import { indexPaymentsByInvoice, revenueDate } from "@/lib/invoicePayments";
 
+/* ─── Revenue chart axes ─────────────────────────────────────────
+   Shared by the revenue-trend and paid/pending charts. Props, not a wrapper
+   component: recharts finds its axes by element type among the chart's
+   direct children, so <XAxis> has to stay in place. Built at render time
+   because token() reads the live CSS variable, and the colours must follow
+   the theme. */
+const moneyChartGrid = () => ({
+  strokeDasharray: "3 3",
+  stroke: token("ink-100"),
+  vertical: false,
+});
+const moneyChartAxis = () => ({
+  tick: { fontSize: 11, fill: token("ink-400"), fontWeight: 500 },
+  axisLine: false,
+  tickLine: false,
+});
+const formatMoneyTick = (v) => `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`;
+
 /* ─── Animation wrapper ──────────────────────────────────────── */
 const FadeIn = ({ children, delay = 0, className = "" }) => (
   <motion.div
@@ -801,34 +819,12 @@ export default function Analytics() {
                 <div className="h-48 sm:h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <AreaChart data={revenueTrendData}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={token("ink-100")}
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="month"
-                        tick={{
-                          fontSize: 11,
-                          fill: token("ink-400"),
-                          fontWeight: 500,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-
+                      <CartesianGrid {...moneyChartGrid()} />
+                      <XAxis dataKey="month" {...moneyChartAxis()} />
                       <YAxis
-                        tickFormatter={(v) =>
-                          `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`
-                        }
+                        tickFormatter={formatMoneyTick}
                         width={48}
-                        tick={{
-                          fontSize: 11,
-                          fill: token("ink-400"),
-                          fontWeight: 500,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
+                        {...moneyChartAxis()}
                       />
 
                       <Tooltip content={<ChartTooltip />} />
@@ -958,9 +954,6 @@ export default function Analytics() {
                   const declined = quotes.filter(
                     (q) => q.status === "declined" || q.status === "rejected",
                   ).length;
-                  const draft = quotes.filter(
-                    (q) => q.status === "draft",
-                  ).length;
                   const conversionRate =
                     total > 0 ? Math.round((accepted / total) * 100) : 0;
 
@@ -1073,34 +1066,12 @@ export default function Analytics() {
                 <div className="h-48 sm:h-56">
                   <ResponsiveContainer width="100%" height="100%">
                     <BarChart data={monthlyData} barGap={2}>
-                      <CartesianGrid
-                        strokeDasharray="3 3"
-                        stroke={token("ink-100")}
-                        vertical={false}
-                      />
-                      <XAxis
-                        dataKey="month"
-                        tick={{
-                          fontSize: 11,
-                          fill: token("ink-400"),
-                          fontWeight: 500,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
-                      />
-
+                      <CartesianGrid {...moneyChartGrid()} />
+                      <XAxis dataKey="month" {...moneyChartAxis()} />
                       <YAxis
-                        tickFormatter={(v) =>
-                          `$${v >= 1000 ? `${(v / 1000).toFixed(0)}k` : v}`
-                        }
+                        tickFormatter={formatMoneyTick}
                         width={48}
-                        tick={{
-                          fontSize: 11,
-                          fill: token("ink-400"),
-                          fontWeight: 500,
-                        }}
-                        axisLine={false}
-                        tickLine={false}
+                        {...moneyChartAxis()}
                       />
 
                       <Tooltip content={<ChartTooltip />} />

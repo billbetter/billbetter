@@ -49,111 +49,6 @@ import DailyDigest from "@/components/dashboard/DailyDigest";
 import ReadReceiptBadge from "@/components/invoice/ReadReceiptBadge";
 import { indexPaymentsByInvoice, revenueDate } from "@/lib/invoicePayments";
 
-// Stat Card Component
-const StatCard = ({
-  title,
-  value,
-  subtitle,
-  icon: Icon,
-  color = "emerald",
-  trend,
-  onClick,
-  alert,
-}) => {
-  const colorClasses = {
-    emerald:
-      "bg-success-50 text-success-600 border-success-100 dark:bg-success-900/30 dark:text-success-400 dark:border-success-800",
-    blue: "bg-info-50 text-info-600 border-info-100 dark:bg-info-900/30 dark:text-info-400 dark:border-info-800",
-    purple:
-      "bg-brand-50 text-brand-600 border-brand-100 dark:bg-brand-900/30 dark:text-brand-400 dark:border-brand-800",
-    orange:
-      "bg-alert-50 text-alert-600 border-alert-100 dark:bg-alert-900/30 dark:text-alert-400 dark:border-alert-800",
-    red: "bg-danger-50 text-danger-600 border-danger-100 dark:bg-danger-900/30 dark:text-danger-400 dark:border-danger-800",
-    yellow:
-      "bg-caution-50 text-caution-600 border-caution-100 dark:bg-caution-900/30 dark:text-caution-400 dark:border-caution-800",
-  };
-
-  return (
-    <Card
-      className={`border-none shadow-sm hover:shadow-lg transition-all duration-300 ${onClick ? "cursor-pointer" : ""} group ${alert ? "ring-2 ring-danger-400 dark:ring-danger-500" : ""} bg-surface dark:bg-ink-800 border border-line-subtle dark:border-ink-700`}
-      onClick={onClick}
-    >
-      <CardContent className="p-4 sm:p-6">
-        <div className="flex items-start justify-between gap-3">
-          <div className="space-y-1.5 sm:space-y-2 min-w-0 flex-1">
-            <p className="text-xs sm:text-sm font-medium text-content-body dark:text-content-subtle">
-              {title}
-            </p>
-            <p className="text-2xl sm:text-3xl font-bold text-content dark:text-content-inverted tracking-tight truncate">
-              {value}
-            </p>
-            {subtitle && (
-              <p
-                className={`text-xs sm:text-sm font-normal ${alert ? "text-danger-600 dark:text-danger-400" : "text-content-muted dark:text-content-subtle"} truncate`}
-              >
-                {subtitle}
-              </p>
-            )}
-            {trend && (
-              <div className="flex items-center gap-1 text-xs font-semibold text-success-700 dark:text-success-400 bg-success-50 dark:bg-success-900/30 px-2 py-1 rounded-full w-fit">
-                <TrendingUp className="w-3 h-3" />
-                {trend}
-              </div>
-            )}
-          </div>
-          <div
-            className={`w-11 h-11 sm:w-12 sm:h-12 rounded-xl ${colorClasses[color]} flex items-center justify-center border-2 group-hover:scale-110 transition-transform flex-shrink-0`}
-          >
-            <Icon className="w-5 h-5 sm:w-6 sm:h-6" />
-          </div>
-        </div>
-      </CardContent>
-    </Card>
-  );
-};
-
-// Quick Action Button
-const QuickAction = ({
-  to,
-  icon: Icon,
-  title,
-  description,
-  color,
-  delay = 0,
-}) => {
-  const colorClasses = {
-    emerald:
-      "bg-success-500 hover:shadow-success-200 dark:hover:shadow-success-900/30",
-    blue: "bg-brand-600 hover:shadow-info-200 dark:hover:shadow-info-900/30",
-    purple:
-      "bg-brand-500 hover:shadow-brand-200 dark:hover:shadow-brand-900/30",
-    orange:
-      "bg-alert-500 hover:shadow-alert-200 dark:hover:shadow-alert-900/30",
-  };
-
-  return (
-    <Link to={to} className="block group">
-      <div
-        className={`relative overflow-hidden rounded-2xl p-5 sm:p-6 ${colorClasses[color]} text-content-inverted shadow-lg hover:shadow-xl transition-all duration-300 hover:-translate-y-1 h-full min-h-[140px] sm:min-h-[160px]`}
-      >
-        <div className="relative z-10">
-          <div className="w-11 h-11 sm:w-12 sm:h-12 rounded-xl bg-surface/20 backdrop-blur-sm flex items-center justify-center mb-3 sm:mb-4 group-hover:scale-110 transition-transform dark:bg-surface-inverted/20">
-            <Icon className="w-5 h-5 sm:w-6 sm:h-6 text-content-inverted" />
-          </div>
-          <h3 className="text-base sm:text-lg font-black mb-1">{title}</h3>
-          <p className="text-sm text-content-inverted/90 leading-tight">
-            {description}
-          </p>
-        </div>
-        <div className="absolute top-4 right-4 opacity-0 group-hover:opacity-100 transition-opacity">
-          <ArrowRight className="w-5 h-5" />
-        </div>
-        <div className="absolute -bottom-8 -right-8 w-32 h-32 bg-surface/10 rounded-full blur-2xl group-hover:scale-150 transition-transform duration-500 dark:bg-surface-inverted/10" />
-      </div>
-    </Link>
-  );
-};
-
 // Invoice Row Component
 const InvoiceRow = ({ invoice, onClick }) => {
   const statusConfig = {
@@ -282,7 +177,6 @@ export default function Dashboard() {
   const [invoices, setInvoices] = useState([]);
   const [payments, setPayments] = useState([]);
   const [quotes, setQuotes] = useState([]);
-  const [clients, setClients] = useState([]);
   const [recurringInvoices, setRecurringInvoices] = useState([]);
   const [settings, setSettings] = useState(null);
   const [subscription, setSubscription] = useState(null);
@@ -304,7 +198,6 @@ export default function Dashboard() {
       const [
         invoiceData,
         quoteData,
-        clientData,
         settingsData,
         recurringData,
         subscriptionData,
@@ -316,11 +209,6 @@ export default function Dashboard() {
           100,
         ),
         sdk.entities.Quote.filter(
-          { user_id: currentUser.id },
-          "-created_date",
-          50,
-        ),
-        sdk.entities.Client.filter(
           { user_id: currentUser.id },
           "-created_date",
           50,
@@ -342,7 +230,6 @@ export default function Dashboard() {
       setInvoices(invoiceData);
       setPayments(paymentData || []);
       setQuotes(quoteData);
-      setClients(clientData);
       setSettings(settingsData.length > 0 ? settingsData[0] : null);
       setRecurringInvoices(recurringData);
       setSubscription(subscriptionData.length > 0 ? subscriptionData[0] : null);
@@ -405,17 +292,10 @@ export default function Dashboard() {
     try {
       const user = await sdk.auth.me();
 
-      const [invoiceData, recurringData, quoteData, jobData, clientData] =
-        await Promise.all([
-          sdk.entities.Invoice.filter({ user_id: user.id }, "-created_date"),
-          sdk.entities.RecurringInvoice.filter(
-            { user_id: user.id },
-            "-created_date",
-          ),
-          sdk.entities.Quote.filter({ user_id: user.id }, "-created_date"),
-          sdk.entities.Job.filter({ user_id: user.id }, "-created_date"),
-          sdk.entities.Client.filter({ user_id: user.id }, "-created_date"),
-        ]);
+      const [invoiceData, clientData] = await Promise.all([
+        sdk.entities.Invoice.filter({ user_id: user.id }, "-created_date"),
+        sdk.entities.Client.filter({ user_id: user.id }, "-created_date"),
+      ]);
 
       const csvRows = [
         ["INVOICES"],

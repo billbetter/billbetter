@@ -8,7 +8,7 @@ import { sdk } from "@/api/sdk";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Search, Plus } from "lucide-react";
-import { SPECIALTIES } from "../onboarding/SpecialtySelector";
+import { SPECIALTIES } from "@/config/specialties";
 
 const ServiceAutofill = React.memo(
   ({
@@ -21,7 +21,6 @@ const ServiceAutofill = React.memo(
     const [searchTerm, setSearchTerm] = useState(value || "");
     const [suggestions, setSuggestions] = useState([]);
     const [showDropdown, setShowDropdown] = useState(false);
-    const [loading, setLoading] = useState(false);
     const dropdownRef = useRef(null);
 
     useEffect(() => {
@@ -51,7 +50,6 @@ const ServiceAutofill = React.memo(
           return;
         }
 
-        setLoading(true);
         try {
           // Fetch all presets and custom templates
           const [systemPresets, customTemplates] = await Promise.all([
@@ -100,8 +98,6 @@ const ServiceAutofill = React.memo(
           setShowDropdown(combined.length > 0);
         } catch (error) {
           console.error("Error fetching suggestions:", error);
-        } finally {
-          setLoading(false);
         }
       };
 
@@ -209,7 +205,7 @@ const ServiceAutofill = React.memo(
               </p>
             </div>
 
-            {suggestions.map((service, index) => (
+            {suggestions.map((service) => (
               <button
                 key={`${service.isCustom ? "custom" : "preset"}-${service.id}`}
                 onClick={() => handleSelectService(service)}

@@ -16,6 +16,7 @@ import {
   StyleSheet,
   Font,
 } from "@react-pdf/renderer";
+import { formatPdfMoney } from "./pdfMoney";
 
 // ---- Inter font ----
 // Static TTFs live in public/fonts, so these resolve against the app origin at
@@ -173,12 +174,6 @@ const makeStyles = (t, fontFamily = "Inter") =>
  *            Per-business colours. Omit for the default black-on-white look.
  */
 
-const money = (n) =>
-  `$${Number(n || 0).toLocaleString("en-CA", {
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  })}`;
-
 /** @param {InvoiceData} data */
 export const InvoiceDocument = (data) => {
   // resolveInvoiceTheme fills every missing or malformed field from the default
@@ -261,9 +256,9 @@ export const InvoiceDocument = (data) => {
             <View style={styles.tableRow} key={i} wrap={false}>
               <Text style={[styles.tableCell, styles.colDesc]}>{li.description}</Text>
               <Text style={[styles.tableCell, styles.colQty]}>{li.qty}</Text>
-              <Text style={[styles.tableCell, styles.colRate]}>{money(li.rate)}</Text>
+              <Text style={[styles.tableCell, styles.colRate]}>{formatPdfMoney(li.rate)}</Text>
               <Text style={[styles.tableCell, styles.colAmount]}>
-                {money(Number(li.qty || 0) * Number(li.rate || 0))}
+                {formatPdfMoney(Number(li.qty || 0) * Number(li.rate || 0))}
               </Text>
             </View>
           ))}
@@ -273,17 +268,17 @@ export const InvoiceDocument = (data) => {
         <View style={styles.totals} wrap={false}>
           <View style={styles.totalRow}>
             <Text style={styles.totalLabel}>Subtotal</Text>
-            <Text style={styles.totalValue}>{money(subtotal)}</Text>
+            <Text style={styles.totalValue}>{formatPdfMoney(subtotal)}</Text>
           </View>
           {data.taxRate ? (
             <View style={styles.totalRow}>
               <Text style={styles.totalLabel}>HST / Tax ({Math.round(data.taxRate * 100)}%)</Text>
-              <Text style={styles.totalValue}>{money(tax)}</Text>
+              <Text style={styles.totalValue}>{formatPdfMoney(tax)}</Text>
             </View>
           ) : null}
           <View style={styles.grandTotalRow}>
             <Text style={styles.grandTotalLabel}>{data.totalLabel || "Total Due"}</Text>
-            <Text style={styles.grandTotalValue}>{money(total)}</Text>
+            <Text style={styles.grandTotalValue}>{formatPdfMoney(total)}</Text>
           </View>
         </View>
 

@@ -225,5 +225,3 @@ export function mixHex(from, to, amount) {
   const hex = ((ch(16) << 16) | (ch(8) << 8) | ch(0)).toString(16).padStart(6, "0");
   return `#${hex}`;
 }
-
-export default resolveInvoiceTheme;

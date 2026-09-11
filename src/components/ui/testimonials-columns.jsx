@@ -150,5 +150,3 @@ export const TestimonialsMarquee = ({ testimonials = [], className = "" }) => {
     </div>
   );
 };
-
-export default TestimonialsMarquee;
