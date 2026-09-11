@@ -1488,7 +1488,7 @@ Provide line items in this format.`,
 
         {/* Limit Reached Dialog */}
         <Dialog open={showLimitReached} onOpenChange={setShowLimitReached}>
-          <DialogContent className="sm:max-w-md mx-4 sm:mx-auto border-line dark:border-ink-700 bg-surface dark:bg-surface-inverted shadow-2xl">
+          <DialogContent className="sm:max-w-md border-line dark:border-ink-700 bg-surface dark:bg-surface-inverted shadow-2xl">
             <DialogHeader>
               <DialogTitle className="flex items-center gap-3 text-danger-600 dark:text-danger-400">
                 <div className="w-10 h-10 rounded-full bg-danger-100 dark:bg-danger-900/30 flex items-center justify-center shrink-0">

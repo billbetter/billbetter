@@ -946,7 +946,8 @@ export default function Invoices() {
               <div className="flex-1 relative group">
                 <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-content-subtle w-4 h-4 group-focus-within:text-content-body dark:group-focus-within:text-ink-300 transition-colors" />
                 <Input
-                  placeholder="Search invoices by client or number..."
+                  placeholder="Search by client or number..."
+                  aria-label="Search invoices by client or number"
                   value={searchTerm}
                   onChange={(e) => setSearchTerm(e.target.value)}
                   className="pl-10 h-11 border-line dark:border-ink-700 dark:bg-surface-inverted dark:text-content-inverted rounded-xl text-sm focus-visible:ring-2 focus-visible:ring-ink-200 dark:focus-visible:ring-ink-700"

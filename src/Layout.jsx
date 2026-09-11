@@ -649,9 +649,14 @@ export default function Layout({ children, currentPageName }) {
     },
   ];
 
+  // 100dvh, not h-screen. Mobile Safari and Chrome size 100vh as if their
+  // toolbar were hidden, but <main> is the scroller here, so the document
+  // never scrolls and the toolbar never hides: an h-screen shell overhangs the
+  // visible screen by the toolbar's height, and the whole app lurches when a
+  // scroll reaches the end of <main>. dvh tracks what is actually visible.
   return (
     <div
-      className="flex h-screen bg-[hsl(210_20%_97%)] dark:bg-[hsl(220_20%_7%)]"
+      className="flex h-[100dvh] bg-[hsl(210_20%_97%)] dark:bg-[hsl(220_20%_7%)]"
       style={{
         // Read by full-screen page flows so they cover the app without
         // covering the app's navigation -- see the note by bottomNavRef.

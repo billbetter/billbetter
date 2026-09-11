@@ -23,7 +23,7 @@ export default function InvoiceSuccessDialog({
 }) {
   return (
     <Dialog open={successDialog.open} onOpenChange={onClose}>
-      <DialogContent className="sm:max-w-lg mx-4 sm:mx-auto border-line dark:border-ink-700 bg-surface dark:bg-surface-inverted shadow-2xl">
+      <DialogContent className="sm:max-w-lg border-line dark:border-ink-700 bg-surface dark:bg-surface-inverted shadow-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-3 text-xl sm:text-2xl text-content dark:text-ink-50">
             <div className="w-12 h-12 rounded-full bg-success-100 dark:bg-success-900/30 flex items-center justify-center shrink-0">

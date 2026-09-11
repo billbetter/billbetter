@@ -21,7 +21,7 @@ export function SaveTemplateDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md mx-4 sm:mx-auto border-line dark:border-ink-700 bg-surface dark:bg-surface-inverted shadow-2xl">
+      <DialogContent className="sm:max-w-md border-line dark:border-ink-700 bg-surface dark:bg-surface-inverted shadow-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl text-content dark:text-ink-50">
             <Save className="w-5 h-5 text-brand-700 dark:text-brand-400" />
@@ -87,7 +87,7 @@ export function EditTemplateDialog({
 }) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md mx-4 sm:mx-auto border-line dark:border-ink-700 bg-surface dark:bg-surface-inverted shadow-2xl">
+      <DialogContent className="sm:max-w-md border-line dark:border-ink-700 bg-surface dark:bg-surface-inverted shadow-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl text-content dark:text-ink-50">
             <Edit className="w-5 h-5 text-brand-700 dark:text-brand-400" />
@@ -173,7 +173,7 @@ export function DeleteTemplateDialog({
       open={open}
       onOpenChange={(o) => onOpenChange({ open: o, template })}
     >
-      <DialogContent className="sm:max-w-md mx-4 sm:mx-auto border-danger-200 dark:border-danger-800 bg-surface dark:bg-surface-inverted shadow-2xl">
+      <DialogContent className="sm:max-w-md border-danger-200 dark:border-danger-800 bg-surface dark:bg-surface-inverted shadow-2xl">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2 text-lg sm:text-xl text-danger-600 dark:text-danger-400">
             <Trash2 className="w-5 h-5" />
