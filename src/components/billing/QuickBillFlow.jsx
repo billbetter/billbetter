@@ -31,14 +31,7 @@ import {
 } from "lucide-react";
 import { generateQuotePDF } from "@/functions/generateQuotePDF";
 import { generateInvoicePDF } from "@/functions/generateInvoicePDF";
-
-const formatMoney = (n) =>
-  Number(n || 0).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-    maximumFractionDigits: 2,
-  });
+import { moneyFormatter } from "@/lib/money";
 
 const initials = (name = "") =>
   name
@@ -81,6 +74,9 @@ export default function QuickBillFlow({ mode = "invoice" }) {
   const [loading, setLoading] = useState(true);
   const [creating, setCreating] = useState(false);
   const [done, setDone] = useState(false);
+  const formatMoney = moneyFormatter(settings?.currency, {
+    maximumFractionDigits: 2,
+  });
 
   // Step 0 — client
   const [selectedClient, setSelectedClient] = useState(null);

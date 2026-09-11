@@ -1,7 +1,7 @@
 import React, { useMemo } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { format, differenceInDays, isToday, isTomorrow } from "date-fns";
+import { format } from "date-fns";
 import {
   Sun,
   Sunset,
@@ -13,6 +13,8 @@ import {
   ArrowRight,
   Sparkles,
 } from "lucide-react";
+import { moneyFormatter } from "@/lib/money";
+import { daysUntilDay, isPastDay } from "@/lib/calendarDate";
 
 function getGreeting(name) {
   const hour = new Date().getHours();
@@ -29,14 +31,6 @@ function GreetingIcon({ hour, className }) {
   return <Moon className={className} />;
 }
 
-const fmt = (amount) =>
-  Number(amount || 0).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 0,
-    maximumFractionDigits: 0,
-  });
-
 export default function DailyDigest({
   invoices = [],
   quotes = [],
@@ -45,21 +39,22 @@ export default function DailyDigest({
 }) {
   const now = new Date();
   const hour = now.getHours();
+  const fmt = moneyFormatter(settings?.currency, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
 
   const digest = useMemo(() => {
     const overdue = invoices.filter((inv) => {
       if (inv.status === "overdue") return true;
-      if (inv.status === "sent" && inv.due_date && new Date(inv.due_date) < now)
-        return true;
+      if (inv.status === "sent" && isPastDay(inv.due_date, now)) return true;
       return false;
     });
 
     const dueSoon = invoices.filter((inv) => {
       if (inv.status !== "sent") return false;
-      if (!inv.due_date) return false;
-      const due = new Date(inv.due_date);
-      const days = differenceInDays(due, now);
-      return days >= 0 && days <= 3;
+      const days = daysUntilDay(inv.due_date, now);
+      return days !== null && days >= 0 && days <= 3;
     });
 
     const pendingQuotes = quotes.filter(
@@ -169,15 +164,13 @@ export default function DailyDigest({
                       {digest.dueSoon
                         .slice(0, 2)
                         .map((inv) => {
-                          const days = differenceInDays(
-                            new Date(inv.due_date),
-                            now,
-                          );
-                          const label = isToday(new Date(inv.due_date))
-                            ? "today"
-                            : isTomorrow(new Date(inv.due_date))
-                              ? "tomorrow"
-                              : `in ${days}d`;
+                          const days = daysUntilDay(inv.due_date, now);
+                          const label =
+                            days === 0
+                              ? "today"
+                              : days === 1
+                                ? "tomorrow"
+                                : `in ${days}d`;
                           return `${inv.client_name} (due ${label})`;
                         })
                         .join(" · ")}

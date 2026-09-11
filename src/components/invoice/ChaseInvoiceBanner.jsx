@@ -2,6 +2,7 @@ import React from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { ArrowRight, Sparkles, Zap, AlertCircle } from "lucide-react";
+import { formatMoney } from "@/lib/money";
 
 /**
  * Premium upgrade-style banner promoting the Chase Invoice feature.
@@ -9,20 +10,16 @@ import { ArrowRight, Sparkles, Zap, AlertCircle } from "lucide-react";
  */
 export default function ChaseInvoiceBanner({
   variant = "default",
+  currency,
   overdueCount = 0,
   outstandingAmount = 0,
   className = "",
   compact = false,
 }) {
-  const formattedAmount = Number(outstandingAmount || 0).toLocaleString(
-    "en-US",
-    {
-      style: "currency",
-      currency: "USD",
-      minimumFractionDigits: 0,
-      maximumFractionDigits: 0,
-    },
-  );
+  const formattedAmount = formatMoney(outstandingAmount, currency, {
+    minimumFractionDigits: 0,
+    maximumFractionDigits: 0,
+  });
 
   const copy =
     variant === "urgent"

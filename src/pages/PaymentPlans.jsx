@@ -15,6 +15,7 @@ import {
   DEFAULT_STAGES, validateStages, buildStages, buildStagePrefill,
   nextReleasableStage, releasedTotal, remainingTotal, isPlanFullyBilled,
 } from "@/lib/paymentPlan";
+import { moneyFormatter } from "@/lib/money";
 
 /**
  * Progress invoicing: deposit and milestone billing for bigger jobs.
@@ -29,15 +30,12 @@ import {
  * the screen.
  */
 
-const money = (n) =>
-  new Intl.NumberFormat(undefined, { style: "currency", currency: "CAD" })
-    .format(Number(n) || 0);
-
 export default function PaymentPlans() {
   const navigate = useNavigate();
   const [plans, setPlans] = useState([]);
   const [clients, setClients] = useState([]);
   const [settings, setSettings] = useState(null);
+  const money = moneyFormatter(settings?.currency);
   const [user, setUser] = useState(null);
   const [loading, setLoading] = useState(true);
   const [view, setView] = useState({ mode: "list", plan: null });

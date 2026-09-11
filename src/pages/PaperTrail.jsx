@@ -59,13 +59,7 @@ import {
   verifyChain,
 } from "@/lib/paperTrail";
 import { deliverPdf } from "@/lib/pdfDelivery";
-
-const money = (n) =>
-  Number(n || 0).toLocaleString(undefined, {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  });
+import { moneyFormatter } from "@/lib/money";
 
 /**
  * `new Date(null)` is the epoch, not an invalid date, so a null timestamp would
@@ -270,7 +264,12 @@ export default function PaperTrail() {
               ) : (
                 <div className="space-y-3">
                   {visible.map((d) => (
-                    <DocumentRow key={d.document_id} doc={d} onOpen={() => openRecord(d)} />
+                    <DocumentRow
+                      key={d.document_id}
+                      doc={d}
+                      currency={settings?.currency}
+                      onOpen={() => openRecord(d)}
+                    />
                   ))}
                 </div>
               )}
@@ -370,7 +369,8 @@ function ChainBanner({ chain }) {
   );
 }
 
-function DocumentRow({ doc, onOpen }) {
+function DocumentRow({ doc, currency, onOpen }) {
+  const money = moneyFormatter(currency);
   const views = Number(doc.views || 0);
   const witnessed = Number(doc.witnessed || 0);
   const sentAt = doc.sent_at ? new Date(doc.sent_at) : null;

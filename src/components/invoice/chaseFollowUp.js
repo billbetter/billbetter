@@ -1,3 +1,5 @@
+import { formatMoney } from "@/lib/money";
+import { daysUntilDay } from "@/lib/calendarDate";
 // AI-style follow-up message generator for the Chase Invoice feature.
 // Produces tone-appropriate email + SMS copy based on how late the invoice is.
 
@@ -32,19 +34,12 @@ const recommendToneForDays = (daysOverdue) => {
   return "final";
 };
 
-const formatMoney = (amount) =>
-  Number(amount || 0).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  });
-
 const firstName = (fullName = "") => (fullName.split(" ")[0] || fullName || "there");
 
 const buildEmail = ({ tone, invoice, business, daysOverdue, paymentLink }) => {
   const clientName = firstName(invoice.client_name);
   const businessName = business?.business_name || "our team";
-  const total = formatMoney(invoice.total);
+  const total = formatMoney(invoice.total, business?.currency);
   const number = invoice.invoice_number || `#${(invoice.id || "").slice(0, 6).toUpperCase()}`;
   const link = paymentLink || invoice.payment_link || "";
   const linkLine = link
@@ -113,7 +108,7 @@ ${businessName}`,
 
 const buildSMS = ({ tone, invoice, business, daysOverdue, paymentLink }) => {
   const clientName = firstName(invoice.client_name);
-  const total = formatMoney(invoice.total);
+  const total = formatMoney(invoice.total, business?.currency);
   const number = invoice.invoice_number || `#${(invoice.id || "").slice(0, 6).toUpperCase()}`;
   const businessName = business?.business_name || "Invoicium";
   const link = paymentLink || invoice.payment_link || "";
@@ -132,10 +127,11 @@ const buildSMS = ({ tone, invoice, business, daysOverdue, paymentLink }) => {
 };
 
 export const generateFollowUp = ({ invoice, business, tone, paymentLink }) => {
-  const dueDate = invoice?.due_date ? new Date(invoice.due_date) : null;
-  const daysOverdue = dueDate
-    ? Math.max(0, Math.floor((Date.now() - dueDate.getTime()) / (1000 * 60 * 60 * 24)))
-    : 0;
+  // Whole days past the due DAY: the due date is a calendar day, and a
+  // reminder that calls an invoice a day overdue on its due date is wrong
+  // in the one direction that annoys a client who has not missed anything.
+  const days = daysUntilDay(invoice?.due_date);
+  const daysOverdue = days === null ? 0 : Math.max(0, -days);
   const resolvedTone = tone || recommendToneForDays(daysOverdue);
   return {
     tone: resolvedTone,

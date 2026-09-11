@@ -53,11 +53,10 @@ import {
   billableEntries,
   entriesToLineItems,
 } from "@/lib/timeTracking";
+import { formatMoney } from "@/lib/money";
 
-const money = (n) =>
-  new Intl.NumberFormat("en-CA", { style: "currency", currency: "CAD" }).format(
-    Number(n) || 0,
-  );
+// This screen has no business settings to read, so it takes the default.
+const money = (n) => formatMoney(n);
 
 /**
  * The live clock.

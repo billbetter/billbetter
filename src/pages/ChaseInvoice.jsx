@@ -1,6 +1,6 @@
 import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
-import { format, differenceInCalendarDays } from "date-fns";
+import { format } from "date-fns";
 import {
   AlertCircle,
   ArrowRight,
@@ -43,6 +43,8 @@ import {
   TONES,
   generateFollowUp,
 } from "@/components/invoice/chaseFollowUp";
+import { formatMoney, moneyFormatter } from "@/lib/money";
+import { daysUntilDay, formatCalendarDay } from "@/lib/calendarDate";
 
 const STORAGE_KEY = "invoicium_chase_recovery_state_v2";
 
@@ -71,55 +73,14 @@ const writeRecoveryState = (reminders, activeSequences) => {
   }
 };
 
-const formatCurrency = (n) =>
-  Number(n || 0).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    minimumFractionDigits: 2,
-  });
-
-const formatCurrencyShort = (n) =>
-  Number(n || 0).toLocaleString("en-US", {
-    style: "currency",
-    currency: "USD",
-    maximumFractionDigits: 0,
-  });
-
-/*
-  A due date is a calendar day, not an instant.
-
-  Both invoice forms write it as a bare "YYYY-MM-DD" -- CreateInvoice from an
-  <input type="date">, QuickBillFlow from format(..., "yyyy-MM-dd") -- and
-  `new Date("2026-09-24")` parses that as midnight UTC, which is the 23rd at
-  20:00 for anyone west of Greenwich. The bucket, the countdown and the printed
-  date would all name the day before the one that was typed. Splitting the
-  digits and building a local midnight keeps the day as written.
-
-  Values that carry a real time of day are left alone and parsed as before:
-  those are instants and their local day is the correct reading of them.
-*/
-const CALENDAR_DATE = /^\d{4}-\d{2}-\d{2}$/;
-
-const dueDateOf = (invoice) => {
-  const raw = invoice?.due_date;
-  if (!raw) return null;
-  if (typeof raw === "string" && CALENDAR_DATE.test(raw)) {
-    const [year, month, day] = raw.split("-").map(Number);
-    return new Date(year, month - 1, day);
-  }
-  const parsed = new Date(raw);
-  return Number.isNaN(parsed.getTime()) ? null : parsed;
-};
-
+// A due date is a calendar day, not an instant. That reading lives in
+// @/lib/calendarDate now; this page used to carry its own copy of it.
+//
 // Signed distance to the due date: negative once it has passed, positive
 // while it is still ahead, 0 on the day itself. null when the invoice has no
 // due date at all, which is not the same as "due today" and must not be
 // bucketed as though it were.
-const daysToDueOf = (invoice) => {
-  const due = dueDateOf(invoice);
-  if (!due) return null;
-  return differenceInCalendarDays(due, new Date());
-};
+const daysToDueOf = (invoice) => daysUntilDay(invoice?.due_date);
 
 const daysOverdueOf = (invoice) => {
   const toDue = daysToDueOf(invoice);
@@ -149,6 +110,9 @@ export default function ChaseInvoice() {
   const [settings, setSettings] = useState(null);
   const [reminders, setReminders] = useState([]);
   const [activeSequences, setActiveSequences] = useState({});
+  const formatCurrencyShort = moneyFormatter(settings?.currency, {
+    maximumFractionDigits: 0,
+  });
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
   const [searchTerm, setSearchTerm] = useState("");
@@ -937,6 +901,7 @@ export default function ChaseInvoice() {
                       <ChaseRow
                         key={invoice.id}
                         invoice={invoice}
+                        currency={settings?.currency}
                         isSequenceActive={Boolean(activeSequences[invoice.id])}
                         sequenceStarting={sequenceStarting === invoice.id}
                         onChase={() => openCompose(invoice)}
@@ -952,12 +917,13 @@ export default function ChaseInvoice() {
               <SequencePanel
                 activeCount={Object.keys(activeSequences).length}
               />
-              <ActivityPanel reminders={reminders} />
+              <ActivityPanel reminders={reminders} currency={settings?.currency} />
             </aside>
           </div>
 
           <ComposeDialog
             composeChannel={composeChannel}
+            currency={settings?.currency}
             composeDialog={composeDialog}
             composeTone={composeTone}
             copyToClipboard={copyToClipboard}
@@ -1104,6 +1070,7 @@ const BucketTab = ({ label, count, active, onClick }) => (
 
 const ChaseRow = ({
   invoice,
+  currency,
   isSequenceActive,
   sequenceStarting,
   onChase,
@@ -1167,9 +1134,7 @@ const ChaseRow = ({
                 <span aria-hidden>·</span>
                 <span>
                   Due{" "}
-                  {dueDateOf(invoice)
-                    ? format(dueDateOf(invoice), "MMM d")
-                    : "—"}
+                  {formatCalendarDay(invoice.due_date, "MMM d", "—")}
                 </span>
                 <span aria-hidden>·</span>
                 <span className="inline-flex items-center gap-1">
@@ -1200,7 +1165,7 @@ const ChaseRow = ({
 
             <div className="chase-row-actions flex items-center justify-between gap-3">
               <p className="font-bold text-content dark:text-content-inverted text-base sm:text-lg whitespace-nowrap tabular-nums">
-                {formatCurrency(invoice.total)}
+                {formatMoney(invoice.total, currency)}
               </p>
               <div className="flex gap-2">
                 <Button
@@ -1287,7 +1252,7 @@ const SequencePanel = ({ activeCount }) => (
   </section>
 );
 
-const ActivityPanel = ({ reminders }) => (
+const ActivityPanel = ({ reminders, currency }) => (
   <section className="bg-surface dark:bg-surface-inverted rounded-xl border border-line-subtle dark:border-ink-800 overflow-hidden shadow-sm">
     <header className="flex items-center justify-between gap-3 px-5 py-4 border-b border-line-subtle dark:border-ink-800">
       <div className="flex items-center gap-3">
@@ -1358,7 +1323,7 @@ const ActivityPanel = ({ reminders }) => (
                   </div>
                   <p className="truncate text-xs font-medium text-content-muted dark:text-content-subtle mt-0.5">
                     {reminder.invoice_number} ·{" "}
-                    {formatCurrency(reminder.amount)} · {reminder.tone}
+                    {formatMoney(reminder.amount, currency)} · {reminder.tone}
                   </p>
                   <p className="mt-1 text-[11px] font-medium text-content-subtle dark:text-content-muted">
                     {format(new Date(reminder.sent_at), "MMM d, h:mm a")}
@@ -1375,6 +1340,7 @@ const ActivityPanel = ({ reminders }) => (
 
 const ComposeDialog = ({
   composeChannel,
+  currency,
   composeDialog,
   composeTone,
   copyToClipboard,
@@ -1413,7 +1379,7 @@ const ComposeDialog = ({
                   <>
                     {invoice.client_name} · {getInvoiceNumber(invoice)} ·{" "}
                     <span className="font-semibold text-ink-700 dark:text-ink-300">
-                      {formatCurrency(invoice.total)}
+                      {formatMoney(invoice.total, currency)}
                     </span>
                     {invoice.daysOverdue > 0 && (
                       <span className="ml-1 text-warning-700 dark:text-warning-400 font-semibold">

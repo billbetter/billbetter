@@ -329,6 +329,7 @@ export default function Invoices() {
           {stats.overdue > 0 ? (
             <ChaseInvoiceBanner
               variant="urgent"
+              currency={settings?.currency}
               overdueCount={stats.overdue}
               outstandingAmount={filteredInvoices
                 .filter((i) => i.status === "overdue")
