@@ -422,6 +422,45 @@ SCENARIOS.push(
   },
 );
 
+// ---- Recurring invoices, from fixed rows ----------------------------------
+const recurringRow = (id, n, status, frequency, extra = {}) => ({
+  id, user_id: config.session.user.id, client_name: ["Dana Reyes", "Sam Vega", "Ruth Okafor"][n - 1],
+  template_name: ["Monthly maintenance", "Weekly lawn care", "Quarterly HVAC"][n - 1],
+  frequency, status, total: [450, 120, 900][n - 1], next_generation_date: `2026-10-0${n}`,
+  end_type: "never", created_date: `2026-08-0${n}T15:00:00Z`, created_at: `2026-08-0${n}T15:00:00Z`,
+  ...extra,
+});
+const RECURRING_MOCKS = [
+  { match: /^RecurringInvoice\?/, body: [
+    recurringRow("33333333-0000-4000-8000-000000000001", 1, "active", "monthly"),
+    recurringRow("33333333-0000-4000-8000-000000000002", 2, "paused", "weekly"),
+    recurringRow("33333333-0000-4000-8000-000000000003", 3, "active", "quarterly",
+      { end_type: "after", occurrences: 4 }),
+  ] },
+];
+SCENARIOS.push(
+  { name: "recurring-fixture", route: "/RecurringInvoices", mocks: RECURRING_MOCKS,
+    steps: () => [{ waitFor: "button.h-9.w-9" }] },
+  {
+    name: "recurring-actions",
+    route: "/RecurringInvoices",
+    mocks: RECURRING_MOCKS,
+    steps: (p) => p.desktop
+      ? [{ waitFor: "table" }]
+      : [{ waitFor: "button.h-9.w-9:has(svg.lucide-ellipsis-vertical)" }, { domClickNth: "button.h-9.w-9:has(svg.lucide-ellipsis-vertical)", index: 0 }, { wait: 500 }],
+  },
+  {
+    name: "recurring-delete",
+    route: "/RecurringInvoices",
+    mocks: RECURRING_MOCKS,
+    steps: (p) => p.desktop
+      ? [{ waitFor: "table" }, { domClick: "table tbody tr:nth-child(1) button:has(svg.lucide-trash2)" },
+         { waitFor: "[role='dialog']" }]
+      : [{ waitFor: "button.h-9.w-9:has(svg.lucide-ellipsis-vertical)" }, { domClickNth: "button.h-9.w-9:has(svg.lucide-ellipsis-vertical)", index: 0 }, { wait: 500 },
+         { clickContains: "Delete", last: true }, { waitFor: "[role='dialog']" }],
+  },
+);
+
 // 15:00 UTC on a fixed weekday: an afternoon greeting, and far enough from
 // midnight that no timezone flips the date.
 const FROZEN_NOW = Date.parse("2026-09-09T15:00:00Z");

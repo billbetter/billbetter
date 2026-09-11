@@ -192,6 +192,13 @@ async function openPage(context, origin, profile, route, beforeLoad, mocks = [])
   page.on("request", (req) => guard(req, mocks));
   const errors = [];
   page.on("pageerror", (e) => errors.push(e.message.slice(0, 160)));
+  // An alert() or confirm() blocks the page until someone answers it, which
+  // hangs the run. Dismiss them -- for confirm() that is "Cancel", the answer
+  // that can never start something destructive -- and record the text.
+  page.on("dialog", async (d) => {
+    errors.push(`${d.type()}: ${d.message().slice(0, 140)}`);
+    await d.dismiss().catch(() => {});
+  });
   if (beforeLoad) await beforeLoad(page);
 
   try {

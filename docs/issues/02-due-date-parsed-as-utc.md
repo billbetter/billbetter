@@ -15,6 +15,7 @@
 | `src/components/invoice/chaseFollowUp.js:135` | Chase tone chosen from days overdue |
 | `src/components/analytics/SmartInsights.jsx:106` | Insight maths |
 | `src/components/invoice/CustomTemplatePreview.jsx:132` | Preview only (sample data) |
+| `src/components/invoice/recurring/recurringStatus.js` (`getEndLabel`) | Recurring schedule's end date shown a day early |
 
 **Suggested fix:** one helper that parses a date-only string as a *local* calendar day (`parseISO` from date-fns does this, as does splitting `y-m-d` into `new Date(y, m-1, d)`), used at every site above. The overdue comparisons should compare calendar days, not instants.
 
