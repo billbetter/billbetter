@@ -223,14 +223,19 @@ const InvoiceRow = ({ invoice, onClick }) => {
   );
 };
 
+// Invoice and Quote open the builder, not the AI Quick Bill flow. A tile
+// labelled with a noun should land on the page that noun names; the builders
+// carry the same photo, voice and describe-it AI anyway, so nothing a
+// contractor could do from the quick flow got harder to reach.
+//
 // Accent per tile: the chip colour, its glow, and the border tint. Kept as
 // token classes (not inline styles) so both themes are covered.
 const QUICK_ACTIONS = [
   {
-    to: createPageUrl("QuickInvoice"),
+    to: createPageUrl("CreateInvoice"),
     icon: FileText,
     title: "Invoice",
-    description: "Photo or words — AI bills it",
+    description: "Bill a job line by line",
     accent: {
       chip: "bg-success-500",
       glow: "shadow-success-500/30",
@@ -238,10 +243,10 @@ const QUICK_ACTIONS = [
     },
   },
   {
-    to: createPageUrl("QuickQuote"),
+    to: createPageUrl("CreateQuote"),
     icon: ClipboardList,
     title: "Quote",
-    description: "Estimate any job in seconds",
+    description: "Price a job before you start",
     accent: {
       chip: "bg-brand-500",
       glow: "shadow-brand-500/30",
