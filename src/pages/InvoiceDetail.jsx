@@ -1,56 +1,16 @@
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { Invoice } from "@/entities/Invoice";
-import { Client } from "@/entities/Client";
-import { BusinessSettings } from "@/entities/BusinessSettings";
 import { createPageUrl } from "@/utils";
 import { sdk } from "@/api/sdk";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import {
-  AlertCircle,
-  ArrowLeft,
-  Calendar,
-  CheckCircle,
-  Copy,
-  DollarSign,
-  Download,
-  ExternalLink,
-  Loader2,
-  Mail,
-  MessageSquare,
-  Ban,
-  History,
-  Send,
-  ShieldAlert,
-  Trash2,
-  User,
-  Wallet,
-} from "lucide-react";
 import { format } from "date-fns";
-import PublicLinkControls from "@/components/invoice/PublicLinkControls";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import { Textarea } from "@/components/ui/textarea";
 import { useAuth } from "@/lib/AuthContext";
 import RecordPaymentDialog from "@/components/invoice/RecordPaymentDialog";
-import InvoiceTimeline from "@/components/invoice/InvoiceTimeline";
 import {
-  formatMoney,
   invoiceTimeline,
-  paymentRecord,
   paymentSummary,
   paymentsSupported,
-  settledDate,
-  statusChangeEvent,
-  statusFromPayments,
-  validatePayment,
 } from "@/lib/invoicePayments";
 import {
   canDeleteInvoice,
@@ -58,147 +18,47 @@ import {
   paidAfterVoid,
   voidAuditLine,
   voidEligibility,
-  voidPatch,
 } from "@/lib/invoiceVoid";
+import DeleteInvoiceDialog from "@/components/invoice/detail/DeleteInvoiceDialog";
+import VoidInvoiceDialog from "@/components/invoice/detail/VoidInvoiceDialog";
+import InvoiceNotificationResultDialog from "@/components/invoice/detail/InvoiceNotificationResultDialog";
+import InvoiceDetailSidebar from "@/components/invoice/detail/InvoiceDetailSidebar";
+import InvoiceNotesCard from "@/components/invoice/detail/InvoiceNotesCard";
+import InvoiceLineItemsCard from "@/components/invoice/detail/InvoiceLineItemsCard";
+import PaymentLinkCard from "@/components/invoice/detail/PaymentLinkCard";
+import InvoicePaymentsCard from "@/components/invoice/detail/InvoicePaymentsCard";
+import InvoiceSummaryCard from "@/components/invoice/detail/InvoiceSummaryCard";
+import VoidedInvoiceBanner from "@/components/invoice/detail/VoidedInvoiceBanner";
+import InvoiceMobileActionBar from "@/components/invoice/detail/InvoiceMobileActionBar";
+import InvoiceDetailHeader from "@/components/invoice/detail/InvoiceDetailHeader";
+import ListLoadingState from "@/components/documentList/ListLoadingState";
+import useInvoiceDetailData from "@/components/invoice/detail/useInvoiceDetailData";
+import useRecordPayment from "@/components/invoice/detail/useRecordPayment";
+import useVoidInvoice from "@/components/invoice/detail/useVoidInvoice";
 
 export default function InvoiceDetail() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const { user } = useAuth();
   const invoiceId = searchParams.get("id");
+  const {
+    invoice, setInvoice, client, settings, loading, payments, events,
+    loadInvoiceData,
+  } = useInvoiceDetailData(invoiceId);
+  const {
+    paymentDialog, setPaymentDialog, recordingPayment, paymentError, setPaymentError,
+    handleRecordPayment,
+  } = useRecordPayment({ invoice, payments, user, loadInvoiceData });
+  const {
+    voidDialog, setVoidDialog, voidReason, setVoidReason, voiding, voidError, setVoidError,
+    handleVoid,
+  } = useVoidInvoice({ invoice, setInvoice, user });
 
-  const [invoice, setInvoice] = useState(null);
-  const [client, setClient] = useState(null);
-  const [settings, setSettings] = useState(null);
-  const [loading, setLoading] = useState(true);
   const [sendingNotifications, setSendingNotifications] = useState(false);
   const [deleteDialog, setDeleteDialog] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const [notificationResult, setNotificationResult] = useState(null);
-  const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false); // Changed from generatingLink, removed linkCopied
-  const [payments, setPayments] = useState([]);
-  const [events, setEvents] = useState([]);
-  const [paymentDialog, setPaymentDialog] = useState(false);
-  const [recordingPayment, setRecordingPayment] = useState(false);
-  const [paymentError, setPaymentError] = useState(null);
-  const [voidDialog, setVoidDialog] = useState(false);
-  const [voidReason, setVoidReason] = useState("");
-  const [voiding, setVoiding] = useState(false);
-  const [voidError, setVoidError] = useState(null);
-
-  useEffect(() => {
-    if (invoiceId) {
-      loadInvoiceData();
-    }
-  }, [invoiceId]);
-
-  const loadInvoiceData = async () => {
-    try {
-      const invoices = await Invoice.filter({ id: invoiceId });
-      if (invoices.length > 0) {
-        const inv = invoices[0];
-        setInvoice(inv);
-
-        // Load client data
-        if (inv.client_id) {
-          const clients = await Client.filter({ id: inv.client_id });
-          if (clients.length > 0) {
-            setClient(clients[0]);
-          }
-        }
-
-        // Load settings
-        const settingsData = await BusinessSettings.list();
-        if (settingsData.length > 0) {
-          setSettings(settingsData[0]);
-        }
-
-        // Payments and history. Each is allowed to fail on its own: without
-        // payments the invoice still renders with its total, and without the
-        // history the timeline still shows everything the invoice row itself
-        // knows. Neither is worth failing the page over.
-        const [paymentRows, eventRows] = await Promise.all([
-          sdk.entities.InvoicePayment.filter({ invoice_id: inv.id }).catch(() => []),
-          sdk.entities.InvoiceEvent.filter({ invoice_id: inv.id }).catch(() => []),
-        ]);
-        setPayments(paymentRows || []);
-        setEvents(eventRows || []);
-      }
-    } catch (error) {
-      console.error("Error loading invoice:", error);
-    }
-    setLoading(false);
-  };
-
-  /**
-   * Record a payment, and settle the invoice if that was the last of it.
-   *
-   * The order matters and is the same ordering used everywhere else in this
-   * codebase that writes two rows: the payment is created FIRST, and the
-   * invoice is only marked paid once the payment actually exists. The reverse
-   * would leave an invoice marked paid with no payment behind it if the second
-   * write failed -- which is the state this whole feature exists to abolish.
-   */
-  const handleRecordPayment = async (form) => {
-    const check = validatePayment({ invoice, payments, amount: form.amount });
-    if (!check.ok) {
-      setPaymentError(check.reason);
-      return;
-    }
-
-    setRecordingPayment(true);
-    setPaymentError(null);
-    try {
-      const created = await sdk.entities.InvoicePayment.create(
-        paymentRecord({ invoice, user, ...form }),
-      );
-      const nextPayments = [...payments, created];
-
-      // Only ever writes 'paid', and only when the payments actually settle
-      // it. statusFromPayments never reopens an invoice.
-      const nextStatus = statusFromPayments(invoice, nextPayments);
-      if (nextStatus) {
-        const patch = {
-          status: nextStatus,
-          // The date the LAST payment landed, not today -- this is what the
-          // revenue charts are dated by now.
-          paid_date: settledDate(invoice, nextPayments),
-        };
-        await Invoice.update(invoice.id, patch);
-        await recordEvent(
-          statusChangeEvent({
-            invoice,
-            from: invoice.status,
-            to: nextStatus,
-            detail: "Settled in full",
-            user,
-          }),
-        );
-      }
-
-      setPaymentDialog(false);
-      await loadInvoiceData();
-    } catch (err) {
-      console.error("Error recording payment:", err);
-      setPaymentError(err?.message || "Could not record that payment.");
-    }
-    setRecordingPayment(false);
-  };
-
-  /**
-   * Append to the history, never at the cost of the thing being recorded.
-   *
-   * A failed history write must not fail the payment or the status change it
-   * describes: the money is the fact, the note about it is not. Reported to the
-   * console rather than the user, who cannot act on it.
-   */
-  const recordEvent = async (row) => {
-    try {
-      await sdk.entities.InvoiceEvent.create(row);
-    } catch (err) {
-      console.error("Could not record history entry (ignored):", err);
-    }
-  };
+  const [generatingPaymentLink, setGeneratingPaymentLink] = useState(false);
 
   const handleResendNotifications = async () => {
     if (!invoice || !client) return;
@@ -368,7 +228,6 @@ export default function InvoiceDetail() {
       ? `${window.location.origin}/i/${invoice.public_token}`
       : null;
 
-
   const handleDelete = async () => {
     // Re-checked here and not only where the button is drawn. Hiding a control
     // is presentation; this is the last line before the row is gone, and a
@@ -390,57 +249,8 @@ export default function InvoiceDetail() {
     setDeleting(false);
   };
 
-  /**
-   * Void this invoice.
-   *
-   * The whole patch comes from voidPatch() rather than being assembled here,
-   * so there is exactly one shape of a voided invoice and no way for this
-   * screen to produce a partial one -- a void with a status but no timestamp
-   * would be worse than no void at all.
-   *
-   * The invoice in state is replaced with the server's answer rather than
-   * merged optimistically. If the write only half landed, the screen shows
-   * what actually happened.
-   */
-  const handleVoid = async () => {
-    const allowed = voidEligibility(invoice);
-    if (!allowed.ok) {
-      setVoidError(allowed.reason);
-      return;
-    }
-
-    setVoiding(true);
-    setVoidError(null);
-    try {
-      await Invoice.update(invoice.id, voidPatch(invoice, { reason: voidReason, user }));
-      const rows = await Invoice.filter({ id: invoice.id });
-      const saved = rows?.[0] || null;
-      if (saved) setInvoice(saved);
-      setVoidDialog(false);
-      setVoidReason("");
-    } catch (error) {
-      console.error("Error voiding invoice:", error);
-      setVoidError(
-        error?.message || "Could not void this invoice. Nothing has been changed.",
-      );
-    }
-    setVoiding(false);
-  };
-
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-  };
-
-  const statusColors = {
-    draft: "bg-ink-100 text-ink-800",
-    sent: "bg-info-100 text-info-800",
-    paid: "bg-success-100 text-success-800",
-    overdue: "bg-danger-100 text-danger-800",
-    cancelled: "bg-ink-100 text-content-body",
-    // Struck through as well as greyed. Colour alone is not a status for a
-    // contractor reading this in a van in daylight, and this is the one status
-    // where mistaking it for "sent" means chasing money nobody owes.
-    void: "bg-ink-200 text-ink-700 line-through dark:bg-ink-700 dark:text-ink-200",
   };
 
   // Null-safe on every one of these, so they can sit above the loading guards
@@ -458,21 +268,10 @@ export default function InvoiceDetail() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center min-h-screen bg-surface-sunken dark:bg-surface-inverted-deep">
-        <div className="flex flex-col items-center gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-surface dark:bg-ink-800 shadow-lg flex items-center justify-center border border-line-subtle dark:border-ink-700">
-            <Loader2 className="w-8 h-8 animate-spin text-success-600 dark:text-success-400" />
-          </div>
-          <div className="text-center">
-            <p className="text-content dark:text-content-inverted font-semibold text-base">
-              Loading invoice
-            </p>
-            <p className="text-content-muted dark:text-content-subtle text-sm mt-1">
-              Please wait a moment...
-            </p>
-          </div>
-        </div>
-      </div>
+      <ListLoadingState
+        label="Loading invoice"
+        spinnerClassName="text-success-600 dark:text-success-400"
+      />
     );
   }
 
@@ -493,793 +292,106 @@ export default function InvoiceDetail() {
 
   return (
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto pb-24 sm:pb-8 bg-surface-sunken dark:bg-surface-inverted-deep min-h-screen">
-      {/* Header */}
-      <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mb-6 sm:mb-8">
-        <Button
-          variant="ghost"
-          onClick={() => navigate(createPageUrl("Invoices"))}
-          className="gap-2"
-        >
-          <ArrowLeft className="w-4 h-4" />
-          <span className="hidden sm:inline">Back to Invoices</span>
-          <span className="sm:hidden">Back</span>
-        </Button>
-
-        {/* Desktop Actions */}
-        <div className="hidden sm:flex flex-wrap items-center justify-end gap-2">
-          {invoice.pdf_url && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  copyToClipboard(invoice.pdf_url);
-                  alert("PDF link copied to clipboard!");
-                }}
-              >
-                📋 Copy Link
-              </Button>
-              <Button variant="outline" size="sm" asChild>
-                <a
-                  href={invoice.pdf_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  PDF
-                </a>
-              </Button>
-            </>
-          )}
-
-          {/* Resend, Void and Delete all disappear once an invoice is voided.
-              A voided invoice is a record to look at, not a document to act
-              on -- and re-mailing one would be a demand for money the
-              contractor has already withdrawn. */}
-          {canRecordPayment && (
-            <Button
-              size="sm"
-              onClick={() => {
-                setPaymentError(null);
-                setPaymentDialog(true);
-              }}
-              className="gap-2 bg-brand hover:bg-brand-hover text-content-inverted"
-            >
-              <Wallet className="w-4 h-4" />
-              Record payment
-            </Button>
-          )}
-          {!voided && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResendNotifications}
-                disabled={sendingNotifications || !client}
-                className="gap-2"
-              >
-                {sendingNotifications ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <Send className="w-4 h-4" />
-                )}
-                Resend
-              </Button>
-              {canVoid.ok && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setVoidError(null);
-                    setVoidDialog(true);
-                  }}
-                  className="gap-2"
-                >
-                  <Ban className="w-4 h-4" />
-                  Void
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeleteDialog(true)}
-                className="text-danger-700 hover:text-danger-700 hover:bg-danger-50 dark:text-danger-400 dark:hover:text-danger-400 dark:hover:bg-danger-900/20"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
+      <InvoiceDetailHeader
+        canRecordPayment={canRecordPayment}
+        canVoid={canVoid}
+        client={client}
+        copyToClipboard={copyToClipboard}
+        handleResendNotifications={handleResendNotifications}
+        invoice={invoice}
+        navigate={navigate}
+        sendingNotifications={sendingNotifications}
+        setDeleteDialog={setDeleteDialog}
+        setPaymentDialog={setPaymentDialog}
+        setPaymentError={setPaymentError}
+        setVoidDialog={setVoidDialog}
+        setVoidError={setVoidError}
+        voided={voided}
+      />
 
       {/* Mobile Floating Action Bar.
           Hidden entirely on a voided invoice with no PDF, because everything
           inside it is gone by then and a bar with nothing in it still eats the
           bottom of a phone screen. */}
-      {(!voided || invoice.pdf_url) && (
-      <div
-        className="sm:hidden fixed bottom-0 left-0 right-0 bg-surface dark:bg-surface-inverted border-t border-line dark:border-ink-700 shadow-lg z-40"
-        style={{ paddingBottom: "calc(env(safe-area-inset-bottom) + 8px)" }}
-      >
-        <div className="p-3 flex items-center gap-2">
-          {invoice.pdf_url && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => {
-                  copyToClipboard(invoice.pdf_url);
-                  alert("PDF link copied!");
-                }}
-                className="flex-1 h-11"
-              >
-                📋 Copy
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                asChild
-                className="flex-1 h-11"
-              >
-                <a
-                  href={invoice.pdf_url}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                >
-                  <Download className="w-4 h-4 mr-2" />
-                  PDF
-                </a>
-              </Button>
-            </>
-          )}
-          {canRecordPayment && (
-            <Button
-              size="sm"
-              onClick={() => {
-                setPaymentError(null);
-                setPaymentDialog(true);
-              }}
-              className="flex-1 h-11 bg-brand hover:bg-brand-hover text-content-inverted"
-            >
-              <Wallet className="w-4 h-4 mr-2" />
-              Payment
-            </Button>
-          )}
-          {!voided && (
-            <>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={handleResendNotifications}
-                disabled={sendingNotifications || !client}
-                className="flex-1 h-11"
-              >
-                {sendingNotifications ? (
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                ) : (
-                  <>
-                    <Send className="w-4 h-4 mr-2" />
-                    Resend
-                  </>
-                )}
-              </Button>
-              {canVoid.ok && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  onClick={() => {
-                    setVoidError(null);
-                    setVoidDialog(true);
-                  }}
-                  className="h-11 px-3"
-                >
-                  <Ban className="w-4 h-4" />
-                </Button>
-              )}
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setDeleteDialog(true)}
-                className="text-danger-700 hover:text-danger-700 hover:bg-danger-50 h-11 px-3 dark:text-danger-400 dark:hover:text-danger-400 dark:hover:bg-danger-900/20"
-              >
-                <Trash2 className="w-4 h-4" />
-              </Button>
-            </>
-          )}
-        </div>
-      </div>
-      )}
+      <InvoiceMobileActionBar
+        canRecordPayment={canRecordPayment}
+        canVoid={canVoid}
+        client={client}
+        copyToClipboard={copyToClipboard}
+        handleResendNotifications={handleResendNotifications}
+        invoice={invoice}
+        sendingNotifications={sendingNotifications}
+        setDeleteDialog={setDeleteDialog}
+        setPaymentDialog={setPaymentDialog}
+        setPaymentError={setPaymentError}
+        setVoidDialog={setVoidDialog}
+        setVoidError={setVoidError}
+        voided={voided}
+      />
 
       {/* The audit trail. Above the invoice itself, because it changes what
           every figure below it means. */}
-      {voided && (
-        <div className="mb-4 sm:mb-6 rounded-xl border border-line dark:border-ink-700 bg-ink-50 dark:bg-ink-800/60 p-4">
-          <div className="flex items-start gap-3">
-            <Ban className="w-5 h-5 text-content-body dark:text-ink-300 flex-shrink-0 mt-0.5" />
-            <div className="min-w-0">
-              <p className="font-bold text-content dark:text-content-inverted">
-                This invoice has been voided
-              </p>
-              {auditLine && (
-                <p className="text-sm text-content-body dark:text-ink-300 mt-1 break-words">
-                  {auditLine}
-                </p>
-              )}
-              <p className="text-sm text-content-muted dark:text-content-subtle mt-2">
-                It is kept as a record. It cannot be edited, deleted, sent or paid,
-                and its number is never reused.
-              </p>
-            </div>
-          </div>
-
-          {/* Money that arrived after the void. See recordInvoicePayment in
-              stripe-webhook: the webhook writes the payment and deliberately
-              does NOT clear the void, so the contractor is told rather than
-              quietly shown a paid invoice. */}
-          {paidDespiteVoid && (
-            <div className="mt-3 pt-3 border-t border-line dark:border-ink-700 flex items-start gap-3">
-              <ShieldAlert className="w-5 h-5 text-alert-600 dark:text-alert-400 flex-shrink-0 mt-0.5" />
-              <div>
-                <p className="font-semibold text-content dark:text-content-inverted">
-                  A payment arrived for this invoice anyway
-                </p>
-                <p className="text-sm text-content-body dark:text-ink-300 mt-1">
-                  A checkout page opened before you voided it stays valid for 24
-                  hours. The money is in your Stripe account. Refund it there, or
-                  raise a replacement invoice to cover it.
-                </p>
-              </div>
-            </div>
-          )}
-        </div>
-      )}
+      <VoidedInvoiceBanner
+        auditLine={auditLine}
+        paidDespiteVoid={paidDespiteVoid}
+        voided={voided}
+      />
 
       <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
         <div className="lg:col-span-2 space-y-4 sm:space-y-6">
-          {/* Invoice Header */}
-          <Card className="border-none shadow-lg dark:bg-surface-inverted dark:border-ink-700">
-            <CardContent className="p-4 sm:p-8">
-              <div className="flex flex-col sm:flex-row justify-between items-start gap-4 sm:gap-0 mb-6 sm:mb-8">
-                <div className="flex-1">
-                  <h1 className="text-2xl sm:text-3xl font-black text-content dark:text-content-inverted mb-2">
-                    {invoice.invoice_number}
-                  </h1>
-                  <Badge className={`${statusColors[invoice.status]}`}>
-                    {invoice.status}
-                  </Badge>
-                </div>
-                <div className="text-left sm:text-right w-full sm:w-auto">
-                  <p className="text-2xl sm:text-3xl font-bold text-content dark:text-content-inverted">
-                    ${invoice.total.toFixed(2)}
-                  </p>
-                  <p className="text-sm text-content-body dark:text-content-subtle mt-1">
-                    Total Amount
-                  </p>
-                </div>
-              </div>
-
-              <div className="grid sm:grid-cols-2 gap-4 sm:gap-6">
-                <div>
-                  <div className="flex items-center gap-2 text-content-body dark:text-content-subtle mb-2">
-                    <User className="w-4 h-4" />
-                    <span className="font-medium">Client</span>
-                  </div>
-                  <p className="text-base sm:text-lg font-semibold text-content dark:text-content-inverted">
-                    {invoice.client_name}
-                  </p>
-                  {client && (
-                    <>
-                      {client.email && (
-                        <p className="text-sm text-content-body dark:text-ink-300 flex items-center gap-2 mt-1 break-all">
-                          <Mail className="w-3 h-3 flex-shrink-0" />
-                          <span className="break-all">{client.email}</span>
-                        </p>
-                      )}
-                      {client.phone && (
-                        <p className="text-sm text-content-body dark:text-ink-300 flex items-center gap-2 mt-1">
-                          <MessageSquare className="w-3 h-3 flex-shrink-0" />
-                          {client.phone}
-                        </p>
-                      )}
-                    </>
-                  )}
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2 text-content-body dark:text-content-subtle mb-2">
-                    <Calendar className="w-4 h-4" />
-                    <span className="font-medium">Dates</span>
-                  </div>
-                  <p className="text-sm text-content-body dark:text-ink-300">
-                    <span className="font-medium text-content dark:text-content-inverted">
-                      Created:
-                    </span>{" "}
-                    {format(new Date(invoice.created_date), "MMM d, yyyy")}
-                  </p>
-                  {invoice.due_date && (
-                    <p className="text-sm text-content-body dark:text-ink-300 mt-1">
-                      <span className="font-medium text-content dark:text-content-inverted">
-                        Due:
-                      </span>{" "}
-                      {format(new Date(invoice.due_date), "MMM d, yyyy")}
-                    </p>
-                  )}
-                  {invoice.paid_date && (
-                    <p className="text-sm text-success-600 dark:text-success-400 mt-1">
-                      <span className="font-medium">Paid:</span>{" "}
-                      {format(new Date(invoice.paid_date), "MMM d, yyyy")}
-                    </p>
-                  )}
-                </div>
-              </div>
-            </CardContent>
-          </Card>
+          <InvoiceSummaryCard
+            client={client}
+            invoice={invoice}
+          />
 
           {/* What has actually been received.
               Rendered whenever there is a payment OR something still owed on a
               live invoice, so a fully unpaid draft does not carry an empty
               panel and a settled invoice still shows what settled it. */}
-          {(payments.length > 0 || (!voided && summary.total > 0)) && (
-            <Card className="border-none shadow-lg dark:bg-surface-inverted dark:border-ink-700">
-              <CardHeader className="border-b border-line dark:border-ink-700 p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-content dark:text-content-inverted">
-                  <Wallet className="w-5 h-5 text-brand-700 dark:text-brand-400" />
-                  Payments
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex flex-wrap gap-x-8 gap-y-3 mb-4">
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-content-subtle dark:text-content-muted">
-                      Invoice total
-                    </p>
-                    <p className="text-lg font-bold text-content dark:text-content-inverted">
-                      {formatMoney(summary.total)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-content-subtle dark:text-content-muted">
-                      Paid to date
-                    </p>
-                    <p className="text-lg font-bold text-success-700 dark:text-success-400">
-                      {formatMoney(summary.paid)}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-xs font-bold uppercase tracking-wider text-content-subtle dark:text-content-muted">
-                      {summary.overpaid ? "Overpaid by" : "Still owed"}
-                    </p>
-                    <p
-                      className={`text-lg font-bold ${
-                        summary.settled
-                          ? "text-success-700 dark:text-success-400"
-                          : "text-content dark:text-content-inverted"
-                      }`}
-                    >
-                      {formatMoney(Math.abs(summary.balance))}
-                    </p>
-                  </div>
-                </div>
-
-                {payments.length === 0 ? (
-                  <p className="text-sm text-content-muted dark:text-content-subtle">
-                    Nothing recorded yet.
-                    {!paymentsSupported() &&
-                      " Recording payments needs a database update that has not been applied yet."}
-                  </p>
-                ) : (
-                  <div className="divide-y divide-line-subtle dark:divide-ink-700">
-                    {[...payments]
-                      .sort((a, b) => String(b.paid_at).localeCompare(String(a.paid_at)))
-                      .map((p) => (
-                        <div key={p.id} className="py-2.5 flex items-start justify-between gap-4">
-                          <div className="min-w-0">
-                            <p className="text-sm font-medium text-content dark:text-content-inverted">
-                              {p.method || "Payment"}
-                              {p.reference ? ` · ${p.reference}` : ""}
-                            </p>
-                            <p className="text-xs text-content-muted dark:text-content-subtle mt-0.5">
-                              {p.paid_at}
-                              {p.recorded_by_name ? ` · recorded by ${p.recorded_by_name}` : ""}
-                              {p.stripe_payment_intent_id ? " · paid online" : ""}
-                            </p>
-                            {p.notes && (
-                              <p className="text-xs text-content-body dark:text-ink-300 mt-1 break-words">
-                                {p.notes}
-                              </p>
-                            )}
-                          </div>
-                          <p
-                            className={`text-sm font-bold flex-shrink-0 ${
-                              Number(p.amount) < 0
-                                ? "text-danger-600 dark:text-danger-400"
-                                : "text-content dark:text-content-inverted"
-                            }`}
-                          >
-                            {formatMoney(p.amount)}
-                          </p>
-                        </div>
-                      ))}
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
+          <InvoicePaymentsCard
+            payments={payments}
+            summary={summary}
+            voided={voided}
+          />
 
           {/* Payment Link Card. Gone on a voided invoice: generating a
               Checkout URL for one would fail at buildInvoiceCheckoutSession
               anyway, and offering a button that cannot work is worse than not
               offering it. */}
-          {invoice.status !== "paid" && invoice.status !== "cancelled" && !voided && (
-            <Card className="border-none shadow-lg dark:bg-surface-inverted dark:border-ink-700">
-              <CardHeader className="border-b border-line dark:border-ink-700 bg-info-50 p-4 sm:p-6 dark:bg-info-900/20">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-content dark:text-content-inverted">
-                  <DollarSign className="w-5 h-5 text-brand-700 dark:text-brand-400" />
-                  Payment Link
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6">
-                {/* No stored URL is shown, and none is offered for copying.
-                    A Checkout session dies after 24 hours, so a stored one is
-                    a link that works for a day and then sends the client to
-                    "You've either completed your payment or this checkout
-                    session has timed out". This card used to display exactly
-                    that URL under the words "Payment link is active".
-                    The button below mints a fresh session at the moment it is
-                    pressed, which is the same rule pay-public-invoice already
-                    follows for the client side. */}
-                <div className="space-y-4">
-                  <p className="text-sm text-content-body dark:text-ink-300">
-                    Opens a Stripe checkout page for{" "}
-                    <strong>{formatMoney(summary.balance)}</strong> so you can
-                    take a card payment yourself — over the phone, or on your
-                    device with the client standing there.
-                  </p>
-                  <Button
-                    onClick={() => {
-                      // Opened synchronously, then pointed at the URL. A
-                      // window.open() after the await is blocked by every popup
-                      // blocker.
-                      const tab = window.open("", "_blank");
-                      handleGeneratePaymentLink(tab);
-                    }}
-                    disabled={generatingPaymentLink}
-                    className="w-full bg-brand hover:bg-brand-hover gap-2 h-11"
-                  >
-                    {generatingPaymentLink ? (
-                      <>
-                        <Loader2 className="w-4 h-4 animate-spin" />
-                        Opening checkout…
-                      </>
-                    ) : (
-                      <>
-                        <ExternalLink className="w-4 h-4" />
-                        Take a card payment
-                      </>
-                    )}
-                  </Button>
+          <PaymentLinkCard
+            copyToClipboard={copyToClipboard}
+            generatingPaymentLink={generatingPaymentLink}
+            handleGeneratePaymentLink={handleGeneratePaymentLink}
+            invoice={invoice}
+            publicInvoiceUrl={publicInvoiceUrl}
+            summary={summary}
+            voided={voided}
+          />
 
-                  {/* What to actually SEND. This one never expires, and it is
-                      the link the emails and texts already use. */}
-                  {publicInvoiceUrl && (
-                    <div className="pt-4 border-t border-line dark:border-ink-700">
-                      <p className="text-sm font-semibold text-content dark:text-content-inverted mb-1">
-                        Sending it to your client instead?
-                      </p>
-                      <p className="text-xs text-content-muted dark:text-content-subtle mb-3">
-                        Use the client link below — it never expires and lets
-                        them pay whenever they open it. A checkout page copied
-                        from here would stop working tomorrow.
-                      </p>
-                      <div className="flex flex-col sm:flex-row gap-2">
-                        <input
-                          type="text"
-                          value={publicInvoiceUrl}
-                          readOnly
-                          className="flex-1 px-3 py-2 text-xs sm:text-sm border border-line-strong dark:border-ink-600 rounded-lg bg-surface dark:bg-ink-800 text-content dark:text-content-inverted"
-                        />
-                        <Button
-                          onClick={() => copyToClipboard(publicInvoiceUrl)}
-                          variant="outline"
-                          className="gap-2 w-full sm:w-auto"
-                        >
-                          <Copy className="w-4 h-4" />
-                          Copy
-                        </Button>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </CardContent>
-            </Card>
-          )}
+          <InvoiceLineItemsCard
+            invoice={invoice}
+          />
 
-          {/* Line Items */}
-          <Card className="border-none shadow-lg dark:bg-surface-inverted dark:border-ink-700">
-            <CardHeader className="p-4 sm:p-6">
-              <CardTitle className="text-base sm:text-lg text-content dark:text-content-inverted">
-                Line Items
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6 pt-0">
-              <div className="space-y-3 sm:space-y-4">
-                {invoice.items.map((item, index) => (
-                  <div
-                    key={index}
-                    className="flex justify-between items-start gap-3 pb-3 sm:pb-4 border-b border-line-subtle dark:border-ink-700 last:border-b-0"
-                  >
-                    <div className="flex-1 min-w-0">
-                      <p className="font-medium text-content dark:text-content-inverted text-sm sm:text-base break-words">
-                        {item.description}
-                      </p>
-                      <p className="text-xs sm:text-sm text-content-body dark:text-content-subtle mt-1">
-                        {item.quantity} × ${item.rate.toFixed(2)}
-                      </p>
-                    </div>
-                    <p className="font-semibold text-content dark:text-content-inverted text-sm sm:text-base flex-shrink-0">
-                      ${item.amount.toFixed(2)}
-                    </p>
-                  </div>
-                ))}
-              </div>
-
-              <div className="mt-4 sm:mt-6 pt-4 sm:pt-6 border-t border-line dark:border-ink-700 space-y-2">
-                <div className="flex justify-between text-sm sm:text-base text-content-body dark:text-ink-300">
-                  <span>Subtotal</span>
-                  <span>${invoice.subtotal.toFixed(2)}</span>
-                </div>
-                {invoice.tax_rate > 0 && (
-                  <div className="flex justify-between text-sm sm:text-base text-content-body dark:text-ink-300">
-                    <span>Tax ({invoice.tax_rate}%)</span>
-                    <span>${invoice.tax_amount.toFixed(2)}</span>
-                  </div>
-                )}
-                <div className="flex justify-between text-lg sm:text-xl font-bold text-content dark:text-content-inverted pt-2 border-t border-line dark:border-ink-700">
-                  <span>Total</span>
-                  <span>${invoice.total.toFixed(2)}</span>
-                </div>
-              </div>
-            </CardContent>
-          </Card>
-
-          {/* Notes */}
-          {invoice.notes && (
-            <Card className="border-none shadow-lg dark:bg-surface-inverted dark:border-ink-700">
-              <CardHeader className="p-4 sm:p-6">
-                <CardTitle className="text-base sm:text-lg text-content dark:text-content-inverted">
-                  Notes
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6 pt-0">
-                <p className="text-sm sm:text-base text-ink-700 dark:text-ink-300 whitespace-pre-wrap break-words">
-                  {invoice.notes}
-                </p>
-              </CardContent>
-            </Card>
-          )}
+          <InvoiceNotesCard
+            invoice={invoice}
+          />
         </div>
 
-        <div className="lg:col-span-1 space-y-6">
-          {/*
-            The hosted invoice page a client actually opens. Distinct from the
-            Payment Link card above: that one is a Stripe Checkout URL, which
-            expires after 24 hours and does nothing but take money. This link
-            never expires, shows the invoice itself, and mints the Checkout
-            session at the moment the client clicks Pay.
-          */}
-          {voided ? (
-            /* Not PublicLinkControls. That component offers Restore, which
-               clears public_link_revoked_at -- and voiding sets exactly that
-               field to kill the link. Leaving the control there would put an
-               "undo" next to a one-way door. Payment would still be refused by
-               buildInvoiceCheckoutSession, but the client would be looking at a
-               live page for an invoice that no longer exists. */
-            <Card className="border-none shadow-lg dark:bg-surface-inverted dark:border-ink-700">
-              <CardHeader className="border-b border-line dark:border-ink-700 p-4 sm:p-6">
-                <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-content dark:text-content-inverted">
-                  <Ban className="w-5 h-5 text-content-body dark:text-ink-300" />
-                  Client link
-                </CardTitle>
-              </CardHeader>
-              <CardContent className="p-4 sm:p-6">
-                <p className="text-sm text-content-body dark:text-ink-300">
-                  Switched off when this invoice was voided. Anyone opening the
-                  link they were sent now sees that it is no longer available.
-                </p>
-              </CardContent>
-            </Card>
-          ) : (
-            <PublicLinkControls
-              document={invoice}
-              kind="invoice"
-              onChange={loadInvoiceData}
-            />
-          )}
-
-          {/* Everything that has happened to this invoice.
-              Most of it is derived from columns the invoice already carries --
-              see invoiceTimeline -- which is why this is populated for
-              invoices that existed long before any history was stored. */}
-          <Card className="border-none shadow-lg dark:bg-surface-inverted dark:border-ink-700">
-            <CardHeader className="border-b border-line dark:border-ink-700 p-4 sm:p-6">
-              <CardTitle className="flex items-center gap-2 text-base sm:text-lg text-content dark:text-content-inverted">
-                <History className="w-5 h-5 text-content-body dark:text-content-subtle" />
-                History
-              </CardTitle>
-            </CardHeader>
-            <CardContent className="p-4 sm:p-6">
-              <InvoiceTimeline entries={timeline} />
-            </CardContent>
-          </Card>
-        </div>
+        <InvoiceDetailSidebar
+          invoice={invoice}
+          loadInvoiceData={loadInvoiceData}
+          timeline={timeline}
+          voided={voided}
+        />
       </div>
 
-      {/* Notification Result Dialog */}
-      {notificationResult && (
-        <Dialog open={true} onOpenChange={() => setNotificationResult(null)}>
-          <DialogContent className="sm:max-w-[550px]">
-            <DialogHeader>
-              <DialogTitle className="text-center">
-                Notification Status
-              </DialogTitle>
-            </DialogHeader>
-
-            <div className="space-y-3 py-4">
-              {!notificationResult.hasPdf ? (
-                <div className="p-4 bg-caution-50 rounded-lg border border-caution-200 dark:bg-caution-900/20 dark:border-caution-800/50">
-                  <div className="flex items-start gap-2">
-                    <AlertCircle className="w-5 h-5 text-caution-600 flex-shrink-0 mt-0.5" />
-                    <div>
-                      <p className="font-medium text-caution-800">
-                        No PDF Available
-                      </p>
-                      <p className="text-sm text-caution-700 mt-1">
-                        This invoice doesn't have a PDF yet. Please regenerate
-                        the invoice to create a PDF before sending
-                        notifications.
-                      </p>
-                    </div>
-                  </div>
-                </div>
-              ) : (
-                <>
-                  {/* SMS Status */}
-                  <div className="p-3 bg-surface rounded-lg border dark:bg-surface-inverted">
-                    <div className="flex items-start gap-2">
-                      {notificationResult.sms ? (
-                        <>
-                          <CheckCircle className="w-5 h-5 text-success-600 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-medium text-content dark:text-content-inverted">
-                              SMS Sent Successfully
-                            </p>
-                            <p className="text-sm text-content-body dark:text-ink-300">
-                              Text message with PDF link delivered
-                            </p>
-                          </div>
-                        </>
-                      ) : notificationResult.hasPhone ? (
-                        <>
-                          <AlertCircle className="w-5 h-5 text-caution-600 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="font-medium text-caution-800">
-                              SMS Not Sent
-                            </p>
-                            <p className="text-sm text-caution-700 mb-2">
-                              {notificationResult.smsError ||
-                                "Failed to send SMS"}
-                            </p>
-                            {notificationResult.smsError?.includes(
-                              "trial account",
-                            ) ||
-                            notificationResult.smsError?.includes(
-                              "unverified",
-                            ) ? (
-                              <div className="text-xs bg-caution-50 p-2 rounded border border-caution-200 dark:bg-caution-900/20 dark:border-caution-800/50">
-                                <p className="font-medium mb-1">
-                                  📱 Twilio Trial Account?
-                                </p>
-                                <p>
-                                  If you're using a trial, you must verify the
-                                  recipient's phone number first:
-                                </p>
-                                <a
-                                  href="https://console.twilio.com/us1/develop/phone-numbers/manage/verified"
-                                  target="_blank"
-                                  rel="noopener noreferrer"
-                                  className="text-success-600 hover:underline block mt-1"
-                                >
-                                  console.twilio.com → Verified Caller IDs
-                                </a>
-                              </div>
-                            ) : null}
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-5 h-5 rounded-full border-2 border-line-strong flex-shrink-0 mt-0.5 dark:border-ink-600" />
-                          <div>
-                            <p className="font-medium text-content-body dark:text-ink-300">
-                              No Phone Number
-                            </p>
-                            <p className="text-sm text-content-muted">
-                              Add a phone number to the client to send SMS
-                            </p>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Email Status */}
-                  <div className="p-3 bg-surface rounded-lg border dark:bg-surface-inverted">
-                    <div className="flex items-start gap-2">
-                      {notificationResult.email ? (
-                        <>
-                          <CheckCircle className="w-5 h-5 text-success-600 flex-shrink-0 mt-0.5" />
-                          <div>
-                            <p className="font-medium text-content dark:text-content-inverted">
-                              Email Sent Successfully
-                            </p>
-                            <p className="text-sm text-content-body dark:text-ink-300">
-                              Email delivered to {client?.email}
-                            </p>
-                          </div>
-                        </>
-                      ) : notificationResult.hasEmail ? (
-                        <>
-                          <AlertCircle className="w-5 h-5 text-danger-600 flex-shrink-0 mt-0.5" />
-                          <div className="flex-1">
-                            <p className="font-medium text-danger-800">
-                              Email Not Sent
-                            </p>
-                            <p className="text-sm text-danger-700">
-                              {notificationResult.emailError}
-                            </p>
-                          </div>
-                        </>
-                      ) : (
-                        <>
-                          <div className="w-5 h-5 rounded-full border-2 border-line-strong flex-shrink-0 mt-0.5 dark:border-ink-600" />
-                          <div>
-                            <p className="font-medium text-content-body dark:text-ink-300">
-                              No Email Address
-                            </p>
-                            <p className="text-sm text-content-muted">
-                              Add an email to the client to send notifications
-                            </p>
-                          </div>
-                        </>
-                      )}
-                    </div>
-                  </div>
-                </>
-              )}
-            </div>
-
-            {/* Copy PDF Link Button */}
-            {invoice.pdf_url && (
-              <Button
-                onClick={() => {
-                  copyToClipboard(invoice.pdf_url);
-                  alert("PDF link copied to clipboard!");
-                }}
-                variant="outline"
-                className="w-full"
-              >
-                📋 Copy PDF Link to Share
-              </Button>
-            )}
-
-            <Button
-              onClick={() => setNotificationResult(null)}
-              className="w-full"
-            >
-              Close
-            </Button>
-          </DialogContent>
-        </Dialog>
-      )}
+      <InvoiceNotificationResultDialog
+        client={client}
+        copyToClipboard={copyToClipboard}
+        invoice={invoice}
+        notificationResult={notificationResult}
+        setNotificationResult={setNotificationResult}
+      />
 
       <RecordPaymentDialog
         open={paymentDialog}
@@ -1291,138 +403,27 @@ export default function InvoiceDetail() {
         onRecord={handleRecordPayment}
       />
 
-      {/* Void Confirmation Dialog */}
-      <Dialog open={voidDialog} onOpenChange={setVoidDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Void invoice {invoice.invoice_number}?</DialogTitle>
-            <DialogDescription>
-              The invoice stays on record with its number, and this is written
-              against it. Its payment link stops working immediately, and it can
-              never be edited, sent or paid again. There is no undo.
-            </DialogDescription>
-          </DialogHeader>
+      <VoidInvoiceDialog
+        handleVoid={handleVoid}
+        invoice={invoice}
+        setVoidDialog={setVoidDialog}
+        setVoidReason={setVoidReason}
+        voidDialog={voidDialog}
+        voidError={voidError}
+        voidReason={voidReason}
+        voiding={voiding}
+      />
 
-          <div className="mt-2">
-            <label
-              htmlFor="void-reason"
-              className="text-sm font-semibold text-content dark:text-content-inverted"
-            >
-              Reason{" "}
-              <span className="font-normal text-content-muted dark:text-content-subtle">
-                (optional)
-              </span>
-            </label>
-            <Textarea
-              id="void-reason"
-              value={voidReason}
-              onChange={(e) => setVoidReason(e.target.value)}
-              maxLength={500}
-              rows={3}
-              placeholder="Wrong client, duplicate, job cancelled…"
-              className="mt-2"
-            />
-            <p className="text-xs text-content-muted dark:text-content-subtle mt-1.5">
-              Only you and your crew see this. Your client is not told.
-            </p>
-          </div>
-
-          {voidError && (
-            <p className="text-sm text-danger-600 dark:text-danger-400 mt-3">
-              {voidError}
-            </p>
-          )}
-
-          <div className="flex justify-end gap-3 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setVoidDialog(false)}
-              disabled={voiding}
-            >
-              Keep it
-            </Button>
-            <Button onClick={handleVoid} disabled={voiding} className="gap-2">
-              {voiding ? (
-                <>
-                  <Loader2 className="w-4 h-4 animate-spin" />
-                  Voiding…
-                </>
-              ) : (
-                <>
-                  <Ban className="w-4 h-4" />
-                  Void invoice
-                </>
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
-
-      {/* Delete Confirmation Dialog */}
-      <Dialog open={deleteDialog} onOpenChange={setDeleteDialog}>
-        <DialogContent>
-          <DialogHeader>
-            <DialogTitle>Delete Invoice</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete invoice {invoice.invoice_number}?
-              This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-
-          {/* Deleting a sent invoice is still allowed -- it was allowed before
-              this feature and removing it would take away something
-              contractors do. But the client has this number, so the dialog
-              says what disappears and offers the answer that keeps it. */}
-          {canDeleteInvoice(invoice).prefer === "void" && (
-            <div className="rounded-lg border border-line dark:border-ink-700 bg-ink-50 dark:bg-ink-800/60 p-3">
-              <p className="text-sm text-content-body dark:text-ink-300">
-                Your client has already been sent this invoice. Deleting it
-                leaves nothing to point at if they ask about{" "}
-                {invoice.invoice_number} later.
-              </p>
-              {canVoid.ok && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="mt-3 gap-2"
-                  onClick={() => {
-                    setDeleteDialog(false);
-                    setVoidError(null);
-                    setVoidDialog(true);
-                  }}
-                >
-                  <Ban className="w-4 h-4" />
-                  Void it instead
-                </Button>
-              )}
-            </div>
-          )}
-
-          <div className="flex justify-end gap-3 mt-4">
-            <Button
-              variant="outline"
-              onClick={() => setDeleteDialog(false)}
-              disabled={deleting}
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handleDelete}
-              disabled={deleting}
-              className="bg-danger-600 hover:bg-danger-700"
-            >
-              {deleting ? (
-                <>
-                  <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                  Deleting...
-                </>
-              ) : (
-                "Delete Invoice"
-              )}
-            </Button>
-          </div>
-        </DialogContent>
-      </Dialog>
+      <DeleteInvoiceDialog
+        canVoid={canVoid}
+        deleteDialog={deleteDialog}
+        deleting={deleting}
+        handleDelete={handleDelete}
+        invoice={invoice}
+        setDeleteDialog={setDeleteDialog}
+        setVoidDialog={setVoidDialog}
+        setVoidError={setVoidError}
+      />
     </div>
   );
 }

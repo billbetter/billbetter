@@ -461,6 +461,77 @@ SCENARIOS.push(
   },
 );
 
+// ---- Invoice and quote detail, from fixed documents -------------------------
+// Resend is clicked in two scenarios to reach the result dialog. It is safe
+// because the guard aborts sendInvoiceEmail / sendInvoiceSMS /
+// sendQuoteEmail / sendQuoteSMS / createInvoicePaymentLink before they leave
+// the browser -- and the fixture client's address is @example.com regardless.
+const DETAIL_CLIENT = {
+  id: "66666666-0000-4000-8000-000000000001", user_id: config.session.user.id,
+  name: "Dana Reyes", email: "dana@example.com", phone: "902 555 0101",
+  address: "4 Elm Road, Halifax", created_date: "2026-08-01T15:00:00Z",
+};
+const DETAIL_ITEMS = [
+  { description: "Demolition and haul-away", quantity: 1, rate: 1200, amount: 1200 },
+  { description: "Cabinet install", quantity: 8, rate: 85, amount: 680 },
+];
+const DETAIL_INVOICE = {
+  id: "44444444-0000-4000-8000-000000000001", user_id: config.session.user.id,
+  invoice_number: "INV-0950", status: "sent", client_id: DETAIL_CLIENT.id,
+  client_name: DETAIL_CLIENT.name, client_email: DETAIL_CLIENT.email,
+  client_phone: DETAIL_CLIENT.phone, client_address: DETAIL_CLIENT.address,
+  items: DETAIL_ITEMS, subtotal: 1880, tax_rate: 15, tax_amount: 282, total: 2162,
+  due_date: "2026-09-30", payment_terms: "Net 30", notes: "Thanks for the work.",
+  created_date: "2026-09-01T15:00:00Z", created_at: "2026-09-01T15:00:00Z",
+};
+const DETAIL_QUOTE = {
+  id: "55555555-0000-4000-8000-000000000001", user_id: config.session.user.id,
+  quote_number: "QTE-0950", status: "sent", client_id: DETAIL_CLIENT.id,
+  client_name: DETAIL_CLIENT.name, client_email: DETAIL_CLIENT.email,
+  client_phone: DETAIL_CLIENT.phone, items: DETAIL_ITEMS, subtotal: 1880,
+  tax_rate: 15, tax_amount: 282, total: 2162, expiry_date: "2026-10-01",
+  date_issued: "2026-09-01", notes: "Valid for 30 days.",
+  created_date: "2026-09-01T15:00:00Z", created_at: "2026-09-01T15:00:00Z",
+};
+const INVOICE_DETAIL_MOCKS = [
+  { match: /^Invoice\?/, body: [DETAIL_INVOICE] },
+  { match: /^Client\?/, body: [DETAIL_CLIENT] },
+  { match: /^InvoicePayment\?/, body: [] },
+  { match: /^InvoiceEvent\?/, body: [] },
+];
+const QUOTE_DETAIL_MOCKS = [
+  { match: /^Quote\?/, body: [DETAIL_QUOTE] },
+  { match: /^Client\?/, body: [DETAIL_CLIENT] },
+];
+const invRoute = `/InvoiceDetail?id=${DETAIL_INVOICE.id}`;
+const quoteRoute = `/QuoteDetail?id=${DETAIL_QUOTE.id}`;
+const desktopBar = "div.hidden.sm\\:flex";
+const mobileBar = "div.fixed.bottom-0";
+SCENARIOS.push(
+  { name: "invoice-detail-fixture", route: invRoute, mocks: INVOICE_DETAIL_MOCKS,
+    steps: () => [{ waitFor: "text/INV-0950" }] },
+  { name: "invoice-detail-payment", route: invRoute, mocks: INVOICE_DETAIL_MOCKS,
+    steps: (p) => [{ waitFor: "text/INV-0950" }, { clickText: p.desktop ? "Record payment" : "Payment" },
+      { waitFor: "[role='dialog']" }] },
+  { name: "invoice-detail-void", route: invRoute, mocks: INVOICE_DETAIL_MOCKS,
+    steps: (p) => [{ waitFor: "text/INV-0950" },
+      { domClick: `${p.desktop ? desktopBar : mobileBar} button:has(svg.lucide-ban)` },
+      { waitFor: "[role='dialog']" }] },
+  { name: "invoice-detail-delete", route: invRoute, mocks: INVOICE_DETAIL_MOCKS,
+    steps: (p) => [{ waitFor: "text/INV-0950" },
+      { domClick: `${p.desktop ? desktopBar : mobileBar} button:has(svg.lucide-trash2)` },
+      { waitFor: "[role='dialog']" }] },
+  { name: "invoice-detail-resend-result", route: invRoute, mocks: INVOICE_DETAIL_MOCKS,
+    steps: () => [{ waitFor: "text/INV-0950" }, { clickContains: "Resend" }, { wait: 2500 }] },
+  { name: "quote-detail-fixture", route: quoteRoute, mocks: QUOTE_DETAIL_MOCKS,
+    steps: () => [{ waitFor: "text/QTE-0950" }] },
+  { name: "quote-detail-delete", route: quoteRoute, mocks: QUOTE_DETAIL_MOCKS,
+    steps: () => [{ waitFor: "text/QTE-0950" }, { domClick: "button:has(svg.lucide-trash2)" },
+      { waitFor: "[role='dialog']" }] },
+  { name: "quote-detail-resend-result", route: quoteRoute, mocks: QUOTE_DETAIL_MOCKS,
+    steps: () => [{ waitFor: "text/QTE-0950" }, { clickContains: "Resend" }, { wait: 2500 }] },
+);
+
 // 15:00 UTC on a fixed weekday: an afternoon greeting, and far enough from
 // midnight that no timezone flips the date.
 const FROZEN_NOW = Date.parse("2026-09-09T15:00:00Z");
