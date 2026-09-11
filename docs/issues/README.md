@@ -1,7 +1,7 @@
 # Open issues found during the 2026-09 refactor
 
 Found while snapshot-testing the structural refactor, and deliberately not
-fixed there, because fixing each one changes behaviour. **All ten are fixed
+fixed there, because fixing each one changes behaviour. **01-10 are fixed
 now**, each in its own commit, on top of the refactor. The files are kept as
 the record of what was wrong and what was decided; each ends with the commit
 that fixed it. One file per issue, written so it can be pasted into GitHub
@@ -21,3 +21,4 @@ as-is:
 | 08 | [The quote builder's "upload a photo" never reads the photo](08-quote-photo-analyzer-ignores-photo.md) | Medium: a feature that pretends to work | `4e1aba0` |
 | 09 | [Line-item autofill shows nothing if any service preset lacks a name or description](09-service-autofill-fails-on-one-bad-row.md) | Medium: happening on live data now | `17137cf` |
 | 10 | [Analytics doesn't count "approved" quotes as won](10-analytics-ignores-approved-quotes.md) | Medium: wrong conversion rate; tells you to chase clients who said yes | `067aa38` |
+| 11 | [Two dialogs have no title, so a screen reader announces nothing](11-dialogs-without-a-title.md) | Low-medium: the two screens a new user meets first | open |
