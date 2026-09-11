@@ -550,6 +550,55 @@ SCENARIOS.push(
     linked_invoice_id: "44444444-0000-4000-8000-000000000001" }),
 );
 
+// ---- Settings, one scenario per tab, from a fixed settings row ---------------
+// Every tab opens straight from ?tab=. The Stripe states are driven by the
+// row alone: stripe_account_id stays null outside "active", so the on-load
+// status check (a toast on a timer) never fires and cannot race a capture.
+const SETTINGS_ROW = {
+  id: "88888888-0000-4000-8000-000000000001", user_id: config.session.user.id,
+  business_name: "Reyes Renovations", email: "office@example.com", phone: "902 555 0199",
+  address: "12 Harbour St, Halifax", website: "https://example.com", logo_url: null,
+  tax_rate: 15, hourly_rate: 75, invoice_template: "professional", invoice_prefix: "INV",
+  payment_terms: "Net 30", review_link: "https://g.page/r/example",
+  allow_client_quote_approval: true, stripe_account_id: "acct_fixture",
+  stripe_account_status: "active", created_date: "2026-08-01T15:00:00Z",
+};
+const SUBSCRIPTION_ROW = {
+  id: "99999999-0000-4000-8000-000000000001", user_id: config.session.user.id,
+  plan_name: "professional", billing_cycle: "monthly", status: "active",
+  transactions_used_this_month: 12, next_billing_date: "2026-10-01T15:00:00Z",
+  stripe_customer_id: "cus_fixture",
+};
+const settingsIn = (name, tab, { row = {}, subscription = [SUBSCRIPTION_ROW], waitFor, steps = () => [] } = {}) => ({
+  name: `settings-${name}`, route: `/Settings?tab=${tab}`,
+  mocks: [
+    { match: /^BusinessSettings\?/, body: [{ ...SETTINGS_ROW, ...row }] },
+    { match: /^Subscription\?/, body: subscription },
+  ],
+  steps: (p) => [{ waitFor: `text/${waitFor}` }, ...steps(p)],
+});
+SCENARIOS.push(
+  settingsIn("business", "business", { waitFor: "Business Information" }),
+  settingsIn("security", "security", { waitFor: "Signed in as" }),
+  settingsIn("security-password", "security", { waitFor: "Signed in as",
+    steps: () => [{ clickText: "Change password" }, { waitFor: "#new-password" }] }),
+  settingsIn("billing", "billing", { waitFor: "Recent Billing History" }),
+  settingsIn("billing-none", "billing", { subscription: [], waitFor: "No Active Subscription" }),
+  settingsIn("payments-active", "payments", { waitFor: "Stripe Account" }),
+  settingsIn("payments-pending", "payments", { waitFor: "Stripe Account",
+    row: { stripe_account_id: null, stripe_account_status: "pending" } }),
+  settingsIn("payments-none", "payments", { waitFor: "Stripe Account",
+    row: { stripe_account_id: null, stripe_account_status: null } }),
+  settingsIn("appearance", "appearance", { waitFor: "Theme Preference" }),
+  settingsIn("notifications", "notifications", { waitFor: "Settings", steps: () => [{ wait: 1500 }] }),
+  settingsIn("calendar", "calendar", { waitFor: "Settings", steps: () => [{ wait: 1500 }] }),
+  settingsIn("template", "template", { waitFor: "Settings", steps: () => [{ wait: 1500 }] }),
+  settingsIn("legal", "legal", { waitFor: "Delete Account" }),
+  settingsIn("contact", "contact", { waitFor: "Need Help?" }),
+  settingsIn("reset-dialog", "business", { waitFor: "Business Information",
+    steps: (p) => (p.desktop ? [{ clickText: "Reset to Defaults" }, { waitFor: "[role='dialog']" }] : []) }),
+);
+
 // 15:00 UTC on a fixed weekday: an afternoon greeting, and far enough from
 // midnight that no timezone flips the date.
 const FROZEN_NOW = Date.parse("2026-09-09T15:00:00Z");
