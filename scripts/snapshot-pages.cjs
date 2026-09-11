@@ -769,6 +769,31 @@ SCENARIOS.push(
   quickBill("new-client", "/QuickInvoice", [{ clickContains: "Add new client" }, { wait: 400 }]),
 );
 
+// ---- The feature tour, which opens from the Settings desktop header --------
+// There is no way into it from the phone layout, so on mobile these capture
+// Settings with the tour closed -- which is itself worth holding still.
+const tour = (name, steps) => ({
+  name: `feature-tour-${name}`, route: "/Settings?tab=business",
+  mocks: [
+    { match: /^BusinessSettings\?/, body: [SETTINGS_ROW] },
+    { match: /^Subscription\?/, body: [SUBSCRIPTION_ROW] },
+  ],
+  steps: (p) => (p.desktop
+    ? [{ waitFor: "text/Business Information" }, { clickText: "Feature Tour" },
+       { waitFor: "[role='dialog']" }, { wait: 600 }, ...steps]
+    : [{ waitFor: "text/Business Information" }]),
+});
+const tourNext = (n) => Array.from({ length: n }, () => [
+  { clickContains: "Next" }, { wait: 300 },
+]).flat();
+SCENARIOS.push(
+  tour("open", []),
+  tour("started", [{ clickContains: "Start Tour" }, { wait: 400 }]),
+  tour("third-slide", [{ clickContains: "Start Tour" }, { wait: 300 }, ...tourNext(2)]),
+  tour("demo", [{ clickContains: "Start Tour" }, { wait: 400 },
+    { clickContains: "Try Interactive Demo" }, { wait: 700 }]),
+);
+
 // 15:00 UTC on a fixed weekday: an afternoon greeting, and far enough from
 // midnight that no timezone flips the date.
 const FROZEN_NOW = Date.parse("2026-09-09T15:00:00Z");
