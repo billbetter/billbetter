@@ -100,11 +100,10 @@ const SCENARIOS = [
     // both bars. The account trigger is the full-width sidebar row on
     // desktop and the round avatar on phones.
     //
-    // The phone path opens it from the keyboard because a tap CANNOT: the
-    // empty toast viewport (ui/toast.jsx, `fixed top-0 w-full z-[100] p-4`)
-    // covers the top 32px of the mobile header, so elementFromPoint at the
-    // avatar's centre is the viewport, and tap and click both land on it.
-    // That is a live bug, not a test quirk -- reported, not fixed here.
+    // The phone path taps, which is the point: the empty toast strips used
+    // to cover the top of the mobile header and swallow it, so this step
+    // had to press Enter instead. They are pointer-events-none now, and a
+    // tap that stops working again fails here.
     steps: (profile) =>
       profile.desktop
         ? [
@@ -112,8 +111,7 @@ const SCENARIOS = [
             { waitFor: "[role='menu'] [role='menuitem']" },
           ]
         : [
-            { focus: ".mobile-header button.rounded-full[aria-haspopup='menu']" },
-            { press: "Enter" },
+            { tap: ".mobile-header button.rounded-full[aria-haspopup='menu']" },
             { waitFor: "[role='menu'] [role='menuitem']" },
           ],
   },

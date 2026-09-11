@@ -3,19 +3,26 @@ import { cva } from "class-variance-authority";
 import { X } from "lucide-react";
 import { cn } from "@/lib/utils";
 
+/**
+ * The strip toasts live in. Mounted for the life of the app, so it must not
+ * take pointer events: on phones it lies across the top of the header, and
+ * an empty strip that accepts taps means the avatar, bell and back button
+ * underneath cannot be pressed. Each Toast re-enables them for itself.
+ */
 const ToastProvider = React.forwardRef(({ ...props }, ref) => (
   <div
     ref={ref}
-    className="fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
+    className="pointer-events-none fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
     {...props}
   />
 ));
 ToastProvider.displayName = "ToastProvider";
 
+/** A second such strip, nested in the provider. Same rule, same reason. */
 const ToastViewport = React.forwardRef(({ ...props }, ref) => (
   <div
     ref={ref}
-    className="fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
+    className="pointer-events-none fixed top-0 z-[100] flex max-h-screen w-full flex-col-reverse p-4 sm:bottom-0 sm:right-0 sm:top-auto sm:flex-col md:max-w-[420px]"
     {...props}
   />
 ));
