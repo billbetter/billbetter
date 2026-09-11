@@ -1,4 +1,6 @@
 import React, { useState } from "react";
+import { VISION_ACCEPT, unscannableReason } from "@/lib/ai/schemas";
+import { sdk } from "@/api/sdk";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -11,35 +13,75 @@ import {
 } from "lucide-react";
 
 /**
- * Describe the job and have quote line items written from it.
- * NOTE: the photo is only previewed, never read -- see docs/issues/08.
+ * Describe the work, or photograph it (a receipt or the job site), and have
+ * line items written from it. The photo is uploaded and actually read.
+ *
+ * Shared by both builders; only the words differ between them.
+ * `onAnalyze(description, fileUrl)` is awaited, and fileUrl is null when
+ * nothing was attached.
  */
-const CameraAnalyzer = ({ onAnalysisComplete, className }) => {
+const CameraAnalyzer = ({
+  onAnalyze,
+  subtitle,
+  placeholder,
+  helpText,
+  generateLabel,
+  className,
+}) => {
   const [description, setDescription] = useState("");
   const [loading, setLoading] = useState(false);
   const [image, setImage] = useState(null);
+  const [imageFile, setImageFile] = useState(null);
+  const [error, setError] = useState("");
 
+  // The photo used to be decoration. handleFileChange kept only an object URL
+  // for the preview, handleGenerate waited 1500ms to look like it was thinking
+  // and then sent `description` alone, and the button was disabled without
+  // text -- so "upload a photo" produced an invoice written from the caption,
+  // or from nothing. A receipt photographed and handed to this came back as
+  // generic labour and materials lines, because that is what the model writes
+  // when it is asked to price a job it cannot see.
   const handleGenerate = async () => {
-    if (!description.trim()) return;
+    if (!description.trim() && !imageFile) return;
     setLoading(true);
-    await new Promise((resolve) => setTimeout(resolve, 1500));
-    if (onAnalysisComplete) {
-      onAnalysisComplete({
-        description: description,
-        materials: [],
-        laborHours: 0,
-        notes: description,
-      });
+    setError("");
+    try {
+      let fileUrl = null;
+      if (imageFile) {
+        const up = await sdk.integrations.Core.UploadFile({ file: imageFile });
+        // Loudly. UploadFile reports failure rather than throwing, and
+        // continuing without the photo is how an invented invoice reaches
+        // someone who believes their photo was read.
+        if (!up?.success || !up.file_url) {
+          setError(
+            `That photo could not be uploaded${up?.error ? `: ${up.error}` : ""}, so it was not read. Try again, or describe the work instead.`,
+          );
+          return;
+        }
+        fileUrl = up.file_url;
+      }
+      if (onAnalyze) await onAnalyze(description, fileUrl);
+      setDescription("");
+      setImage(null);
+      setImageFile(null);
+    } finally {
+      setLoading(false);
     }
-    setLoading(false);
-    setDescription("");
   };
 
   const handleFileChange = (e) => {
     const file = e.target.files[0];
-    if (file) {
-      setImage(URL.createObjectURL(file));
+    if (!file) return;
+    const reason = unscannableReason(file);
+    if (reason) {
+      setError(reason);
+      e.target.value = "";
+      return;
     }
+    setError("");
+    setImageFile(file);
+    setImage(URL.createObjectURL(file));
+    e.target.value = ""; // allow re-picking the same file
   };
 
   return (
@@ -57,7 +99,7 @@ const CameraAnalyzer = ({ onAnalysisComplete, className }) => {
               AI Assistant
             </h3>
             <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
-              Describe the job or upload a photo
+              {subtitle}
             </p>
           </div>
         </div>
@@ -67,11 +109,11 @@ const CameraAnalyzer = ({ onAnalysisComplete, className }) => {
           <Textarea
             value={description}
             onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g., Kitchen renovation, drywall repair, plumbing fix..."
+            placeholder={placeholder}
             className="min-h-[80px] sm:min-h-[100px] border-line dark:border-ink-600 bg-surface-sunken dark:bg-surface-inverted-deep text-content dark:text-ink-50 placeholder:text-content-muted dark:placeholder:text-content-body focus:border-info-500 focus:ring-info-500/20 resize-none text-sm sm:text-base dark:dark:placeholder:text-ink-300"
           />
           <p className="text-xs text-content-muted dark:text-content-muted">
-            Describe the work needed. Include desired total if known.
+            {helpText}
           </p>
         </div>
 
@@ -98,7 +140,7 @@ const CameraAnalyzer = ({ onAnalysisComplete, className }) => {
           <input
             id="camera-input"
             type="file"
-            accept="image/*"
+            accept={VISION_ACCEPT}
             capture="environment"
             className="hidden"
             onChange={handleFileChange}
@@ -106,7 +148,7 @@ const CameraAnalyzer = ({ onAnalysisComplete, className }) => {
           <input
             id="file-input"
             type="file"
-            accept="image/*"
+            accept={VISION_ACCEPT}
             className="hidden"
             onChange={handleFileChange}
           />
@@ -121,7 +163,10 @@ const CameraAnalyzer = ({ onAnalysisComplete, className }) => {
               className="w-full h-28 sm:h-32 object-cover"
             />
             <button
-              onClick={() => setImage(null)}
+              onClick={() => {
+                setImage(null);
+                setImageFile(null);
+              }}
               className="absolute top-2 right-2 w-6 h-6 bg-surface-inverted/80 dark:bg-surface-inverted-deep/80 text-content-inverted rounded-full flex items-center justify-center hover:bg-surface-inverted transition-colors"
             >
               <X className="w-3 h-3" />
@@ -129,11 +174,17 @@ const CameraAnalyzer = ({ onAnalysisComplete, className }) => {
           </div>
         )}
 
+        {error && (
+          <p className="text-xs font-medium text-danger-600 dark:text-danger-400">
+            {error}
+          </p>
+        )}
+
         {/* Generate Button */}
         <Button
           type="button"
           onClick={handleGenerate}
-          disabled={loading || !description.trim()}
+          disabled={loading || (!description.trim() && !imageFile)}
           className="w-full h-11 sm:h-12 bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover text-content-inverted font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm sm:text-base"
         >
           {loading ? (
@@ -144,7 +195,7 @@ const CameraAnalyzer = ({ onAnalysisComplete, className }) => {
           ) : (
             <>
               <Sparkles className="w-4 h-4 mr-2" />
-              Generate Quote Items
+              {generateLabel}
             </>
           )}
         </Button>

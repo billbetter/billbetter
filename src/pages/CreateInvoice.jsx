@@ -25,7 +25,7 @@ import {
   EditTemplateDialog,
   DeleteTemplateDialog,
 } from "../components/invoice/TemplateDialogs";
-import CameraAnalyzer from "@/components/invoice/create/CameraAnalyzer";
+import CameraAnalyzer from "@/components/documentForm/CameraAnalyzer";
 import { calculateNextDate } from "@/components/invoice/create/invoiceFormMath";
 import { calculateTotals } from "@/components/documentForm/lineItemMath";
 import useInvoiceTemplates from "@/components/invoice/create/useInvoiceTemplates";
@@ -940,7 +940,13 @@ export default function CreateInvoice() {
               templates={templates}
             />
 
-            <CameraAnalyzer onAnalyze={handleAISuggest} />
+            <CameraAnalyzer
+              onAnalyze={handleAISuggest}
+              subtitle="Describe the work or upload a photo"
+              placeholder="e.g., Replace kitchen backsplash, install new flooring..."
+              helpText="Describe the work you did. Include hours worked or desired total if known."
+              generateLabel="Generate Invoice Items"
+            />
 
             <RecurringToggleCard
               isRecurring={isRecurring}

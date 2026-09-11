@@ -13,7 +13,7 @@ import { Card, CardContent } from "@/components/ui/card";
 import { format, addDays } from "date-fns";
 import VoiceInput from "../components/invoice/VoiceInput";
 import { generateQuotePDF } from "@/functions/generateQuotePDF";
-import CameraAnalyzer from "@/components/quote/create/CameraAnalyzer";
+import CameraAnalyzer from "@/components/documentForm/CameraAnalyzer";
 import { calculateTotals } from "@/components/documentForm/lineItemMath";
 import DocumentBuilderHeader from "@/components/documentForm/DocumentBuilderHeader";
 import PastDocumentsCard from "@/components/documentForm/PastDocumentsCard";
@@ -273,12 +273,12 @@ export default function CreateQuote() {
     }
   };
 
-  const handleAISuggest = async (jobDescription) => {
+  const handleAISuggest = async (jobDescription, fileUrl = null) => {
     try {
       const response = await sdk.integrations.Core.InvokeLLM({
         prompt: `Based on this job description, suggest quote line items with clear, concise descriptions, quantities, and reasonable rates.
 
-Job: ${jobDescription}
+Job: ${jobDescription || "(no written description - work from the attached photo)"}
 
 Requirements:
 - Keep descriptions SHORT and CLEAR (e.g., "2-step polishing process" NOT "Polishing - to remove scratches")
@@ -287,7 +287,16 @@ Requirements:
 - Provide 2-4 line items
 - CRITICAL: If the user mentions a specific total amount (e.g. "for $20,000", "budget is 500", "total 1000"), adjust the rates and quantities so the total sum of all items equals that exact amount.
 
-Provide line items in this format.`,
+Provide line items in this format.${
+  fileUrl
+    ? `\n\nTHE ATTACHED PHOTO IS THE JOB. Price the work visible in it.
+
+If it is a RECEIPT or supplier invoice instead, transcribe it rather than
+estimating: one line per printed item, quantity 1, the line's printed amount
+as the rate, and skip SUBTOTAL, TAX, TOTAL and card lines.`
+    : ""
+}`,
+        ...(fileUrl && { file_urls: [fileUrl] }),
         response_json_schema: LINE_ITEMS,
       });
 
@@ -314,12 +323,22 @@ Provide line items in this format.`,
     setShowVoiceInput(false);
   };
 
-  const handleCameraAnalysis = (analysis) => {
-    setCameraAnalysis(analysis);
-    // If there's a description, use the AI to generate proper line items
-    if (analysis.description) {
-      handleAISuggest(analysis.description);
-    }
+  // What the analyzer actually read: the description typed, and the URL of
+  // the photo it uploaded (null when there was none). Both are kept on the
+  // quote row by handleSubmit, so the shape it stores stays as it was --
+  // except that photoUrl is now a real URL rather than always null.
+  //
+  // A photo with no description used to do nothing at all: the old analyzer
+  // refused to generate without text, and never sent the photo anyway.
+  const handleCameraAnalysis = (description, photoUrl) => {
+    setCameraAnalysis({
+      description,
+      photoUrl,
+      materials: [],
+      laborHours: 0,
+      notes: description,
+    });
+    return handleAISuggest(description, photoUrl);
   };
 
   const handleSubmit = async (e) => {
@@ -588,7 +607,13 @@ Provide line items in this format.`,
               title="Similar Past Quotes"
             />
 
-            <CameraAnalyzer onAnalysisComplete={handleCameraAnalysis} />
+            <CameraAnalyzer
+              onAnalyze={handleCameraAnalysis}
+              subtitle="Describe the job or upload a photo"
+              placeholder="e.g., Kitchen renovation, drywall repair, plumbing fix..."
+              helpText="Describe the work needed. Include desired total if known."
+              generateLabel="Generate Quote Items"
+            />
 
             <Card className="border-0 shadow-xl bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-ink-200 dark:ring-ink-700">
               <FormCardHeader
