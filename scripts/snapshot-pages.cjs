@@ -532,6 +532,24 @@ SCENARIOS.push(
     steps: () => [{ waitFor: "text/QTE-0950" }, { clickContains: "Resend" }, { wait: 2500 }] },
 );
 
+// The quote in each state its status cards and response line distinguish:
+// approved by the client (a name), marked approved by hand (no name, no
+// date), declined with a reason, and converted to an invoice.
+const quoteIn = (name, patch) => ({
+  name: `quote-detail-${name}`, route: quoteRoute,
+  mocks: [{ match: /^Quote\?/, body: [{ ...DETAIL_QUOTE, ...patch }] }, QUOTE_DETAIL_MOCKS[1]],
+  steps: () => [{ waitFor: "text/QTE-0950" }],
+});
+SCENARIOS.push(
+  quoteIn("approved", { status: "approved", approved_by_name: "Dana Reyes",
+    approved_at: "2026-09-04T18:30:00Z", job_id: "77777777-0000-4000-8000-000000000001" }),
+  quoteIn("approved-manual", { status: "approved" }),
+  quoteIn("declined", { status: "declined", declined_at: "2026-09-05T14:00:00Z",
+    decline_reason: "Went with a cheaper quote.\nMaybe next year." }),
+  quoteIn("converted", { status: "converted",
+    linked_invoice_id: "44444444-0000-4000-8000-000000000001" }),
+);
+
 // 15:00 UTC on a fixed weekday: an afternoon greeting, and far enough from
 // midnight that no timezone flips the date.
 const FROZEN_NOW = Date.parse("2026-09-09T15:00:00Z");
