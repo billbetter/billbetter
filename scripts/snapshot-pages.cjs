@@ -599,6 +599,56 @@ SCENARIOS.push(
     steps: (p) => (p.desktop ? [{ clickText: "Reset to Defaults" }, { waitFor: "[role='dialog']" }] : []) }),
 );
 
+// ---- CreateInvoice, from fixed clients, settings, templates and plan ---------
+// Nothing here can send: the buttons that would are never pressed, and the
+// guard blocks every write regardless. The draft the page autosaves is cleared
+// before each load so scenarios cannot inherit one another's form.
+const CREATE_TEMPLATE = {
+  id: "aaaaaaaa-0000-4000-8000-000000000001", user_id: config.session.user.id,
+  template_name: "Kitchen refit", items: DETAIL_ITEMS, notes: "Includes haul-away.",
+  tax_rate: 15, created_date: "2026-08-15T15:00:00Z",
+};
+const JOB_EXPENSES = [
+  { id: "e1", job_id: "77777777-0000-4000-8000-000000000001", description: "Tile adhesive",
+    vendor: "Kent", amount: 64.5, quantity: 3, include_in_invoice: true },
+  { id: "e2", job_id: "77777777-0000-4000-8000-000000000001", description: "Skip rental",
+    amount: 240, billable_amount: 276, include_in_invoice: true },
+  { id: "e3", job_id: "77777777-0000-4000-8000-000000000001", description: "Coffee",
+    amount: 12, include_in_invoice: false },
+];
+const createInvoice = (name, { query = "", subscription = SUBSCRIPTION_ROW, extra = [], steps = () => [] } = {}) => ({
+  name: `create-invoice-${name}`, route: `/CreateInvoice${query}`,
+  clearStorage: ["invoicium_invoice_draft"],
+  mocks: [
+    ...extra,
+    { match: /^Client\?/, body: [DETAIL_CLIENT, { ...DETAIL_CLIENT, id: "66666666-0000-4000-8000-000000000002",
+      name: "Morgan Lee", email: null, phone: "902 555 0102" }] },
+    { match: /^BusinessSettings\?/, body: [SETTINGS_ROW] },
+    { match: /^InvoiceTemplate\?/, body: [CREATE_TEMPLATE] },
+    { match: /^Subscription\?/, body: [subscription] },
+    { match: /^UserSpecialty\?/, body: [{ id: "s1", primary_specialty: "general_contractor" }] },
+    { match: /^Invoice\?/, body: [DETAIL_INVOICE] },
+    { match: /^JobExpense\?/, body: JOB_EXPENSES },
+  ],
+  steps: (p) => [{ waitFor: "text/Job Details" }, ...steps(p)],
+});
+// The client picker is the app's own Select (src/components/ui/select.jsx),
+// not Radix: a plain button, and options marked with data-select-item-value.
+const pickFirstClient = [{ domClick: "form div.relative > button:has(svg.lucide-chevron-down)" },
+  { waitFor: "[data-select-item-value]" }, { domClick: "[data-select-item-value]" }, { wait: 800 }];
+SCENARIOS.push(
+  createInvoice("fixture"),
+  createInvoice("client", { steps: () => pickFirstClient }),
+  createInvoice("recurring", { steps: () => [{ domClick: "label input[type='checkbox'].sr-only" }, { wait: 400 }] }),
+  createInvoice("job-expenses", { query: "?jobId=77777777-0000-4000-8000-000000000001" }),
+  createInvoice("edit", { query: `?edit=${DETAIL_INVOICE.id}`, steps: () => [{ wait: 800 }] }),
+  createInvoice("limit", { subscription: { ...SUBSCRIPTION_ROW, transactions_used_this_month: 999 },
+    steps: () => [...pickFirstClient, { clickContains: "Save & Download" }, { waitFor: "[role='dialog']" }] }),
+  createInvoice("template-edit", { steps: () => [{ click: "button[aria-haspopup='menu']:has(svg.lucide-ellipsis-vertical)" },
+    { waitFor: "[role='menuitem']" }, { click: "[role='menuitem']" }, { waitFor: "[role='dialog']" }] }),
+  createInvoice("save-template", { steps: () => [{ clickContains: "Save" }, { waitFor: "[role='dialog']" }] }),
+);
+
 // 15:00 UTC on a fixed weekday: an afternoon greeting, and far enough from
 // midnight that no timezone flips the date.
 const FROZEN_NOW = Date.parse("2026-09-09T15:00:00Z");
@@ -739,6 +789,9 @@ async function snapshotRoute(context, profile, route, scenario) {
     route,
     async (p) => {
       await freezeTimeAndRandom(p);
+      if (scenario?.clearStorage) {
+        await p.evaluateOnNewDocument((keys) => keys.forEach((k) => localStorage.removeItem(k)), scenario.clearStorage);
+      }
       p.on("console", (m) => {
         if (m.type() === "error") consoleErrors.push(m.text().replace(/\s+/g, " ").slice(0, 200));
       });

@@ -2,7 +2,6 @@ import React, { useState, useEffect } from "react";
 import { InvokeLLM } from "@/integrations/Core";
 import { LINE_ITEMS } from "@/lib/ai/schemas";
 import { applyRequestedTotal } from "@/lib/ai/lineItems";
-import { VISION_ACCEPT, unscannableReason } from "@/lib/ai/schemas";
 import { aiFailureMessage } from "@/lib/ai/failure";
 import { useNavigate, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
@@ -15,66 +14,38 @@ import { issuedPatch } from "@/lib/invoiceIssued";
 import { markTimeEntriesInvoiced } from "@/lib/timeTracking";
 import { generateInvoicePDF } from "@/functions/generateInvoicePDF";
 import { deliverPdf } from "@/lib/pdfDelivery";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
-import {
-  Sparkles,
-  Mic,
-  Plus,
-  Trash2,
-  Loader2,
-  CheckCircle,
-  AlertCircle,
-  Save,
-  Zap,
-  MoreVertical,
-  Edit,
-  RefreshCw,
-  Download,
-  HardHat,
-  Wrench,
-  ClipboardList,
-  Calendar,
-  X,
-  FileText,
-  Upload,
-  Camera as CameraIcon,
-  Receipt,
-  Info,
-} from "lucide-react";
-import { format, addDays, addWeeks, addMonths, addYears } from "date-fns";
+import { Card, CardContent } from "@/components/ui/card";
+import { format, addDays } from "date-fns";
 import { markStageReleased } from "@/lib/paymentPlan";
 import { canEditInvoice } from "@/lib/invoiceVoid";
 import VoiceInput from "../components/invoice/VoiceInput";
-import ServiceAutofill from "../components/invoice/ServiceAutofill";
 import InvoiceSuccessDialog from "../components/invoice/InvoiceSuccessDialog";
 import {
   SaveTemplateDialog,
   EditTemplateDialog,
   DeleteTemplateDialog,
 } from "../components/invoice/TemplateDialogs";
+import CameraAnalyzer from "@/components/invoice/create/CameraAnalyzer";
+import { calculateNextDate, calculateTotals } from "@/components/invoice/create/invoiceFormMath";
+import useInvoiceTemplates from "@/components/invoice/create/useInvoiceTemplates";
+import { lineItemsPrompt } from "@/components/invoice/create/lineItemsPrompt";
+import CreateInvoiceHeader from "@/components/invoice/create/CreateInvoiceHeader";
+import LimitReachedDialog from "@/components/invoice/create/LimitReachedDialog";
+import RecentWorkOrdersCard from "@/components/invoice/create/RecentWorkOrdersCard";
+import JobExpensesImportCard from "@/components/invoice/create/JobExpensesImportCard";
+import ServiceTemplatesCard from "@/components/invoice/create/ServiceTemplatesCard";
+import RecurringToggleCard from "@/components/invoice/create/RecurringToggleCard";
+import RecurringScheduleCard from "@/components/invoice/create/RecurringScheduleCard";
+import JobDetailsHeader from "@/components/invoice/create/JobDetailsHeader";
+import ClientPicker from "@/components/invoice/create/ClientPicker";
+import DueDateField from "@/components/invoice/create/DueDateField";
+import PaymentTermsField from "@/components/invoice/create/PaymentTermsField";
+import LineItemsEditor from "@/components/invoice/create/LineItemsEditor";
+import TaxRateField from "@/components/invoice/create/TaxRateField";
+import InvoiceTotalsSummary from "@/components/invoice/create/InvoiceTotalsSummary";
+import JobNotesField from "@/components/invoice/create/JobNotesField";
+import InvoiceFormActions from "@/components/invoice/create/InvoiceFormActions";
+import LivePreviewPanel from "@/components/invoice/create/LivePreviewPanel";
 
 const STORAGE_KEY = "invoicium_invoice_draft";
 
@@ -83,344 +54,11 @@ const STORAGE_KEY = "invoicium_invoice_draft";
 // old entry as it moved it -- and is removed now that the rename is far enough
 // behind.
 
-// Camera Analyzer Component with proper dark mode colors
-const CameraAnalyzer = ({ onAnalyze, className }) => {
-  const [description, setDescription] = useState("");
-  const [loading, setLoading] = useState(false);
-  const [image, setImage] = useState(null);
-  const [imageFile, setImageFile] = useState(null);
-  const [error, setError] = useState("");
-
-  // The photo used to be decoration. handleFileChange kept only an object URL
-  // for the preview, handleGenerate waited 1500ms to look like it was thinking
-  // and then sent `description` alone, and the button was disabled without
-  // text -- so "upload a photo" produced an invoice written from the caption,
-  // or from nothing. A receipt photographed and handed to this came back as
-  // generic labour and materials lines, because that is what the model writes
-  // when it is asked to price a job it cannot see.
-  const handleGenerate = async () => {
-    if (!description.trim() && !imageFile) return;
-    setLoading(true);
-    setError("");
-    try {
-      let fileUrl = null;
-      if (imageFile) {
-        const up = await sdk.integrations.Core.UploadFile({ file: imageFile });
-        // Loudly. UploadFile reports failure rather than throwing, and
-        // continuing without the photo is how an invented invoice reaches
-        // someone who believes their photo was read.
-        if (!up?.success || !up.file_url) {
-          setError(
-            `That photo could not be uploaded${up?.error ? `: ${up.error}` : ""}, so it was not read. Try again, or describe the work instead.`,
-          );
-          return;
-        }
-        fileUrl = up.file_url;
-      }
-      if (onAnalyze) await onAnalyze(description, fileUrl);
-      setDescription("");
-      setImage(null);
-      setImageFile(null);
-    } finally {
-      setLoading(false);
-    }
-  };
-
-  const handleFileChange = (e) => {
-    const file = e.target.files[0];
-    if (!file) return;
-    const reason = unscannableReason(file);
-    if (reason) {
-      setError(reason);
-      e.target.value = "";
-      return;
-    }
-    setError("");
-    setImageFile(file);
-    setImage(URL.createObjectURL(file));
-    e.target.value = ""; // allow re-picking the same file
-  };
-
-  return (
-    <Card
-      className={`border-0 shadow-lg bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-ink-200 dark:ring-ink-700 ${className}`}
-    >
-      <CardContent className="p-4 sm:p-6 space-y-4">
-        {/* Header */}
-        <div className="flex items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center ring-1 ring-brand-200 dark:ring-brand-700 shrink-0 dark:bg-brand-900/30">
-            <Sparkles className="w-5 h-5 text-brand-700 dark:text-brand-400" />
-          </div>
-          <div className="min-w-0 flex-1">
-            <h3 className="text-base sm:text-lg font-black text-content dark:text-ink-50 truncate">
-              AI Assistant
-            </h3>
-            <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
-              Describe the work or upload a photo
-            </p>
-          </div>
-        </div>
-
-        {/* Input Area */}
-        <div className="space-y-2">
-          <Textarea
-            value={description}
-            onChange={(e) => setDescription(e.target.value)}
-            placeholder="e.g., Replace kitchen backsplash, install new flooring..."
-            className="min-h-[80px] sm:min-h-[100px] border-line dark:border-ink-600 bg-surface-sunken dark:bg-surface-inverted-deep text-content dark:text-ink-50 placeholder:text-content-muted dark:placeholder:text-content-body focus:border-info-500 focus:ring-info-500/20 resize-none text-sm sm:text-base dark:dark:placeholder:text-ink-300"
-          />
-          <p className="text-xs text-content-muted dark:text-content-muted">
-            Describe the work you did. Include hours worked or desired total if
-            known.
-          </p>
-        </div>
-
-        {/* Photo Buttons */}
-        <div className="grid grid-cols-2 gap-2 sm:gap-3">
-          <Button
-            type="button"
-            variant="outline"
-            className="h-16 sm:h-20 border-dashed border-2 border-line-strong dark:border-ink-600 hover:border-info-400 dark:hover:border-info-500 hover:bg-info-50 dark:hover:bg-info-900/20 flex flex-col gap-1 sm:gap-2 text-ink-700 dark:text-ink-300"
-            onClick={() => document.getElementById("camera-input")?.click()}
-          >
-            <CameraIcon className="w-5 h-5 sm:w-6 sm:h-6 text-content-subtle dark:text-content-muted" />
-            <span className="text-xs sm:text-sm font-medium">Take Photo</span>
-          </Button>
-          <Button
-            type="button"
-            variant="outline"
-            className="h-16 sm:h-20 border-dashed border-2 border-line-strong dark:border-ink-600 hover:border-info-400 dark:hover:border-info-500 hover:bg-info-50 dark:hover:bg-info-900/20 flex flex-col gap-1 sm:gap-2 text-ink-700 dark:text-ink-300"
-            onClick={() => document.getElementById("file-input")?.click()}
-          >
-            <Upload className="w-5 h-5 sm:w-6 sm:h-6 text-content-subtle dark:text-content-muted" />
-            <span className="text-xs sm:text-sm font-medium">Upload Photo</span>
-          </Button>
-          <input
-            id="camera-input"
-            type="file"
-            accept={VISION_ACCEPT}
-            capture="environment"
-            className="hidden"
-            onChange={handleFileChange}
-          />
-          <input
-            id="file-input"
-            type="file"
-            accept={VISION_ACCEPT}
-            className="hidden"
-            onChange={handleFileChange}
-          />
-        </div>
-
-        {/* Image Preview */}
-        {image && (
-          <div className="relative rounded-lg overflow-hidden border border-line dark:border-ink-700">
-            <img
-              src={image}
-              alt="Preview"
-              className="w-full h-28 sm:h-32 object-cover"
-            />
-            <button
-              onClick={() => {
-                setImage(null);
-                setImageFile(null);
-              }}
-              className="absolute top-2 right-2 w-6 h-6 bg-surface-inverted/80 dark:bg-surface-inverted-deep/80 text-content-inverted rounded-full flex items-center justify-center hover:bg-surface-inverted transition-colors"
-            >
-              <X className="w-3 h-3" />
-            </button>
-          </div>
-        )}
-
-        {error && (
-          <p className="text-xs font-medium text-danger-600 dark:text-danger-400">
-            {error}
-          </p>
-        )}
-
-        {/* Generate Button */}
-        <Button
-          type="button"
-          onClick={handleGenerate}
-          disabled={loading || (!description.trim() && !imageFile)}
-          className="w-full h-11 sm:h-12 bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover text-content-inverted font-medium shadow-lg disabled:opacity-50 disabled:cursor-not-allowed transition-all text-sm sm:text-base"
-        >
-          {loading ? (
-            <>
-              <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              Analyzing...
-            </>
-          ) : (
-            <>
-              <Sparkles className="w-4 h-4 mr-2" />
-              Generate Invoice Items
-            </>
-          )}
-        </Button>
-      </CardContent>
-    </Card>
-  );
-};
-
-// Inline Invoice Preview Component
-const InvoicePreview = ({ invoice, settings }) => {
-  if (!invoice) return null;
-
-  return (
-    <div className="bg-surface dark:bg-surface-inverted rounded-lg shadow-sm border border-line dark:border-ink-700 overflow-hidden">
-      {/* Preview Header */}
-      <div className="bg-surface-sunken dark:bg-surface-inverted-deep p-3 sm:p-4 text-content dark:text-content-inverted border-b border-line dark:border-ink-800">
-        <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start gap-2">
-          <div className="min-w-0">
-            <h2 className="text-base sm:text-lg font-black">INVOICE</h2>
-            <p className="text-content-muted dark:text-content-subtle text-xs sm:text-sm mt-0.5 font-mono truncate">
-              #{settings?.invoice_prefix || "INV"}-XXXXX
-            </p>
-          </div>
-          <div className="sm:text-right min-w-0">
-            {settings?.business_name && (
-              <p className="font-semibold text-xs sm:text-sm truncate">
-                {settings.business_name}
-              </p>
-            )}
-            {settings?.address && (
-              <p className="text-content-muted dark:text-content-subtle text-xs truncate hidden sm:block">
-                {settings.address}
-              </p>
-            )}
-          </div>
-        </div>
-      </div>
-
-      {/* Preview Body */}
-      <div className="p-3 sm:p-4 space-y-3 sm:space-y-4">
-        {/* Client Info */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 sm:gap-4">
-          <div className="min-w-0">
-            <p className="text-xs font-semibold text-content-muted dark:text-content-muted uppercase tracking-wider mb-0.5">
-              Bill To
-            </p>
-            <p className="text-xs sm:text-sm font-semibold text-content dark:text-ink-100 truncate">
-              {invoice.client_name || "Client Name"}
-            </p>
-            {invoice.client_email && (
-              <p className="text-xs text-content-body dark:text-content-subtle truncate">
-                {invoice.client_email}
-              </p>
-            )}
-          </div>
-          <div className="sm:text-right min-w-0">
-            <p className="text-xs font-semibold text-content-muted dark:text-content-muted uppercase tracking-wider mb-0.5">
-              Due Date
-            </p>
-            <p className="text-xs sm:text-sm font-medium text-content dark:text-ink-100">
-              {invoice.due_date
-                ? format(new Date(invoice.due_date), "MMM dd, yyyy")
-                : "Not set"}
-            </p>
-          </div>
-        </div>
-
-        {/* Line Items Table */}
-        <div className="border border-line dark:border-ink-700 rounded-lg overflow-hidden">
-          <table className="w-full text-xs">
-            <thead className="bg-ink-100 dark:bg-ink-800 border-b border-line dark:border-ink-700">
-              <tr>
-                <th className="text-left p-2 font-semibold text-ink-700 dark:text-ink-300">
-                  Item
-                </th>
-                <th className="text-right p-2 font-semibold text-ink-700 dark:text-ink-300 w-12">
-                  Qty
-                </th>
-                <th className="text-right p-2 font-semibold text-ink-700 dark:text-ink-300 w-16 hidden sm:table-cell">
-                  Rate
-                </th>
-                <th className="text-right p-2 font-semibold text-ink-700 dark:text-ink-300 w-16">
-                  Amt
-                </th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-line dark:divide-ink-700">
-              {invoice.items?.map((item, idx) => (
-                <tr key={idx} className="bg-surface dark:bg-surface-inverted">
-                  <td className="p-2 text-content dark:text-ink-100 font-medium truncate max-w-[100px] sm:max-w-[150px]">
-                    {item.description || "—"}
-                  </td>
-                  <td className="p-2 text-right text-content-body dark:text-content-subtle">
-                    {item.quantity}
-                  </td>
-                  <td className="p-2 text-right text-content-body dark:text-content-subtle hidden sm:table-cell">
-                    ${item.rate?.toFixed(2)}
-                  </td>
-                  <td className="p-2 text-right font-semibold text-content dark:text-ink-100">
-                    ${item.amount?.toFixed(2)}
-                  </td>
-                </tr>
-              ))}
-              {(!invoice.items || invoice.items.length === 0) && (
-                <tr>
-                  <td
-                    colSpan="4"
-                    className="p-3 text-center text-content-subtle dark:text-content-muted italic text-xs"
-                  >
-                    No items added
-                  </td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
-
-        {/* Totals */}
-        <div className="space-y-1 border-t border-line dark:border-ink-700 pt-2">
-          <div className="flex justify-between text-xs">
-            <span className="text-content-body dark:text-content-subtle">
-              Subtotal
-            </span>
-            <span className="font-medium text-content dark:text-ink-100">
-              ${invoice.subtotal?.toFixed(2) || "0.00"}
-            </span>
-          </div>
-          {invoice.tax_rate > 0 && (
-            <div className="flex justify-between text-xs">
-              <span className="text-content-body dark:text-content-subtle">
-                Tax ({invoice.tax_rate}%)
-              </span>
-              <span className="font-medium text-content dark:text-ink-100">
-                ${invoice.tax_amount?.toFixed(2) || "0.00"}
-              </span>
-            </div>
-          )}
-          <div className="flex justify-between text-base sm:text-lg font-bold pt-1 border-t border-line dark:border-ink-700">
-            <span className="text-content dark:text-ink-50">Total</span>
-            <span className="text-brand-700 dark:text-brand-400">
-              ${invoice.total?.toFixed(2) || "0.00"}
-            </span>
-          </div>
-        </div>
-
-        {/* Notes */}
-        {invoice.notes && (
-          <div className="bg-surface-sunken dark:bg-ink-800/50 p-2 sm:p-3 rounded-lg border border-line dark:border-ink-700">
-            <p className="text-xs font-semibold text-ink-700 dark:text-ink-300 uppercase tracking-wider mb-0.5">
-              Notes
-            </p>
-            <p className="text-xs text-content-body dark:text-content-subtle line-clamp-3">
-              {invoice.notes}
-            </p>
-          </div>
-        )}
-      </div>
-    </div>
-  );
-};
-
 export default function CreateInvoice() {
   const navigate = useNavigate();
   const location = useLocation();
   const [clients, setClients] = useState([]);
   const [settings, setSettings] = useState(null);
-  const [templates, setTemplates] = useState([]);
   const [isPageLoading, setIsPageLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [showVoiceInput, setShowVoiceInput] = useState(false);
@@ -438,16 +76,6 @@ export default function CreateInvoice() {
       emailError: null,
     },
   });
-  const [saveTemplateDialog, setSaveTemplateDialog] = useState(false);
-  const [editTemplateDialog, setEditTemplateDialog] = useState(false);
-  const [deleteTemplateDialog, setDeleteTemplateDialog] = useState({
-    open: false,
-    template: null,
-  });
-  const [templateName, setTemplateName] = useState("");
-  const [editingTemplate, setEditingTemplate] = useState(null);
-  const [savingTemplate, setSavingTemplate] = useState(false);
-  const [deletingTemplate, setDeletingTemplate] = useState(false);
   const [user, setUser] = useState(null);
   const [subscription, setSubscription] = useState(null);
   const [proceedWithOverage, setProceedWithOverage] = useState(false);
@@ -499,6 +127,13 @@ export default function CreateInvoice() {
     }
     return prefillData || defaultFormData;
   });
+  const {
+    templates, setTemplates, saveTemplateDialog, setSaveTemplateDialog,
+    editTemplateDialog, setEditTemplateDialog, deleteTemplateDialog, setDeleteTemplateDialog,
+    templateName, setTemplateName, editingTemplate, savingTemplate, deletingTemplate,
+    handleLoadTemplate, handleSaveAsTemplate, handleOpenEditTemplate, handleUpdateTemplate,
+    handleDeleteTemplate,
+  } = useInvoiceTemplates({ user, formData, setFormData });
 
   useEffect(() => {
     loadInitialData();
@@ -658,13 +293,6 @@ export default function CreateInvoice() {
     setIsPageLoading(false);
   };
 
-  const calculateTotals = (items, taxRate) => {
-    const subtotal = items.reduce((sum, item) => sum + (item.amount || 0), 0);
-    const tax_amount = (subtotal * taxRate) / 100;
-    const total = subtotal + tax_amount;
-    return { subtotal, tax_amount, total };
-  };
-
   const handleItemChange = (index, field, value) => {
     const newItems = [...formData.items];
     newItems[index] = { ...newItems[index], [field]: value };
@@ -731,111 +359,6 @@ export default function CreateInvoice() {
     }
   };
 
-  const handleLoadTemplate = (template) => {
-    const taxRateToUse =
-      template.tax_rate !== undefined ? template.tax_rate : formData.tax_rate;
-    const totals = calculateTotals(template.items, taxRateToUse);
-
-    setFormData({
-      ...formData,
-      items: template.items,
-      notes: template.notes || formData.notes,
-      tax_rate: taxRateToUse,
-      ...totals,
-    });
-  };
-
-  const handleSaveAsTemplate = async () => {
-    if (!templateName.trim()) {
-      alert("Please enter a template name");
-      return;
-    }
-
-    setSavingTemplate(true);
-    try {
-      await sdk.entities.InvoiceTemplate.create({
-        user_id: user.id,
-        template_name: templateName,
-        items: formData.items,
-        notes: formData.notes,
-        tax_rate: formData.tax_rate,
-      });
-
-      const templateData = await sdk.entities.InvoiceTemplate.filter(
-        { user_id: user.id },
-        "-created_date",
-      );
-      setTemplates(templateData);
-
-      setSaveTemplateDialog(false);
-      setTemplateName("");
-      alert("Template saved successfully!");
-    } catch (error) {
-      console.error("Error saving template:", error);
-      alert("Failed to save template. Please try again.");
-    }
-    setSavingTemplate(false);
-  };
-
-  const handleOpenEditTemplate = (template) => {
-    setEditingTemplate(template);
-    setTemplateName(template.template_name);
-    setEditTemplateDialog(true);
-  };
-
-  const handleUpdateTemplate = async () => {
-    if (!templateName.trim()) {
-      alert("Please enter a template name");
-      return;
-    }
-
-    setSavingTemplate(true);
-    try {
-      await sdk.entities.InvoiceTemplate.update(editingTemplate.id, {
-        template_name: templateName,
-        items: editingTemplate.items,
-        notes: editingTemplate.notes,
-        tax_rate: editingTemplate.tax_rate,
-      });
-
-      const templateData = await sdk.entities.InvoiceTemplate.filter(
-        { user_id: user.id },
-        "-created_date",
-      );
-      setTemplates(templateData);
-
-      setEditTemplateDialog(false);
-      setEditingTemplate(null);
-      setTemplateName("");
-      alert("Template updated successfully!");
-    } catch (error) {
-      console.error("Error updating template:", error);
-      alert("Failed to update template. Please try again.");
-    }
-    setSavingTemplate(false);
-  };
-
-  const handleDeleteTemplate = async () => {
-    if (!deleteTemplateDialog.template) return;
-
-    setDeletingTemplate(true);
-    try {
-      await sdk.entities.InvoiceTemplate.delete(
-        deleteTemplateDialog.template.id,
-      );
-      const templateData = await sdk.entities.InvoiceTemplate.filter(
-        { user_id: user.id },
-        "-created_date",
-      );
-      setTemplates(templateData);
-      setDeleteTemplateDialog({ open: false, template: null });
-    } catch (error) {
-      console.error("Error deleting template:", error);
-      alert("Failed to delete template. Please try again.");
-    }
-    setDeletingTemplate(false);
-  };
-
   const handleAISuggest = async (jobDescription, fileUrl = null) => {
     try {
       const businessLocation = settings?.address || "";
@@ -850,67 +373,7 @@ export default function CreateInvoice() {
       const country = isCanada ? "Canada" : "United States";
 
       const response = await InvokeLLM({
-        prompt: `You are a pricing expert for contracting services in ${country}. Based on this job description, suggest invoice line items with realistic market rates for ${country}.
-
-Job: ${jobDescription || "(no written description - work from the attached photo)"}
-Location: ${country}
-Currency: ${currency}
-Specialty: ${userSpecialty}
-
-CRITICAL PRICING REQUIREMENTS:
-- Use REALISTIC ${currency} market rates for ${country} (Canada rates are typically 15-25% higher than US)
-- Research current 2025 market rates for the specialty: ${userSpecialty}
-- Account for labor costs, materials, overhead, and profit margins typical in ${country}
-- For labor: ${country === "Canada" ? "$60-$150/hr" : "$50-$120/hr"} depending on complexity
-- For materials: Add 20-30% markup over wholesale cost
-
-EXACT PRICE EXTRACTION - HIGHEST PRIORITY:
-- If the user specifies a price for an item (e.g., "lock removal $50", "furnace repair for $200"), USE THAT EXACT PRICE as the rate
-- Extract prices from patterns like: "$50", "for $200", "at $75", "costs $100"
-- When a price is explicitly stated, DO NOT modify it based on market rates
-- If no price is specified, then use realistic market rates
-- If user mentions a total amount for the entire job, distribute it across line items proportionally
-
-CRITICAL CALCULATION RULES:
-- quantity × rate MUST equal the line item total
-- For "10 hours @ $75/hr" → quantity=10, rate=75 (NOT rate=750)
-- The "rate" field is the per-unit price, NOT the total
-- Double-check your math: quantity × rate = correct total
-- Example: 5 items @ $20 each → quantity=5, rate=20, total=100
-- Example: "lock removal $50" → quantity=1, rate=50, total=50
-
-${
-  fileUrl
-    ? `THE ATTACHED PHOTO OUTRANKS EVERY PRICING RULE ABOVE.
-
-If it is a RECEIPT, supplier invoice or order confirmation, you are
-TRANSCRIBING it, not estimating:
-- Output exactly one line per item printed on it -- no more. Three items on the
-  receipt means three lines out. The "2-4 line items" guidance below does NOT
-  apply to a receipt.
-- Never invent a line. No accessories, delivery, labour, cleanup or contingency
-  unless the receipt itself prints one.
-- ALWAYS use quantity=1, and put the line's printed money amount -- the one at
-  the right-hand edge of that line -- in "rate". Do not split it into a unit
-  price, and do not carry over a quantity like "2@" or "3@" from the receipt.
-  Measured, splitting is where this goes wrong: a line reading "2@36.55" with
-  73.10 at the edge came back as quantity=2 with rate=73.10 in three runs out
-  of four, billing 146.20 for 73.10 of goods. Quantity 1 at the printed amount
-  cannot make that mistake, and the contractor can split it afterwards.
-- Skip SUBTOTAL, SALES TAX, TOTAL, DEBIT, card and auth lines. Not items.
-
-If it shows a JOB SITE instead, price the work visible in it as normal.
-
-`
-    : ""
-}FORMATTING REQUIREMENTS:
-- Keep descriptions SHORT and CLEAR (e.g., "HVAC System Inspection" NOT "Inspection of heating and cooling system")
-- Use professional service names without explanations
-- Be direct and to the point
-- Provide 2-4 line items
-- Rates should reflect ${currency} pricing
-
-Provide line items in this format.`,
+        prompt: lineItemsPrompt({ country, currency, userSpecialty, jobDescription, fileUrl }),
         ...(fileUrl && { file_urls: [fileUrl] }),
         response_json_schema: LINE_ITEMS,
       });
@@ -938,24 +401,6 @@ Provide line items in this format.`,
   const handleVoiceTranscript = async (transcript) => {
     await handleAISuggest(transcript);
     setShowVoiceInput(false);
-  };
-
-  const calculateNextDate = (startDate, frequency) => {
-    const date = new Date(startDate);
-    switch (frequency) {
-      case "weekly":
-        return format(addWeeks(date, 1), "yyyy-MM-dd");
-      case "biweekly":
-        return format(addWeeks(date, 2), "yyyy-MM-dd");
-      case "monthly":
-        return format(addMonths(date, 1), "yyyy-MM-dd");
-      case "quarterly":
-        return format(addMonths(date, 3), "yyyy-MM-dd");
-      case "yearly":
-        return format(addYears(date, 1), "yyyy-MM-dd");
-      default:
-        return format(addMonths(date, 1), "yyyy-MM-dd");
-    }
   };
 
   const validateForm = () => {
@@ -1448,1034 +893,129 @@ Provide line items in this format.`,
   return (
     <div className="min-h-screen bg-surface-sunken dark:bg-surface-inverted-deep transition-colors duration-300">
       <div className="w-full max-w-7xl mx-auto px-3 sm:px-4 lg:px-8 py-4 sm:py-6 lg:py-8">
-        {/* Header */}
-        <div className="mb-4 sm:mb-6 lg:mb-8">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 sm:gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-ink-800 flex items-center justify-center shadow-lg ring-1 ring-ink-900/10 dark:ring-content-inverted/10 shrink-0">
-                <HardHat className="w-5 h-5 sm:w-6 sm:h-6 text-content-inverted" />
-              </div>
-              <div className="min-w-0 flex-1">
-                <h1 className="text-xl sm:text-2xl lg:text-3xl font-black text-content dark:text-ink-50 tracking-tight truncate">
-                  {isEditing
-                    ? "Edit Invoice"
-                    : isRecurring
-                      ? "Recurring Invoice"
-                      : "New Invoice"}
-                </h1>
-                <p className="text-content-body dark:text-content-subtle text-xs sm:text-sm mt-0.5 truncate">
-                  {isRecurring
-                    ? "Set up automatic billing for ongoing contracts"
-                    : "Create professional invoices for your trade services"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2 shrink-0">
-              <div className="flex items-center gap-2 px-3 py-1.5 sm:px-4 sm:py-2 bg-surface dark:bg-surface-inverted rounded-xl border border-line dark:border-ink-700 shadow-sm">
-                <Wrench className="w-4 h-4 text-brand-700 dark:text-brand-400" />
-                <span className="text-xs sm:text-sm font-medium text-ink-700 dark:text-ink-300 capitalize truncate max-w-[100px] sm:max-w-[150px]">
-                  {userSpecialty.replace("_", " ")}
-                </span>
-              </div>
-            </div>
-          </div>
-        </div>
+        <CreateInvoiceHeader
+          isEditing={isEditing}
+          isRecurring={isRecurring}
+          userSpecialty={userSpecialty}
+        />
 
-        {/* Limit Reached Dialog */}
-        <Dialog open={showLimitReached} onOpenChange={setShowLimitReached}>
-          <DialogContent className="sm:max-w-md border-line dark:border-ink-700 bg-surface dark:bg-surface-inverted shadow-2xl">
-            <DialogHeader>
-              <DialogTitle className="flex items-center gap-3 text-danger-600 dark:text-danger-400">
-                <div className="w-10 h-10 rounded-full bg-danger-100 dark:bg-danger-900/30 flex items-center justify-center shrink-0">
-                  <AlertCircle className="w-6 h-6" />
-                </div>
-                Monthly Limit Reached
-              </DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4">
-              <div className="bg-ink-100 dark:bg-ink-800 rounded-xl p-4 border border-line dark:border-ink-700">
-                <p className="text-content dark:text-ink-100 font-semibold mb-2">
-                  You've reached your monthly transaction limit
-                </p>
-                <p className="text-sm text-content-body dark:text-content-subtle">
-                  You've used{" "}
-                  <strong className="text-content dark:text-ink-50">
-                    {subscription?.transactions_used_this_month || 0}
-                  </strong>{" "}
-                  of{" "}
-                  <strong className="text-content dark:text-ink-50">
-                    {isUnlimited(subscription)
-                      ? "unlimited"
-                      : getTransactionAllowance(subscription)}
-                  </strong>{" "}
-                  transactions this month.
-                </p>
-              </div>
-              <Button
-                onClick={() => {
-                  setShowLimitReached(false);
-                  navigate(createPageUrl("Pricing"));
-                }}
-                className="w-full bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover text-content-inverted shadow-lg h-11"
-              >
-                Upgrade Your Plan
-              </Button>
-            </div>
-          </DialogContent>
-        </Dialog>
+        <LimitReachedDialog
+          navigate={navigate}
+          setShowLimitReached={setShowLimitReached}
+          showLimitReached={showLimitReached}
+          subscription={subscription}
+        />
 
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 sm:gap-6 lg:gap-8 items-start">
           <div className="space-y-4 sm:space-y-6 w-full min-w-0">
-            {/* Smart Suggestions */}
-            {showSuggestions && similarSuggestions.length > 0 && (
-              <Card className="border-0 shadow-lg bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-brand-100 dark:ring-brand-800">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center justify-between mb-4">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center ring-1 ring-brand-200 dark:ring-brand-700 shrink-0 dark:bg-brand-900/30">
-                        <Sparkles className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-base sm:text-lg font-black text-content dark:text-ink-50 truncate">
-                          Recent Work Orders
-                        </h3>
-                        <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
-                          Quickly bill for similar jobs
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setShowSuggestions(false)}
-                      className="h-8 w-8 shrink-0 text-content-subtle hover:text-content-body dark:text-content-muted dark:hover:text-ink-300"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="space-y-2 sm:space-y-3">
-                    {similarSuggestions.map((suggestion) => (
-                      <Button
-                        key={suggestion.id}
-                        type="button"
-                        variant="outline"
-                        onClick={() => {
-                          const totals = calculateTotals(
-                            suggestion.items,
-                            formData.tax_rate,
-                          );
-                          setFormData({
-                            ...formData,
-                            items: suggestion.items,
-                            ...totals,
-                          });
-                          setShowSuggestions(false);
-                        }}
-                        className="w-full text-left justify-start h-auto py-3 px-3 sm:px-4 border-line dark:border-ink-600 hover:border-brand-400 dark:hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 transition-all bg-surface-sunken dark:bg-ink-800 text-ink-700 dark:text-ink-200 group"
-                      >
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center justify-between mb-1 gap-2">
-                            <span className="text-xs sm:text-sm font-semibold text-brand-700 dark:text-brand-400 truncate">
-                              {suggestion.invoice_number}
-                            </span>
-                            <span className="text-base sm:text-lg font-bold text-content dark:text-ink-50 shrink-0">
-                              ${suggestion.total.toFixed(2)}
-                            </span>
-                          </div>
-                          <div className="text-xs sm:text-sm text-content-body dark:text-content-subtle truncate">
-                            {suggestion.items
-                              .slice(0, 2)
-                              .map((item) => item.description)
-                              .join(", ")}
-                            {suggestion.items.length > 2 && (
-                              <span className="text-brand-600 dark:text-brand-400 font-medium">
-                                {" "}
-                                +{suggestion.items.length - 2} more
-                              </span>
-                            )}
-                          </div>
-                        </div>
-                      </Button>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <RecentWorkOrdersCard
+              formData={formData}
+              setFormData={setFormData}
+              setShowSuggestions={setShowSuggestions}
+              showSuggestions={showSuggestions}
+              similarSuggestions={similarSuggestions}
+            />
 
-            {/* Job Expenses Import */}
-            {showJobExpenses && jobExpenses.length > 0 && (
-              <Card className="border-0 shadow-lg bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-success-200 dark:ring-success-800">
-                <CardContent className="p-4 sm:p-5">
-                  <div className="flex items-start justify-between gap-3 mb-3">
-                    <div className="flex items-center gap-3 min-w-0">
-                      <div className="w-10 h-10 rounded-xl bg-success-100 dark:bg-success-900/40 flex items-center justify-center shrink-0">
-                        <Receipt className="w-5 h-5 text-success-600 dark:text-success-400" />
-                      </div>
-                      <div className="min-w-0">
-                        <h3 className="text-base font-black text-content dark:text-ink-50">
-                          Job Expenses Tracked
-                        </h3>
-                        <p className="text-xs text-content-muted dark:text-content-subtle">
-                          {jobExpenses.length} expense
-                          {jobExpenses.length !== 1 ? "s" : ""} • Billable: $
-                          {jobExpenses
-                            .reduce(
-                              (s, e) =>
-                                s + (e.billable_amount || e.amount || 0),
-                              0,
-                            )
-                            .toFixed(2)}
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      type="button"
-                      variant="ghost"
-                      size="icon"
-                      onClick={() => setShowJobExpenses(false)}
-                      className="h-7 w-7 shrink-0 text-content-subtle"
-                    >
-                      <X className="w-4 h-4" />
-                    </Button>
-                  </div>
-                  <div className="space-y-1 mb-3 max-h-28 overflow-y-auto">
-                    {jobExpenses.map((exp, i) => (
-                      <div
-                        key={i}
-                        className="flex justify-between text-sm py-1 border-b border-line-subtle dark:border-ink-700 last:border-0"
-                      >
-                        <span className="text-ink-700 dark:text-ink-300 truncate">
-                          {exp.description}
-                        </span>
-                        <span className="font-semibold text-success-600 dark:text-success-400 ml-2 shrink-0">
-                          ${(exp.billable_amount || exp.amount || 0).toFixed(2)}
-                        </span>
-                      </div>
-                    ))}
-                  </div>
-                  <Button
-                    type="button"
-                    onClick={() => {
-                      const expItems = jobExpenses.map((exp) => ({
-                        description:
-                          exp.description +
-                          (exp.vendor ? ` (${exp.vendor})` : ""),
-                        quantity: exp.quantity || 1,
-                        rate:
-                          (exp.billable_amount || exp.amount || 0) /
-                          (exp.quantity || 1),
-                        amount: exp.billable_amount || exp.amount || 0,
-                      }));
-                      const totals = calculateTotals(
-                        expItems,
-                        formData.tax_rate,
-                      );
-                      setFormData((prev) => ({
-                        ...prev,
-                        items: expItems,
-                        ...totals,
-                      }));
-                      setShowJobExpenses(false);
-                    }}
-                    className="w-full bg-brand hover:bg-brand-hover text-content-inverted h-9 text-sm"
-                  >
-                    Import All Expenses as Invoice Items
-                  </Button>
-                </CardContent>
-              </Card>
-            )}
+            <JobExpensesImportCard
+              formData={formData}
+              jobExpenses={jobExpenses}
+              setFormData={setFormData}
+              setShowJobExpenses={setShowJobExpenses}
+              showJobExpenses={showJobExpenses}
+            />
 
-            {/* Templates */}
-            {templates.length > 0 && (
-              <Card className="border-0 shadow-lg bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-ink-200 dark:ring-ink-700">
-                <CardContent className="p-4 sm:p-6">
-                  <div className="flex items-center gap-3 mb-4 min-w-0">
-                    <div className="w-10 h-10 rounded-xl bg-brand-100 flex items-center justify-center shrink-0 dark:bg-brand-900/30">
-                      <Zap className="w-5 h-5 text-brand-600 dark:text-brand-400" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-base sm:text-lg font-black text-content dark:text-ink-50 truncate">
-                        Service Templates
-                      </h3>
-                      <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
-                        Quick-start common jobs
-                      </p>
-                    </div>
-                  </div>
-                  <div className="flex flex-wrap gap-2">
-                    {templates.map((template) => (
-                      <div
-                        key={template.id}
-                        className="flex items-center gap-1 group"
-                      >
-                        <Button
-                          type="button"
-                          variant="outline"
-                          onClick={() => handleLoadTemplate(template)}
-                          className="gap-2 text-xs sm:text-sm h-8 sm:h-9 px-2 sm:px-3 border-line dark:border-ink-600 hover:border-brand-400 dark:hover:border-brand-500 hover:bg-brand-50 dark:hover:bg-brand-900/20 bg-surface-sunken dark:bg-ink-800 text-ink-700 dark:text-ink-200"
-                        >
-                          <ClipboardList className="w-3.5 h-3.5 text-brand-600 dark:text-brand-400" />
-                          <span className="truncate max-w-[100px] sm:max-w-[150px]">
-                            {template.template_name}
-                          </span>
-                        </Button>
-                        <DropdownMenu>
-                          <DropdownMenuTrigger asChild>
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 sm:h-9 sm:w-9 text-content-subtle hover:text-content-body dark:hover:text-ink-300"
-                            >
-                              <MoreVertical className="w-4 h-4" />
-                            </Button>
-                          </DropdownMenuTrigger>
-                          <DropdownMenuContent
-                            align="end"
-                            className="w-48 bg-surface dark:bg-surface-inverted border-line dark:border-ink-700"
-                          >
-                            <DropdownMenuItem
-                              onClick={() => handleOpenEditTemplate(template)}
-                              className="dark:text-ink-200 dark:focus:bg-ink-800 cursor-pointer"
-                            >
-                              <Edit className="w-4 h-4 mr-2 text-brand-700 dark:text-brand-400" />
-                              Edit Template
-                            </DropdownMenuItem>
-                            <DropdownMenuItem
-                              onClick={() =>
-                                setDeleteTemplateDialog({
-                                  open: true,
-                                  template,
-                                })
-                              }
-                              className="text-danger-600 dark:text-danger-400 dark:focus:bg-danger-900/20 cursor-pointer"
-                            >
-                              <Trash2 className="w-4 h-4 mr-2" />
-                              Delete Template
-                            </DropdownMenuItem>
-                          </DropdownMenuContent>
-                        </DropdownMenu>
-                      </div>
-                    ))}
-                  </div>
-                </CardContent>
-              </Card>
-            )}
+            <ServiceTemplatesCard
+              handleLoadTemplate={handleLoadTemplate}
+              handleOpenEditTemplate={handleOpenEditTemplate}
+              setDeleteTemplateDialog={setDeleteTemplateDialog}
+              templates={templates}
+            />
 
-            {/* Camera Analyzer */}
             <CameraAnalyzer onAnalyze={handleAISuggest} />
 
-            {/* Recurring Toggle */}
-            <Card className="border-0 shadow-lg bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-ink-200 dark:ring-ink-700">
-              <CardContent className="p-4 sm:p-6">
-                <div className="flex items-center justify-between gap-4">
-                  <div className="flex items-center gap-3 sm:gap-4 min-w-0">
-                    <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-brand flex items-center justify-center shadow-lg shrink-0">
-                      <RefreshCw className="w-5 h-5 sm:w-6 sm:h-6 text-content-inverted" />
-                    </div>
-                    <div className="min-w-0">
-                      <h3 className="text-base sm:text-lg font-black text-content dark:text-ink-50 truncate">
-                        Recurring Billing
-                      </h3>
-                      <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
-                        For maintenance contracts & retainers
-                      </p>
-                    </div>
-                  </div>
-                  <label className="relative inline-flex items-center cursor-pointer shrink-0">
-                    <input
-                      type="checkbox"
-                      checked={isRecurring}
-                      onChange={(e) => setIsRecurring(e.target.checked)}
-                      className="sr-only peer"
-                    />
-                    <div className="w-12 sm:w-14 h-6 sm:h-7 bg-ink-200 dark:bg-ink-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-info-300 dark:peer-focus:ring-info-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-content-inverted after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-line-strong dark:after:border-ink-600 after:border after:rounded-full after:h-5 sm:after:h-6 after:w-5 sm:after:w-6 after:transition-all peer-checked:bg-info-600 dark:after:bg-surface-inverted"></div>
-                  </label>
-                </div>
-              </CardContent>
-            </Card>
+            <RecurringToggleCard
+              isRecurring={isRecurring}
+              setIsRecurring={setIsRecurring}
+            />
 
-            {/* Recurring Settings */}
-            {isRecurring && (
-              <Card className="border-0 shadow-lg bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-ink-200 dark:ring-ink-700">
-                <CardHeader className="bg-surface-sunken dark:bg-ink-800 border-b border-line-subtle dark:border-ink-700 py-3 sm:py-4 px-4 sm:px-6">
-                  <CardTitle className="text-content dark:text-ink-50 flex items-center gap-2 text-base sm:text-lg">
-                    <Calendar className="w-4 h-4 sm:w-5 sm:h-5 text-brand-700 dark:text-brand-400" />
-                    Schedule Settings
-                  </CardTitle>
-                </CardHeader>
-                <CardContent className="space-y-4 sm:space-y-5 p-4 sm:p-6">
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="template_name"
-                      className="text-ink-700 dark:text-ink-300 font-medium text-sm"
-                    >
-                      Contract Name{" "}
-                      <span className="text-content-muted font-normal">
-                        (Optional)
-                      </span>
-                    </Label>
-                    <Input
-                      id="template_name"
-                      value={recurringSettings.template_name}
-                      onChange={(e) =>
-                        setRecurringSettings({
-                          ...recurringSettings,
-                          template_name: e.target.value,
-                        })
-                      }
-                      placeholder="e.g., Monthly HVAC Maintenance"
-                      className="h-10 sm:h-11 border-line dark:border-ink-600 bg-surface dark:bg-surface-inverted-deep text-content dark:text-ink-50 focus:border-info-500 focus:ring-info-500/20"
-                    />
-                  </div>
+            <RecurringScheduleCard
+              isRecurring={isRecurring}
+              recurringSettings={recurringSettings}
+              setRecurringSettings={setRecurringSettings}
+            />
 
-                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 sm:gap-4">
-                    <div className="space-y-2">
-                      <Label className="text-ink-700 dark:text-ink-300 font-medium text-sm">
-                        Frequency *
-                      </Label>
-                      <Select
-                        value={recurringSettings.frequency}
-                        onValueChange={(value) =>
-                          setRecurringSettings({
-                            ...recurringSettings,
-                            frequency: value,
-                          })
-                        }
-                      >
-                        <SelectTrigger className="h-10 sm:h-11 border-line dark:border-ink-600 bg-surface dark:bg-surface-inverted-deep text-content dark:text-ink-50">
-                          <SelectValue />
-                        </SelectTrigger>
-                        <SelectContent className="bg-surface dark:bg-surface-inverted border-line dark:border-ink-700">
-                          <SelectItem
-                            value="weekly"
-                            className="dark:text-ink-200 dark:focus:bg-ink-800"
-                          >
-                            Weekly
-                          </SelectItem>
-                          <SelectItem
-                            value="biweekly"
-                            className="dark:text-ink-200 dark:focus:bg-ink-800"
-                          >
-                            Bi-weekly
-                          </SelectItem>
-                          <SelectItem
-                            value="monthly"
-                            className="dark:text-ink-200 dark:focus:bg-ink-800"
-                          >
-                            Monthly
-                          </SelectItem>
-                          <SelectItem
-                            value="quarterly"
-                            className="dark:text-ink-200 dark:focus:bg-ink-800"
-                          >
-                            Quarterly
-                          </SelectItem>
-                          <SelectItem
-                            value="yearly"
-                            className="dark:text-ink-200 dark:focus:bg-ink-800"
-                          >
-                            Yearly
-                          </SelectItem>
-                        </SelectContent>
-                      </Select>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label className="text-ink-700 dark:text-ink-300 font-medium text-sm">
-                        Start Date *
-                      </Label>
-                      <Input
-                        id="start_date"
-                        type="date"
-                        value={recurringSettings.start_date}
-                        onChange={(e) =>
-                          setRecurringSettings({
-                            ...recurringSettings,
-                            start_date: e.target.value,
-                          })
-                        }
-                        className="h-10 sm:h-11 border-line dark:border-ink-600 bg-surface dark:bg-surface-inverted-deep text-content dark:text-ink-50 focus:border-info-500 focus:ring-info-500/20"
-                      />
-                    </div>
-                  </div>
-
-                  <div className="space-y-3">
-                    <Label className="text-ink-700 dark:text-ink-300 font-medium text-sm">
-                      End Condition
-                    </Label>
-                    <div className="space-y-3 bg-surface-sunken dark:bg-ink-800/50 p-3 sm:p-4 rounded-xl border border-line dark:border-ink-700">
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="radio"
-                          checked={recurringSettings.end_type === "never"}
-                          onChange={() =>
-                            setRecurringSettings({
-                              ...recurringSettings,
-                              end_type: "never",
-                            })
-                          }
-                          className="w-4 h-4 sm:w-5 sm:h-5 text-info-600 dark:text-info-300 border-line-strong dark:border-ink-600 focus:ring-info-500 dark:bg-ink-700"
-                        />
-                        <span className="text-ink-700 dark:text-ink-300 text-sm">
-                          Never ends
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="radio"
-                          checked={recurringSettings.end_type === "after"}
-                          onChange={() =>
-                            setRecurringSettings({
-                              ...recurringSettings,
-                              end_type: "after",
-                            })
-                          }
-                          className="w-4 h-4 sm:w-5 sm:h-5 text-info-600 dark:text-info-300 border-line-strong dark:border-ink-600 focus:ring-info-500 dark:bg-ink-700"
-                        />
-                        <span className="text-ink-700 dark:text-ink-300 text-sm">
-                          After
-                        </span>
-                        <Input
-                          type="number"
-                          min="1"
-                          value={recurringSettings.occurrences}
-                          onChange={(e) =>
-                            setRecurringSettings({
-                              ...recurringSettings,
-                              occurrences: parseInt(e.target.value) || 1,
-                            })
-                          }
-                          disabled={recurringSettings.end_type !== "after"}
-                          className="w-16 sm:w-20 h-8 sm:h-9 disabled:opacity-50 bg-surface dark:bg-surface-inverted-deep border-line dark:border-ink-600 text-content dark:text-ink-50 text-sm"
-                        />
-                        <span className="text-ink-700 dark:text-ink-300 text-sm">
-                          occurrences
-                        </span>
-                      </label>
-
-                      <label className="flex items-center gap-3 cursor-pointer">
-                        <input
-                          type="radio"
-                          checked={recurringSettings.end_type === "on_date"}
-                          onChange={() =>
-                            setRecurringSettings({
-                              ...recurringSettings,
-                              end_type: "on_date",
-                            })
-                          }
-                          className="w-4 h-4 sm:w-5 sm:h-5 text-info-600 dark:text-info-300 border-line-strong dark:border-ink-600 focus:ring-info-500 dark:bg-ink-700"
-                        />
-                        <span className="text-ink-700 dark:text-ink-300 text-sm">
-                          On date
-                        </span>
-                        <Input
-                          type="date"
-                          value={recurringSettings.end_date}
-                          onChange={(e) =>
-                            setRecurringSettings({
-                              ...recurringSettings,
-                              end_date: e.target.value,
-                            })
-                          }
-                          disabled={recurringSettings.end_type !== "on_date"}
-                          className="h-8 sm:h-9 disabled:opacity-50 bg-surface dark:bg-surface-inverted-deep border-line dark:border-ink-600 text-content dark:text-ink-50 text-sm"
-                        />
-                      </label>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-            )}
-
-            {/* Main Invoice Form */}
             <Card className="border-0 shadow-xl bg-surface dark:bg-surface-inverted overflow-hidden ring-1 ring-ink-200 dark:ring-ink-700">
-              <CardHeader className="border-b border-line-subtle dark:border-ink-700 bg-surface-sunken/50 dark:bg-ink-800/50 py-3 sm:py-4 px-4 sm:px-6">
-                <CardTitle className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 sm:gap-3 text-base sm:text-lg lg:text-xl text-content dark:text-ink-50">
-                  <span className="flex items-center gap-2">
-                    <ClipboardList className="w-4 h-4 sm:w-5 sm:h-5 text-brand-700 dark:text-brand-400" />
-                    Job Details
-                  </span>
-                  <div className="flex gap-2">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setSaveTemplateDialog(true)}
-                      className="gap-1.5 sm:gap-2 border-line-strong dark:border-ink-600 hover:bg-surface-sunken dark:hover:bg-ink-800 text-ink-700 dark:text-ink-300 h-8 sm:h-9 text-xs sm:text-sm"
-                      disabled={formData.items.length === 0}
-                    >
-                      <Save className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-700 dark:text-brand-400" />
-                      <span className="hidden sm:inline">Save Template</span>
-                      <span className="sm:hidden">Save</span>
-                    </Button>
-                    <Button
-                      type="button"
-                      variant="outline"
-                      size="sm"
-                      onClick={() => setShowVoiceInput(true)}
-                      className="gap-1.5 sm:gap-2 border-line-strong dark:border-ink-600 hover:bg-surface-sunken dark:hover:bg-ink-800 text-ink-700 dark:text-ink-300 h-8 sm:h-9 text-xs sm:text-sm"
-                    >
-                      <Mic className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-brand-700 dark:text-brand-400" />
-                      <span className="hidden sm:inline">Voice Input</span>
-                      <span className="sm:hidden">Voice</span>
-                    </Button>
-                  </div>
-                </CardTitle>
-              </CardHeader>
+              <JobDetailsHeader
+                formData={formData}
+                setSaveTemplateDialog={setSaveTemplateDialog}
+                setShowVoiceInput={setShowVoiceInput}
+              />
               <CardContent className="p-4 sm:p-6 space-y-4 sm:space-y-6">
                 <form
                   onSubmit={handleSubmit}
                   className="space-y-4 sm:space-y-6"
                 >
-                  {/* Client Selection */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="client"
-                      className="text-ink-700 dark:text-ink-300 font-medium text-sm flex items-center gap-2"
-                    >
-                      Client *
-                      <span className="text-xs font-normal text-content-muted">
-                        (Property Owner)
-                      </span>
-                    </Label>
-                    <Select
-                      onValueChange={handleClientSelect}
-                      value={formData.client_id}
-                    >
-                      <SelectTrigger className="h-10 sm:h-11 border-line dark:border-ink-600 bg-surface dark:bg-surface-inverted-deep text-content dark:text-ink-50 focus:border-info-500 focus:ring-info-500/20">
-                        <SelectValue placeholder="Select a client">
-                          {selectedClient ? (
-                            <div className="flex items-center gap-2">
-                              <div className="w-6 h-6 sm:w-7 sm:h-7 rounded-full bg-brand-700 flex items-center justify-center text-content-inverted font-semibold text-xs">
-                                {selectedClient.name.charAt(0).toUpperCase()}
-                              </div>
-                              <span className="truncate">
-                                {selectedClient.name}
-                              </span>
-                            </div>
-                          ) : (
-                            "Select a client"
-                          )}
-                        </SelectValue>
-                      </SelectTrigger>
-                      <SelectContent className="max-h-80 bg-surface dark:bg-surface-inverted border-line dark:border-ink-700">
-                        {clients.map((client) => (
-                          <SelectItem
-                            key={client.id}
-                            value={client.id}
-                            className="py-2.5 sm:py-3 dark:text-ink-200 dark:focus:bg-ink-800"
-                          >
-                            <div className="flex items-center gap-2 sm:gap-3">
-                              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-ink-100 dark:bg-ink-800 flex items-center justify-center text-content-body dark:text-content-subtle font-semibold text-xs sm:text-sm">
-                                {client.name.charAt(0).toUpperCase()}
-                              </div>
-                              <div className="min-w-0">
-                                <div className="font-medium text-content dark:text-ink-100 text-sm truncate">
-                                  {client.name}
-                                </div>
-                                {client.email && (
-                                  <div className="text-xs text-content-muted truncate">
-                                    {client.email}
-                                  </div>
-                                )}
-                              </div>
-                            </div>
-                          </SelectItem>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
+                  <ClientPicker
+                    clients={clients}
+                    formData={formData}
+                    handleClientSelect={handleClientSelect}
+                    selectedClient={selectedClient}
+                  />
 
-                  {/* Due Date */}
-                  {!isRecurring && (
-                    <div className="space-y-2">
-                      <Label
-                        htmlFor="due_date"
-                        className="text-ink-700 dark:text-ink-300 font-medium text-sm"
-                      >
-                        Payment Due Date
-                      </Label>
-                      <Input
-                        id="due_date"
-                        type="date"
-                        value={formData.due_date}
-                        onChange={(e) =>
-                          setFormData({ ...formData, due_date: e.target.value })
-                        }
-                        className="h-10 sm:h-11 border-line dark:border-ink-600 bg-surface dark:bg-surface-inverted-deep text-content dark:text-ink-50 focus:border-info-500 focus:ring-info-500/20"
-                      />
-                    </div>
-                  )}
+                  <DueDateField
+                    formData={formData}
+                    isRecurring={isRecurring}
+                    setFormData={setFormData}
+                  />
 
-                  {/* Payment Terms */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="payment_terms"
-                      className="text-ink-700 dark:text-ink-300 font-medium text-sm"
-                    >
-                      Payment Terms
-                    </Label>
-                    <Input
-                      id="payment_terms"
-                      value={formData.payment_terms}
-                      onChange={(e) =>
-                        setFormData({
-                          ...formData,
-                          payment_terms: e.target.value,
-                        })
-                      }
-                      placeholder={
-                        settings?.payment_terms ||
-                        "e.g., Net 30, Due on Receipt"
-                      }
-                      className="h-10 sm:h-11 border-line dark:border-ink-600 bg-surface dark:bg-surface-inverted-deep text-content dark:text-ink-50 focus:border-info-500 focus:ring-info-500/20"
-                    />
-                    {settings?.payment_terms && (
-                      <p className="text-xs text-content-muted flex items-center gap-1.5 mt-1">
-                        <span className="w-1.5 h-1.5 rounded-full bg-brand-600"></span>
-                        Default: {settings.payment_terms}
-                      </p>
-                    )}
-                  </div>
+                  <PaymentTermsField
+                    formData={formData}
+                    setFormData={setFormData}
+                    settings={settings}
+                  />
 
-                  {/* Line Items */}
-                  <div className="space-y-3 sm:space-y-4">
-                    {/* Where prefilled figures came from.
-                        Worth saying out loud rather than leaving the numbers to
-                        speak for themselves: quote figures are ones the client
-                        has already been shown and often agreed, so editing them
-                        means sending something different from what they
-                        approved. Job figures are a fresh calculation from hours
-                        and materials and carry no such promise. The contractor
-                        should know which they are looking at before sending. */}
-                    {prefillData?.prefill_source === "quote" ? (
-                      <div className="flex items-start gap-2 rounded-lg border border-info-200 bg-info-50 p-3 text-sm dark:border-info-800 dark:bg-info-900/20">
-                        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-info-700 dark:text-info-300" />
-                        <p className="text-info-800 dark:text-info-200">
-                          These lines came from the job&apos;s quote — the
-                          figures your client was shown. Change them and the
-                          invoice will no longer match the quote.
-                        </p>
-                      </div>
-                    ) : prefillData?.prefill_source === "plan" ? (
-                      <div className="flex items-start gap-2 rounded-lg border border-line bg-surface-sunken p-3 text-sm dark:border-ink-700 dark:bg-ink-800/50">
-                        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-content-body dark:text-content-subtle" />
-                        <p className="text-content-body dark:text-content-subtle">
-                          One stage of a payment plan. The stage is marked
-                          released once this invoice is saved.
-                        </p>
-                      </div>
-                    ) : prefillData?.prefill_source === "job" ? (
-                      <div className="flex items-start gap-2 rounded-lg border border-line bg-surface-sunken p-3 text-sm dark:border-ink-700 dark:bg-ink-800/50">
-                        <Info className="mt-0.5 h-4 w-4 flex-shrink-0 text-content-body dark:text-content-subtle" />
-                        <p className="text-content-body dark:text-content-subtle">
-                          Worked out from the job&apos;s hours and materials.
-                          Check it before sending.
-                        </p>
-                      </div>
-                    ) : null}
-                    <div className="flex items-center justify-between">
-                      <Label className="text-ink-700 dark:text-ink-300 font-semibold text-sm sm:text-base flex items-center gap-2">
-                        <Wrench className="w-4 h-4 sm:w-5 sm:h-5 text-content-subtle dark:text-content-muted" />
-                        Labor & Materials
-                      </Label>
-                      <Button
-                        type="button"
-                        onClick={addItem}
-                        size="sm"
-                        className="bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover text-content-inverted shadow-md transition-all hover:scale-105 active:scale-95 h-8 sm:h-9"
-                      >
-                        <Plus className="w-3.5 h-3.5 sm:w-4 sm:h-4 mr-1" />
-                        Add
-                      </Button>
-                    </div>
+                  <LineItemsEditor
+                    addItem={addItem}
+                    formData={formData}
+                    handleItemChange={handleItemChange}
+                    prefillData={prefillData}
+                    removeItem={removeItem}
+                    setFormData={setFormData}
+                    userSpecialty={userSpecialty}
+                  />
 
-                    <div className="space-y-2 sm:space-y-3">
-                      {formData.items.map((item, index) => (
-                        <div
-                          key={index}
-                          className="group p-3 sm:p-4 bg-surface dark:bg-surface-inverted-deep border border-line dark:border-ink-700 rounded-xl space-y-2.5 sm:space-y-3 hover:border-info-400 dark:hover:border-info-600 transition-all shadow-sm hover:shadow-md"
-                        >
-                          <div className="flex items-start gap-2 sm:gap-3">
-                            <div className="flex-1 min-w-0 space-y-1.5 sm:space-y-2">
-                              <Label className="text-xs font-semibold text-content-muted dark:text-content-subtle uppercase tracking-wider">
-                                Service Description
-                              </Label>
-                              <ServiceAutofill
-                                value={item.description}
-                                onChange={(value) =>
-                                  handleItemChange(index, "description", value)
-                                }
-                                onServiceSelect={(lineItem) => {
-                                  const newItems = [...formData.items];
-                                  newItems[index] = lineItem;
-                                  const totals = calculateTotals(
-                                    newItems,
-                                    formData.tax_rate,
-                                  );
-                                  setFormData({
-                                    ...formData,
-                                    items: newItems,
-                                    ...totals,
-                                  });
-                                }}
-                                userSpecialty={userSpecialty}
-                              />
-                            </div>
-                            {formData.items.length > 1 && (
-                              <Button
-                                type="button"
-                                variant="ghost"
-                                size="icon"
-                                onClick={() => removeItem(index)}
-                                className="mt-5 sm:mt-6 text-content-body hover:text-danger-700 dark:hover:text-danger-400 hover:bg-danger-50 dark:hover:bg-danger-900/20 transition-all h-7 w-7 sm:h-8 sm:w-8 shrink-0 dark:text-ink-300"
-                              >
-                                <Trash2 className="w-3.5 h-3.5 sm:w-4 sm:h-4" />
-                              </Button>
-                            )}
-                          </div>
+                  <TaxRateField
+                    formData={formData}
+                    setFormData={setFormData}
+                  />
 
-                          <div className="grid grid-cols-3 gap-2 sm:gap-3">
-                            <div className="space-y-1">
-                              <Label className="text-xs font-semibold text-content-muted dark:text-content-subtle uppercase tracking-wider">
-                                Qty
-                              </Label>
-                              <Input
-                                type="number"
-                                placeholder="0"
-                                min="0"
-                                step="0.01"
-                                value={item.quantity}
-                                onChange={(e) =>
-                                  handleItemChange(
-                                    index,
-                                    "quantity",
-                                    parseFloat(e.target.value) || 0,
-                                  )
-                                }
-                                className="h-9 sm:h-10 border-line dark:border-ink-600 bg-surface-sunken dark:bg-surface-inverted text-content dark:text-ink-50 focus:border-info-500 focus:ring-info-500/20 font-medium text-sm"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs font-semibold text-content-muted dark:text-content-subtle uppercase tracking-wider">
-                                Rate ($)
-                              </Label>
-                              <Input
-                                type="number"
-                                placeholder="0.00"
-                                min="0"
-                                step="0.01"
-                                value={item.rate}
-                                onChange={(e) =>
-                                  handleItemChange(
-                                    index,
-                                    "rate",
-                                    parseFloat(e.target.value) || 0,
-                                  )
-                                }
-                                className="h-9 sm:h-10 border-line dark:border-ink-600 bg-surface-sunken dark:bg-surface-inverted text-content dark:text-ink-50 focus:border-info-500 focus:ring-info-500/20 font-medium text-sm"
-                              />
-                            </div>
-                            <div className="space-y-1">
-                              <Label className="text-xs font-semibold text-content-muted dark:text-content-subtle uppercase tracking-wider">
-                                Total
-                              </Label>
-                              <div className="h-9 sm:h-10 px-2 sm:px-3 bg-ink-100 dark:bg-ink-800 border border-line dark:border-ink-700 rounded-md flex items-center justify-between font-semibold text-content dark:text-ink-50 text-sm">
-                                <span className="text-content-subtle dark:text-content-muted text-xs">
-                                  $
-                                </span>
-                                <span>{item.amount.toFixed(2)}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      ))}
-                    </div>
-                  </div>
+                  <InvoiceTotalsSummary
+                    formData={formData}
+                  />
 
-                  {/* Tax Rate */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="tax_rate"
-                      className="text-ink-700 dark:text-ink-300 font-medium text-sm"
-                    >
-                      Tax Rate (%)
-                    </Label>
-                    <Input
-                      id="tax_rate"
-                      type="number"
-                      min="0"
-                      step="0.01"
-                      value={formData.tax_rate}
-                      onChange={(e) => {
-                        const taxRate = parseFloat(e.target.value) || 0;
-                        const totals = calculateTotals(formData.items, taxRate);
-                        setFormData({
-                          ...formData,
-                          tax_rate: taxRate,
-                          ...totals,
-                        });
-                      }}
-                      className="h-10 sm:h-11 border-line dark:border-ink-600 bg-surface dark:bg-surface-inverted-deep text-content dark:text-ink-50 focus:border-info-500 focus:ring-info-500/20"
-                    />
-                  </div>
+                  <JobNotesField
+                    formData={formData}
+                    setFormData={setFormData}
+                  />
 
-                  {/* Totals */}
-                  <div className="p-4 sm:p-5 bg-surface-sunken dark:bg-surface-inverted-deep rounded-xl text-content dark:text-content-inverted shadow-sm dark:shadow-xl border border-line dark:border-ink-800">
-                    <div className="space-y-2">
-                      <div className="flex justify-between text-content-body dark:text-content-subtle text-xs sm:text-sm">
-                        <span>Subtotal</span>
-                        <span className="font-medium text-content dark:text-ink-50">
-                          ${formData.subtotal.toFixed(2)}
-                        </span>
-                      </div>
-                      {formData.tax_rate > 0 && (
-                        <div className="flex justify-between text-content-body dark:text-content-subtle text-xs sm:text-sm">
-                          <span>Tax ({formData.tax_rate}%)</span>
-                          <span className="font-medium text-content dark:text-ink-50">
-                            ${formData.tax_amount.toFixed(2)}
-                          </span>
-                        </div>
-                      )}
-                      <div className="flex justify-between text-lg sm:text-xl font-bold pt-2 border-t border-line dark:border-ink-800">
-                        <span>Total Due</span>
-                        <span className="text-brand-700 dark:text-info-400">
-                          ${formData.total.toFixed(2)}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Notes */}
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="notes"
-                      className="text-ink-700 dark:text-ink-300 font-medium text-sm"
-                    >
-                      Job Notes & Terms
-                    </Label>
-                    <Textarea
-                      id="notes"
-                      value={formData.notes}
-                      onChange={(e) =>
-                        setFormData({ ...formData, notes: e.target.value })
-                      }
-                      rows={3}
-                      placeholder="Scope of work, warranty info, payment instructions..."
-                      className="border-line dark:border-ink-600 bg-surface dark:bg-surface-inverted-deep text-content dark:text-ink-50 focus:border-info-500 focus:ring-info-500/20 resize-none text-sm"
-                    />
-                  </div>
-
-                  {/* Action Buttons */}
-                  <div className="flex flex-col-reverse sm:flex-row gap-2 sm:gap-3 pt-4 border-t border-line-subtle dark:border-ink-700">
-                    <Button
-                      type="button"
-                      variant="outline"
-                      onClick={() =>
-                        navigate(
-                          createPageUrl(
-                            isRecurring ? "RecurringInvoices" : "Invoices",
-                          ),
-                        )
-                      }
-                      className="w-full sm:flex-1 h-10 sm:h-11 border-line-strong dark:border-ink-600 hover:bg-surface-sunken dark:hover:bg-ink-800 text-ink-700 dark:text-ink-300 font-medium text-sm"
-                      disabled={saving || sendingStatus !== "idle"}
-                    >
-                      Cancel
-                    </Button>
-                    {!isRecurring && !isEditing && (
-                      <Button
-                        type="button"
-                        onClick={handleDownloadOnly}
-                        disabled={
-                          saving ||
-                          sendingStatus !== "idle" ||
-                          !formData.client_id ||
-                          formData.items.length === 0
-                        }
-                        variant="outline"
-                        className="w-full sm:flex-1 h-10 sm:h-11 border-info-600 text-info-700 dark:text-info-400 hover:bg-info-50 dark:hover:bg-info-900/20 font-medium shadow-sm hover:shadow-md transition-all dark:border-info-600 text-sm"
-                      >
-                        {saving && sendingStatus === "generating_pdf" ? (
-                          <>
-                            <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                            Generating...
-                          </>
-                        ) : (
-                          <>
-                            <Download className="w-4 h-4 mr-2" />
-                            Save & Download
-                          </>
-                        )}
-                      </Button>
-                    )}
-                    <Button
-                      type="submit"
-                      disabled={
-                        saving ||
-                        sendingStatus !== "idle" ||
-                        !formData.client_id ||
-                        formData.items.length === 0
-                      }
-                      className="w-full sm:flex-1 h-10 sm:h-11 bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover text-content-inverted font-semibold shadow-lg hover:shadow-xl transition-all disabled:opacity-50 disabled:cursor-not-allowed text-sm"
-                    >
-                      {saving || sendingStatus !== "idle" ? (
-                        <div className="flex items-center gap-2 justify-center">
-                          <Loader2 className="w-4 h-4 animate-spin" />
-                          <span className="text-xs sm:text-sm">
-                            {sendingStatus === "generating_pdf"
-                              ? "Creating PDF..."
-                              : sendingStatus === "generating_payment_link"
-                                ? "Payment Setup..."
-                                : sendingStatus === "sending_sms"
-                                  ? "Sending Text..."
-                                  : sendingStatus === "sending_email"
-                                    ? "Sending Email..."
-                                    : "Processing..."}
-                          </span>
-                        </div>
-                      ) : (
-                        <span className="flex items-center justify-center gap-2">
-                          {isEditing
-                            ? "Update Invoice"
-                            : isRecurring
-                              ? "Schedule Recurring"
-                              : "Send Invoice"}
-                          {!isEditing && !isRecurring && (
-                            <CheckCircle className="w-4 h-4" />
-                          )}
-                        </span>
-                      )}
-                    </Button>
-                  </div>
+                  <InvoiceFormActions
+                    formData={formData}
+                    handleDownloadOnly={handleDownloadOnly}
+                    isEditing={isEditing}
+                    isRecurring={isRecurring}
+                    navigate={navigate}
+                    saving={saving}
+                    sendingStatus={sendingStatus}
+                  />
                 </form>
               </CardContent>
             </Card>
           </div>
 
-          {/* Preview Panel */}
-          <div className="hidden lg:block lg:sticky lg:top-24 w-full">
-            <div className="bg-surface dark:bg-surface-inverted rounded-2xl shadow-xl overflow-hidden border border-line dark:border-ink-700">
-              <div className="bg-surface-sunken dark:bg-ink-800 px-4 sm:px-6 py-3 sm:py-4 border-b border-line-subtle dark:border-ink-700 flex items-center justify-between">
-                <h3 className="font-black text-content dark:text-ink-50 flex items-center gap-2 text-sm">
-                  <FileText className="w-4 h-4 text-content-subtle dark:text-content-muted" />
-                  Live Preview
-                </h3>
-                <div className="flex items-center gap-2">
-                  <div className="w-2 h-2 rounded-full bg-success-500 animate-pulse"></div>
-                  <span className="text-xs text-content-muted dark:text-content-subtle font-medium">
-                    Real-time
-                  </span>
-                </div>
-              </div>
-              <div className="p-3 sm:p-4 bg-surface-sunken dark:bg-surface-inverted-deep">
-                <InvoicePreview invoice={formData} settings={settings} />
-              </div>
-            </div>
-          </div>
+          <LivePreviewPanel
+            formData={formData}
+            settings={settings}
+          />
         </div>
       </div>
 
@@ -2509,7 +1049,6 @@ Provide line items in this format.`,
         onCopy={copyToClipboard}
       />
 
-      {/* Voice Input Modal */}
       {showVoiceInput && (
         <VoiceInput
           isOpen={showVoiceInput}
