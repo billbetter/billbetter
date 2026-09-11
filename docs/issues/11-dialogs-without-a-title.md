@@ -15,3 +15,7 @@ Both draw a heading of their own (the tour renders the slide title in `TourSlide
 **Suggested fix:** add a `DialogTitle` to each, wrapped in Radix's `VisuallyHidden` if it shouldn't be seen — or, better, mark up the heading each already renders as the `DialogTitle` so the name matches what is on screen. Same for `DialogDescription` if the subtitle suits it.
 
 **Found:** 2026-09-11, as a console error in the new feature-tour snapshots, while splitting FeatureTour.jsx. Not fixed there: it changes the rendered DOM, and which element becomes the title is a judgement call worth making deliberately.
+
+---
+
+**Fixed:** 2026-09-11 in `9cd9d1c` (Fix #11: give the onboarding modal and the feature tour a dialog title). Both dialogs carry a screen-reader-only DialogTitle and DialogDescription with the same words as their visible heading. The heading itself is untouched: DialogTitle brings its own size and weight classes, which would have fought with the styling each screen already has.
