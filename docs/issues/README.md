@@ -7,7 +7,7 @@ the record of what was wrong and what was decided; each ends with the commit
 that fixed it. One file per issue, written so it can be pasted into GitHub
 as-is:
 
-    for f in docs/issues/0*.md; do gh issue create --title "$(head -1 "$f" | sed 's/^# //')" --body-file "$f"; done
+    for f in docs/issues/[0-9]*.md; do gh issue create --title "$(head -1 "$f" | sed 's/^# //')" --body-file "$f"; done
 
 | # | Issue | Severity (my read) | Fixed in |
 |---|---|---|---|

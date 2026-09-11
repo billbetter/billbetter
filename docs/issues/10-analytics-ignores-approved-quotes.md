@@ -16,3 +16,7 @@ With the Analytics snapshot fixture (2 approved, 2 sent, 1 declined, 1 converted
 **Suggested fix:** treat `"approved"` as won in both places. `"accepted"` can stay for safety, the way QuoteDetail reads `"rejected"` alongside `"declined"`. Better still, share one list of won/declined statuses between Analytics, the quote list and QuoteDetail.
 
 **Found:** 2026-09-10, while splitting Analytics.jsx. Not fixed there because it changes the numbers shown.
+
+---
+
+**Fixed:** 2026-09-11 in `067aa38` (Fix #10: Analytics counts "approved" quotes as won). "approved" counts as won, from one shared list of statuses in `src/lib/quoteStatus.js`.
