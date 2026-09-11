@@ -168,6 +168,17 @@ export default function PaymentSuccess() {
     try {
       console.log("🔍 Checking database for active subscription...");
       const user = await sdk.auth.me(); // Get current user info to find subscriptions
+      // Signed out, which happens when this link is opened in another
+      // browser than the one that paid. Reading user.id here threw and
+      // replaced the page with the error screen, so the person who had just
+      // paid was told nothing useful. The payment itself is unaffected.
+      if (!user) {
+        setError(
+          "You are signed out, so we cannot check your subscription here. Sign in and reload this page — your payment has gone through either way.",
+        );
+        setLoading(false);
+        return;
+      }
 
       // ✅ Add a delay for database propagation, as transactions might not be immediately visible
       await new Promise((resolve) => setTimeout(resolve, 2000));

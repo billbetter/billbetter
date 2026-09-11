@@ -28,12 +28,12 @@ import {
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { format } from "date-fns";
 import PhotoUploadModal from "./PhotoUploadModal";
 import PhotoDetailModal from "./PhotoDetailModal";
 import ShareAlbumModal from "./ShareAlbumModal";
 import JobExpensesTab from "./JobExpensesTab";
 import { PHOTO_CATEGORIES } from "./photoCategories";
+import { formatCalendarDay } from "@/lib/calendarDate";
 
 export default function JobDetailView({ job, onBack }) {
   const navigate = useNavigate();
@@ -448,7 +448,10 @@ export default function JobDetailView({ job, onBack }) {
                   <CardContent className="p-3">
                     <div className="flex items-center gap-1 text-xs text-content-body dark:text-content-subtle mb-1">
                       <Calendar className="w-3 h-3" />
-                      {format(new Date(photo.taken_date), "MMM d, yyyy")}
+                      {formatCalendarDay(
+                        photo.taken_date || photo.created_at,
+                        "MMM d, yyyy",
+                      )}
                     </div>
                     {photo.caption && (
                       <p className="text-sm text-content dark:text-content-inverted line-clamp-2 mb-1">
