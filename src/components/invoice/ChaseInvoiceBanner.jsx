@@ -59,7 +59,7 @@ export default function ChaseInvoiceBanner({
         to={createPageUrl("ChaseInvoice")}
         className={`group block ${className}`}
       >
-        <div className="rounded-xl border bg-gradient-to-t from-primary/5 to-card p-4 text-card-foreground shadow-sm transition-colors group-hover:bg-accent/50 sm:p-5">
+        <div className="rounded-xl border bg-card surface-gradient p-4 text-card-foreground shadow-sm transition-shadow group-hover:shadow-md sm:p-5">
           <div className="flex items-center gap-3 sm:gap-4">
             <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
               <Zap className="size-5" />
@@ -85,7 +85,7 @@ export default function ChaseInvoiceBanner({
       className={`group block ${className}`}
       aria-label="Open Chase Invoice"
     >
-      <div className="rounded-xl border bg-gradient-to-t from-primary/5 to-card p-5 text-card-foreground shadow-sm transition-colors group-hover:bg-accent/40 sm:p-6">
+      <div className="rounded-xl border bg-card surface-gradient p-5 text-card-foreground shadow-sm transition-shadow group-hover:shadow-md sm:p-6">
         <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
           <div className="flex min-w-0 flex-1 items-start gap-4">
             <div

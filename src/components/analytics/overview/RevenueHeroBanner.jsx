@@ -33,7 +33,7 @@ export default function RevenueHeroBanner({
   const Trend = growthRate >= 0 ? TrendingUp : TrendingDown;
   return (
     <FadeIn>
-      <Card className="bg-gradient-to-t from-primary/5 to-card p-4 shadow-sm sm:p-6">
+      <Card className="surface-gradient p-4 shadow-sm sm:p-6">
         <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="min-w-0">
             <p className="mb-1 text-sm text-muted-foreground">Total Revenue</p>

@@ -104,3 +104,17 @@ html[data-app-shell] [data-slot="card"]:is(.shadow-md, .shadow-lg, .shadow-xl, .
 html[data-app-shell] [data-slot="card"]:is(.border-none, .border-0) {
   border: 1px solid hsl(var(--border));
 }
+
+/* The section-card surface: the card colour at the top fading to a 5% tint
+   of the primary at the foot, with no fill behind it in light mode -- so
+   the animated background shows through the lower half, and on the flat
+   canvas it reads as the template's soft gradient. Dark mode keeps the
+   card colour underneath, where a see-through card loses its edge. Beats
+   a `bg-card` on the same element on specificity. */
+html[data-app-shell] .surface-gradient {
+  background-image: linear-gradient(to top, hsl(var(--primary) / 0.05), hsl(var(--card)));
+}
+
+html[data-app-shell]:not(.dark) .surface-gradient {
+  background-color: transparent;
+}

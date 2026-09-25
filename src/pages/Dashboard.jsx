@@ -583,7 +583,7 @@ export default function Dashboard() {
             </p>
             <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
               {/* Revenue Chart */}
-              <Card className="lg:col-span-2">
+              <Card className="lg:col-span-2 surface-gradient">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between gap-4">
                     <div className="space-y-1.5">
@@ -652,7 +652,7 @@ export default function Dashboard() {
               </Card>
 
               {/* Recent Invoices */}
-              <Card>
+              <Card className="surface-gradient">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between gap-4">
                     <CardTitle>Recent Invoices</CardTitle>
@@ -702,7 +702,7 @@ export default function Dashboard() {
 
           {/* Upcoming Recurring */}
           {upcomingRecurring.length > 0 && (
-            <Card>
+            <Card className="surface-gradient">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2 min-w-0">
@@ -721,7 +721,7 @@ export default function Dashboard() {
                   {upcomingRecurring.map((rec) => (
                     <div
                       key={rec.id}
-                      className="rounded-lg border bg-gradient-to-t from-primary/5 to-card p-4"
+                      className="rounded-lg border bg-card surface-gradient p-4"
                     >
                       <div className="flex items-start justify-between mb-3 gap-2">
                         <p className="font-medium truncate flex-1">

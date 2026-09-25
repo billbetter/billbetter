@@ -14,7 +14,7 @@ import { ArrowUpRight } from "lucide-react";
 export default function QuickActionCard({ to, icon: Icon, title, description, accent }) {
   return (
     <Link to={to} className="group block h-full">
-      <div className="relative flex h-full min-h-[110px] flex-col rounded-xl border bg-card p-4 text-card-foreground shadow-sm transition-colors group-hover:bg-accent/50 sm:min-h-[128px] sm:p-5">
+      <div className="relative flex h-full min-h-[110px] flex-col rounded-xl border bg-card surface-gradient p-4 text-card-foreground shadow-sm transition-shadow group-hover:shadow-md sm:min-h-[128px] sm:p-5">
         <div className="mb-3 flex items-start justify-between sm:mb-4">
           <div className="flex size-9 items-center justify-center rounded-lg border bg-background shadow-sm">
             <Icon className="size-4" />

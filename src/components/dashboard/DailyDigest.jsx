@@ -79,9 +79,10 @@ export default function DailyDigest({
     (user?.email ? user.email.split("@")[0] : null);
 
   return (
-    <div className="rounded-2xl overflow-hidden bg-surface dark:bg-ink-800 border border-line-subtle dark:border-ink-700 shadow-sm">
-      {/* Header */}
-      <div className="px-5 py-4 bg-surface-sunken dark:bg-ink-900 border-b border-line-subtle dark:border-ink-700 flex items-center justify-between gap-3">
+    <div className="rounded-2xl overflow-hidden bg-card surface-gradient border shadow-sm">
+      {/* Header: a light tint rather than a solid band, so the card's
+          gradient (and the animated background behind it) carry through. */}
+      <div className="px-5 py-4 bg-muted/30 border-b flex items-center justify-between gap-3">
         <div className="flex items-center gap-3">
           <div className="w-9 h-9 rounded-xl bg-warning-100 dark:bg-warning-900/30 flex items-center justify-center flex-shrink-0">
             <GreetingIcon
@@ -106,7 +107,7 @@ export default function DailyDigest({
       </div>
 
       {/* Items */}
-      <div className="divide-y divide-ink-50 dark:divide-ink-700/50">
+      <div className="divide-y">
         {allClear ? (
           <div className="px-5 py-5 flex items-center gap-3">
             <div className="w-9 h-9 rounded-xl bg-success-100 dark:bg-success-900/30 flex items-center justify-center flex-shrink-0">

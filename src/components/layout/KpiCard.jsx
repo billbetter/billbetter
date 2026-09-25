@@ -24,7 +24,7 @@ export default function KpiCard({
   return (
     <Card
       data-kpi=""
-      className={cn("bg-gradient-to-t from-primary/5 to-card shadow-sm dark:bg-card", className)}
+      className={cn("surface-gradient shadow-sm", className)}
     >
       <CardHeader className={cn("relative space-y-1.5", compact ? "p-4" : "p-5 pb-4")}>
         <CardDescription className={cn("flex items-center gap-1.5", badge && badgeReserve)}>

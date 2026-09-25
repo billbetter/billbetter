@@ -1,10 +1,8 @@
 import React from "react";
 import { Link } from "react-router-dom";
-import { ClipboardPlus, EllipsisVertical, PlusCircle } from "lucide-react";
+import { EllipsisVertical } from "lucide-react";
 import { createPageUrl } from "@/utils";
-import { Button } from "@/components/ui/button";
 import { DropdownMenu, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { Tooltip, TooltipContent, TooltipTrigger } from "@/components/ui/tooltip";
 import {
   Sidebar,
   SidebarContent,
@@ -25,7 +23,7 @@ import { NAV_GROUPS } from "@/components/layout/navigation";
 
 /**
  * The app sidebar, after the dashboard template's AppSidebar: brand row,
- * a quick-create row, grouped navigation, and the account menu at the foot.
+ * grouped navigation, and the account menu at the foot.
  * On phones it is the sheet the header's menu button (and the tab bar's
  * More) opens.
  */
@@ -54,41 +52,6 @@ export default function AppSidebar({ navigation, isNavActive, navigate, handleLo
       </SidebarHeader>
 
       <SidebarContent>
-        <SidebarGroup>
-          <SidebarGroupContent>
-            <SidebarMenu>
-              <SidebarMenuItem className="flex items-center gap-2">
-                <SidebarMenuButton
-                  asChild
-                  tooltip="Quick Invoice"
-                  className="min-w-8 bg-primary text-primary-foreground duration-200 ease-linear hover:bg-primary/90 hover:text-primary-foreground active:bg-primary/90 active:text-primary-foreground"
-                >
-                  <Link to={createPageUrl("QuickInvoice")} onClick={closeOnPhone}>
-                    <PlusCircle />
-                    <span>Quick Invoice</span>
-                  </Link>
-                </SidebarMenuButton>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <Button
-                      asChild
-                      size="icon"
-                      variant="outline"
-                      className="size-8 shrink-0 group-data-[collapsible=icon]:opacity-0"
-                    >
-                      <Link to={createPageUrl("QuickQuote")} onClick={closeOnPhone}>
-                        <ClipboardPlus />
-                        <span className="sr-only">Quick Quote</span>
-                      </Link>
-                    </Button>
-                  </TooltipTrigger>
-                  <TooltipContent side="right">Quick Quote</TooltipContent>
-                </Tooltip>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarGroupContent>
-        </SidebarGroup>
-
         {NAV_GROUPS.map((group) => {
           const items = navigation.filter((item) => item.group === group.id);
           if (items.length === 0) return null;
