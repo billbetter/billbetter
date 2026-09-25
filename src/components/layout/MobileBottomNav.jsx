@@ -1,78 +1,43 @@
 import React from "react";
-import { ClipboardList, FileText, LayoutDashboard, Zap } from "lucide-react";
-import { Link } from "react-router-dom";
+import { ClipboardList, Ellipsis, FileText, LayoutDashboard, Zap } from "lucide-react";
+import { Link, useLocation } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { cn } from "@/lib/utils";
+import { useSidebar } from "@/components/ui/sidebar";
 
-/** The phone tab bar. Four fixed tabs and More; its height is published
- * for the flows that sit above it. */
-export default function MobileBottomNav({
-  bottomNavRef,
-  getPaidActive,
-}) {
+function Tab({ to, icon: Icon, label, active }) {
+  return (
+    <Link
+      to={to}
+      aria-current={active ? "page" : undefined}
+      className={cn(
+        "flex min-h-[52px] flex-col items-center justify-center rounded-lg py-2.5 transition-all active:scale-95",
+        active ? "text-foreground" : "text-muted-foreground",
+      )}
+    >
+      <Icon className={cn("mb-1 size-5", active ? "stroke-[2.5]" : "stroke-[1.75]")} />
+      <span className={cn("text-[11px]", active ? "font-semibold" : "font-medium")}>{label}</span>
+    </Link>
+  );
+}
+
+/** The phone tab bar. Four fixed tabs and More, which opens the full sidebar;
+ * its height is published for the flows that sit above it. */
+export default function MobileBottomNav({ bottomNavRef, getPaidActive }) {
+  const location = useLocation();
+  const { setOpenMobile } = useSidebar();
+  const at = (page) => location.pathname === createPageUrl(page);
+
   return (
     <nav
       ref={bottomNavRef}
-      className="lg:hidden fixed bottom-0 left-0 right-0 bg-surface/95 dark:bg-surface-inverted/95 backdrop-blur-sm border-t border-line-subtle dark:border-ink-800 z-50"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t bg-background/95 backdrop-blur-sm lg:hidden"
       style={{ paddingBottom: "max(env(safe-area-inset-bottom), 4px)" }}
     >
       <div className="grid grid-cols-5 px-1">
-        {/* Dashboard */}
-        <Link
-          to={createPageUrl("Dashboard")}
-          className={`flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg transition-all active:scale-95 ${
-            location.pathname === createPageUrl("Dashboard")
-              ? "text-success-600 dark:text-success-400"
-              : "text-content-muted dark:text-content-subtle"
-          }`}
-        >
-          <LayoutDashboard
-            className={`w-5 h-5 mb-1 ${location.pathname === createPageUrl("Dashboard") ? "stroke-[2.5]" : "stroke-[1.75]"}`}
-          />
-          <span
-            className={`text-[11px] ${location.pathname === createPageUrl("Dashboard") ? "font-semibold" : "font-medium"}`}
-          >
-            Home
-          </span>
-        </Link>
-
-        {/* Invoices */}
-        <Link
-          to={createPageUrl("Invoices")}
-          className={`flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg transition-all active:scale-95 ${
-            location.pathname === createPageUrl("Invoices")
-              ? "text-success-600 dark:text-success-400"
-              : "text-content-muted dark:text-content-subtle"
-          }`}
-        >
-          <FileText
-            className={`w-5 h-5 mb-1 ${location.pathname === createPageUrl("Invoices") ? "stroke-[2.5]" : "stroke-[1.75]"}`}
-          />
-          <span
-            className={`text-[11px] ${location.pathname === createPageUrl("Invoices") ? "font-semibold" : "font-medium"}`}
-          >
-            Invoices
-          </span>
-        </Link>
-
-        {/* Quotes */}
-        <Link
-          to={createPageUrl("Quotes")}
-          className={`flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg transition-all active:scale-95 ${
-            location.pathname === createPageUrl("Quotes")
-              ? "text-success-600 dark:text-success-400"
-              : "text-content-muted dark:text-content-subtle"
-          }`}
-        >
-          <ClipboardList
-            className={`w-5 h-5 mb-1 ${location.pathname === createPageUrl("Quotes") ? "stroke-[2.5]" : "stroke-[1.75]"}`}
-          />
-          <span
-            className={`text-[11px] ${location.pathname === createPageUrl("Quotes") ? "font-semibold" : "font-medium"}`}
-          >
-            Quotes
-          </span>
-        </Link>
-
+        <Tab to={createPageUrl("Dashboard")} icon={LayoutDashboard} label="Home" active={at("Dashboard")} />
+        <Tab to={createPageUrl("Invoices")} icon={FileText} label="Invoices" active={at("Invoices")} />
+        <Tab to={createPageUrl("Quotes")} icon={ClipboardList} label="Quotes" active={at("Quotes")} />
         {/*
           Get Paid.
 
@@ -81,65 +46,13 @@ export default function MobileBottomNav({
           its own page reads as "you have left the section", and the user
           then has no idea which of the five tabs to press to get back.
         */}
-        <Link
-          to={createPageUrl("ChaseInvoice")}
-          className={`flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg transition-all active:scale-95 ${
-            getPaidActive
-              ? "text-success-600 dark:text-success-400"
-              : "text-content-muted dark:text-content-subtle"
-          }`}
-        >
-          <Zap
-            className={`w-5 h-5 mb-1 ${getPaidActive ? "stroke-[2.5]" : "stroke-[1.75]"}`}
-          />
-          <span
-            className={`text-[11px] ${getPaidActive ? "font-semibold" : "font-medium"}`}
-          >
-            Get Paid
-          </span>
-        </Link>
-
-        {/* More Menu */}
+        <Tab to={createPageUrl("ChaseInvoice")} icon={Zap} label="Get Paid" active={getPaidActive} />
         <button
-          onClick={() => {
-            const sheet = document.getElementById("mobile-more-menu");
-            sheet.classList.toggle("hidden");
-          }}
-          className="flex flex-col items-center justify-center py-2.5 min-h-[52px] rounded-lg text-content-muted dark:text-content-subtle active:scale-95 transition-all"
+          type="button"
+          onClick={() => setOpenMobile(true)}
+          className="flex min-h-[52px] flex-col items-center justify-center rounded-lg py-2.5 text-muted-foreground transition-all active:scale-95"
         >
-          <div className="w-5 h-5 mb-1 flex items-center justify-center">
-            <svg
-              width="20"
-              height="20"
-              viewBox="0 0 20 20"
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.75"
-              strokeLinecap="round"
-            >
-              <circle
-                cx="4"
-                cy="10"
-                r="1.25"
-                fill="currentColor"
-                stroke="none"
-              />
-              <circle
-                cx="10"
-                cy="10"
-                r="1.25"
-                fill="currentColor"
-                stroke="none"
-              />
-              <circle
-                cx="16"
-                cy="10"
-                r="1.25"
-                fill="currentColor"
-                stroke="none"
-              />
-            </svg>
-          </div>
+          <Ellipsis className="mb-1 size-5 stroke-[1.75]" />
           <span className="text-[11px] font-medium">More</span>
         </button>
       </div>

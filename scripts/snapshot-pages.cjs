@@ -95,12 +95,14 @@ const EXTRA_APP = [
 // same rows.
 const SCENARIOS = [
   {
-    // One menu, rendered from the sidebar on desktop and the top bar on phones.
+    // One menu, rendered from the sidebar footer on desktop and the header
+    // avatar on phones.
     name: "account-menu",
     route: "/Dashboard",
     // Not the first haspopup button: the notification bell comes first in
-    // both bars. The account trigger is the full-width sidebar row on
-    // desktop and the round avatar on phones.
+    // the header. The account trigger is the sidebar's footer row on desktop
+    // and the header avatar (labelled "Account menu") on phones, where the
+    // sidebar is a closed sheet.
     //
     // The phone path taps, which is the point: the empty toast strips used
     // to cover the top of the mobile header and swallow it, so this step
@@ -109,11 +111,11 @@ const SCENARIOS = [
     steps: (profile) =>
       profile.desktop
         ? [
-            { click: "aside button.w-full[aria-haspopup='menu']" },
+            { click: "[data-sidebar='footer'] button[aria-haspopup='menu']" },
             { waitFor: "[role='menu'] [role='menuitem']" },
           ]
         : [
-            { tap: ".mobile-header button.rounded-full[aria-haspopup='menu']" },
+            { tap: ".mobile-header button[aria-label='Account menu']" },
             { waitFor: "[role='menu'] [role='menuitem']" },
           ],
   },
@@ -644,7 +646,9 @@ SCENARIOS.push(
   createInvoice("edit", { query: `?edit=${DETAIL_INVOICE.id}`, steps: () => [{ wait: 800 }] }),
   createInvoice("limit", { subscription: { ...SUBSCRIPTION_ROW, transactions_used_this_month: 999 },
     steps: () => [...pickFirstClient, { clickContains: "Save & Download" }, { waitFor: "[role='dialog']" }] }),
-  createInvoice("template-edit", { steps: () => [{ click: "button[aria-haspopup='menu']:has(svg.lucide-ellipsis-vertical)" },
+  // Scoped to <main>: the sidebar's account row is also a haspopup button
+  // with a vertical-ellipsis icon, and it comes first in the document.
+  createInvoice("template-edit", { steps: () => [{ click: "main button[aria-haspopup='menu']:has(svg.lucide-ellipsis-vertical)" },
     { waitFor: "[role='menuitem']" }, { click: "[role='menuitem']" }, { waitFor: "[role='dialog']" }] }),
   createInvoice("save-template", { steps: () => [{ clickContains: "Save" }, { waitFor: "[role='dialog']" }] }),
 );

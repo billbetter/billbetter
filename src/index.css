@@ -1,4 +1,7 @@
-@import url("https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap");
+@import url("https://fonts.googleapis.com/css2?family=Geist:wght@300..800&family=Inter:wght@300;400;500;600;700;800&display=swap");
+/* The signed-in app's dashboard theme; inert outside html[data-app-shell]. */
+@import "./styles/app-theme.css";
+@import "./styles/app-shell.css";
 
 @tailwind base;
 @tailwind components;
@@ -396,11 +399,15 @@
     z-index: 50;
   }
 
+  /* :where(:not([data-slot])) -- the dashboard shell's tooltip and popover style
+     themselves (a tooltip is not a menu), and this rule outranks their
+     utilities. :where adds no specificity, so every existing menu
+     resolves exactly as before. */
   .dropdown-content,
   [role="menu"],
   [role="listbox"],
   .popover-content,
-  [data-radix-popper-content-wrapper] > div {
+  [data-radix-popper-content-wrapper] > div:where(:not([data-slot])) {
     background-color: hsl(var(--popover));
     color: hsl(var(--popover-foreground));
     border: 1px solid hsl(var(--border));
@@ -417,7 +424,7 @@
   .dark [role="menu"],
   .dark [role="listbox"],
   .dark .popover-content,
-  .dark [data-radix-popper-content-wrapper] > div {
+  .dark [data-radix-popper-content-wrapper] > div:where(:not([data-slot])) {
     box-shadow:
       0 0 0 1px hsl(0 0% 0% / 0.3),
       0 4px 8px -2px hsl(0 0% 0% / 0.4),

@@ -235,11 +235,11 @@ export default function Clients() {
     <PullToRefresh onRefresh={loadClients}>
       <div className="px-4 py-4 sm:px-6 sm:py-6 lg:px-8 lg:py-8 max-w-7xl mx-auto min-h-screen bg-surface-sunken dark:bg-surface-inverted-deep">
         <div className="flex items-center justify-between gap-3 mb-6 sm:mb-8">
-          <div className="min-w-0 flex-1">
-            <h1 className="text-2xl sm:text-3xl font-black text-content dark:text-content-inverted mb-0.5 sm:mb-1">
+          <div className="min-w-0 flex-1 space-y-1">
+            <h1 className="text-2xl font-semibold tracking-tight">
               Clients
             </h1>
-            <p className="text-sm sm:text-base text-content-muted dark:text-content-subtle">
+            <p className="text-sm text-muted-foreground">
               {clients.length} {clients.length === 1 ? "client" : "clients"}
             </p>
           </div>
@@ -248,9 +248,9 @@ export default function Clients() {
             <DialogTrigger asChild>
               <Button
                 onClick={() => handleOpenDialog()}
-                className="bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover flex items-center gap-2 flex-shrink-0 shadow-lg shadow-success-500/20"
+                className="flex-shrink-0"
               >
-                <PlusCircle className="w-4 h-4" />
+                <PlusCircle />
                 <span className="hidden sm:inline">Add Client</span>
                 <span className="sm:hidden">Add</span>
               </Button>

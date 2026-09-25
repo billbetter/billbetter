@@ -13,10 +13,19 @@ import {
 } from "lucide-react";
 import GlobalVoiceAssistant from "./components/voice/GlobalVoiceAssistant";
 import NotificationPermissionPrompt from "./components/notifications/NotificationPermissionPrompt";
-import DesktopSidebar from "@/components/layout/DesktopSidebar";
-import MobileTopBar from "@/components/layout/MobileTopBar";
+import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
+import AppSidebar from "@/components/layout/AppSidebar";
+import AppHeader from "@/components/layout/AppHeader";
 import MobileBottomNav from "@/components/layout/MobileBottomNav";
-import MobileMoreSheet from "@/components/layout/MobileMoreSheet";
+import { useAppShell, useApplyPreferences } from "@/lib/preferences/app-shell";
+import { usePreferences } from "@/lib/preferences/preferences";
+import { AppShellContext } from "@/lib/preferences/shell-context";
+
+/** Opts the screen into the dashboard theme while it is mounted. */
+function AppShellScope() {
+  useAppShell();
+  return null;
+}
 
 export default function Layout({ children, currentPageName }) {
   const location = useLocation();
@@ -34,10 +43,13 @@ export default function Layout({ children, currentPageName }) {
     preset: shaderPreset,
   } = useShaderAppearance();
   const [loading, setLoading] = useState(true);
-  const [sidebarCollapsed, setSidebarCollapsed] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
-  const [darkMode, setDarkMode] = useState(false);
   const [navigationStack, setNavigationStack] = useState([]);
+
+  // Theme mode, preset, font and layout choices (Settings -> Appearance, or
+  // the header's preferences). Applied on every branch, as dark mode was.
+  useApplyPreferences();
+  const { navbar_style: navbarStyle } = usePreferences();
 
   // Store refs for preserving scroll positions
   const scrollPositions = useRef({});
@@ -57,8 +69,16 @@ export default function Layout({ children, currentPageName }) {
   // the viewport. Only the shell knows them: the sidebar's width depends on
   // whether it is collapsed, and the tab bar's height depends on the device's
   // safe area, so it is measured rather than guessed.
+  //
+  // The sidebar edge is measured too. It depends on the sidebar style (inset
+  // and floating sit in a padded frame), the collapse mode (icon rail or gone
+  // entirely) and whether it is open -- measuring the content column's left
+  // edge covers every combination, including mid-animation.
   const bottomNavRef = useRef(null);
   const [bottomNavHeight, setBottomNavHeight] = useState(0);
+  const insetRef = useRef(null);
+  const [sidebarEdge, setSidebarEdge] = useState(0);
+  const [headerBottom, setHeaderBottom] = useState(0);
 
   // Public pages that DON'T require authentication
   const publicPages = [
@@ -108,6 +128,11 @@ export default function Layout({ children, currentPageName }) {
   // only in the tree on the app layout branch -- the standalone and public
   // branches return before it, and there the ref is null and the variable
   // stays 0, which is exactly right.
+  //
+  // Also re-runs when loading finishes. On a fresh load the first run happens
+  // on the loading screen, where there is no bar yet, so it recorded 0 and
+  // kept it until the next navigation -- which left the full-screen flows'
+  // Continue button under the tab bar on a phone.
   useEffect(() => {
     const el = bottomNavRef.current;
     if (!el) {
@@ -120,7 +145,38 @@ export default function Layout({ children, currentPageName }) {
     const observer = new ResizeObserver(measure);
     observer.observe(el);
     return () => observer.disconnect();
-  }, [currentPageName]);
+  }, [currentPageName, loading, user]);
+
+  // The sidebar edge, and the header's bottom edge while the header is pinned
+  // (in "Scroll" mode it scrolls with the page, so the flows start at the top
+  // and cover it like the rest of the page).
+  useEffect(() => {
+    const el = insetRef.current;
+    if (!el) {
+      setSidebarEdge(0);
+      setHeaderBottom(0);
+      return;
+    }
+    const header = navbarStyle === "sticky" ? el.querySelector("[data-app-header]") : null;
+    const measure = () => {
+      setSidebarEdge(Math.round(el.getBoundingClientRect().left));
+      setHeaderBottom(header ? Math.round(header.getBoundingClientRect().bottom) : 0);
+    };
+    measure();
+    window.addEventListener("resize", measure);
+    if (typeof ResizeObserver === "undefined") {
+      return () => window.removeEventListener("resize", measure);
+    }
+    // The column's width changes whenever the sidebar beside it does, and
+    // the header's height with the safe area.
+    const observer = new ResizeObserver(measure);
+    observer.observe(el);
+    if (header) observer.observe(header);
+    return () => {
+      observer.disconnect();
+      window.removeEventListener("resize", measure);
+    };
+  }, [currentPageName, loading, user, navbarStyle]);
 
   useEffect(() => {
     checkAuthAndSubscription();
@@ -216,23 +272,6 @@ export default function Layout({ children, currentPageName }) {
     window.addEventListener("scroll", handleScroll);
     return () => window.removeEventListener("scroll", handleScroll);
   }, []);
-
-  // Dark mode is an explicit opt-in only (Settings -> Appearance).
-  // The marketing site and Home.jsx are light-only, so following the OS
-  // preference here made the signed-in app look like a different product.
-  useEffect(() => {
-    const stored = localStorage.getItem("invoicium-dark-mode");
-    setDarkMode(stored === "true");
-  }, []);
-
-  // Apply dark mode class to document
-  useEffect(() => {
-    if (darkMode) {
-      document.documentElement.classList.add("dark");
-    } else {
-      document.documentElement.classList.remove("dark");
-    }
-  }, [darkMode]);
 
   // Preserve scroll position when navigating between pages
   useEffect(() => {
@@ -519,12 +558,13 @@ export default function Layout({ children, currentPageName }) {
   // ---------- LOADING STATE ----------
   if (loading || !user) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-[hsl(210_20%_97%)] dark:bg-[hsl(220_20%_7%)]">
+      <div className="min-h-screen flex items-center justify-center bg-background">
+        <AppShellScope />
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 rounded-xl bg-surface dark:bg-ink-800 shadow-sm border border-line-subtle dark:border-ink-700 flex items-center justify-center">
-            <div className="w-5 h-5 rounded-full border-2 border-success-600 border-t-transparent animate-spin" />
+          <div className="flex size-10 items-center justify-center rounded-lg border bg-card shadow-sm">
+            <div className="size-5 rounded-full border-2 border-primary border-t-transparent animate-spin" />
           </div>
-          <p className="text-sm text-content-muted dark:text-content-subtle font-medium">
+          <p className="text-sm font-medium text-muted-foreground">
             Loading Invoicium...
           </p>
         </div>
@@ -548,48 +588,65 @@ export default function Layout({ children, currentPageName }) {
     location.pathname === createPageUrl("ChaseInvoice") ||
     location.pathname === createPageUrl("PaperTrail");
 
+  const headerSticky = navbarStyle === "sticky";
+  const appHeader = (
+    <AppHeader
+      handleLogout={handleLogout}
+      handleMobileBack={handleMobileBack}
+      navigate={navigate}
+      navigation={navigation}
+      navigationStack={navigationStack}
+      settings={settings}
+      user={user}
+    />
+  );
+
   // 100dvh, not h-screen. Mobile Safari and Chrome size 100vh as if their
   // toolbar were hidden, but <main> is the scroller here, so the document
   // never scrolls and the toolbar never hides: an h-screen shell overhangs the
   // visible screen by the toolbar's height, and the whole app lurches when a
   // scroll reaches the end of <main>. dvh tracks what is actually visible.
+  //
+  // The shell is the dashboard template's: SidebarProvider > AppSidebar +
+  // SidebarInset, with the header inside the page scroller so the "Scroll"
+  // navbar behaviour can let it go.
   return (
-    <div
-      className="flex h-[100dvh] bg-[hsl(210_20%_97%)] dark:bg-[hsl(220_20%_7%)]"
+    <AppShellContext.Provider value={true}>
+    <SidebarProvider
+      className="h-[100dvh] overflow-hidden"
       style={{
         // Read by full-screen page flows so they cover the app without
         // covering the app's navigation -- see the note by bottomNavRef.
-        "--app-sidebar-width": sidebarCollapsed ? "4rem" : "16rem",
+        "--app-sidebar-width": `${sidebarEdge}px`,
+        "--app-header-bottom": `${headerBottom}px`,
         "--app-bottom-nav-height": `${bottomNavHeight}px`,
       }}
     >
-      <DesktopSidebar
+      <AppShellScope />
+      <AppSidebar
         handleLogout={handleLogout}
         isNavActive={isNavActive}
         navigate={navigate}
         navigation={navigation}
-        setSidebarCollapsed={setSidebarCollapsed}
         settings={settings}
-        sidebarCollapsed={sidebarCollapsed}
         user={user}
       />
 
       {/* Main Content Area */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <MobileTopBar
-          handleLogout={handleLogout}
-          handleMobileBack={handleMobileBack}
-          navigate={navigate}
-          navigationStack={navigationStack}
-          settings={settings}
-          user={user}
-        />
-
+      <SidebarInset ref={insetRef} className="min-w-0 overflow-hidden">
+        {/* "Sticky" puts the header above the scroller rather than pinning it
+            inside: pages pin their own sub-headers with `sticky top-0`, and a
+            header pinned in the same scroller would slide over them. "Scroll"
+            puts it inside, first, so it leaves with the content. */}
+        {headerSticky && appHeader}
         {/* Main Content */}
         <main
           ref={mainContentRef}
-          className="relative flex-1 overflow-y-auto lg:pb-0 bg-[hsl(210_20%_97%)] dark:bg-[hsl(220_20%_7%)]"
+          data-app-content=""
+          className="relative min-h-0 flex-1 overflow-y-auto overflow-x-hidden lg:pb-0"
         >
+          {!headerSticky && appHeader}
+
           {/* The animated background replaces the flat page colour and nothing
               else. It sits behind the content, never receives a pointer event,
               and is aria-hidden, so every card, table and control above it
@@ -640,12 +697,7 @@ export default function Layout({ children, currentPageName }) {
           bottomNavRef={bottomNavRef}
           getPaidActive={getPaidActive}
         />
-
-        <MobileMoreSheet
-          isNavActive={isNavActive}
-          navigation={navigation}
-        />
-      </div>
+      </SidebarInset>
 
       <GlobalVoiceAssistant />
       <NotificationPermissionPrompt />
@@ -697,6 +749,7 @@ export default function Layout({ children, currentPageName }) {
  color-scheme: dark;
  }
  `}</style>
-    </div>
+    </SidebarProvider>
+    </AppShellContext.Provider>
   );
 }

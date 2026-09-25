@@ -1,0 +1,106 @@
+/*
+ * The dashboard template's page-level look, for the signed-in app and the
+ * auth screens only (html[data-app-shell] -- see src/lib/preferences).
+ * Colours come from app-theme.css; this file is the rest.
+ */
+
+/* Type: the template's font (Geist unless changed in Preferences), without
+   the Inter-specific tracking and stylistic set index.css applies. */
+html[data-app-shell] body {
+  font-family:
+    var(--app-font, "Geist"),
+    ui-sans-serif,
+    system-ui,
+    -apple-system,
+    sans-serif;
+  letter-spacing: normal;
+  font-feature-settings: normal;
+}
+
+/* The canvas is the template's: one flat background, white in light mode,
+   that bordered cards sit on. Pages paint their own full-height root with a
+   tinted sunken colour; inside the shell that root is cleared so the canvas
+   shows. Same selectors as the animated-background rule in index.css, and
+   for the same reason -- `min-h-screen` marks a page root and nothing else. */
+html[data-app-shell] main[data-app-content] > div > *,
+html[data-app-shell] main[data-app-content] .min-h-screen,
+html[data-app-shell] main[data-app-content] .min-h-\[60vh\] {
+  background-color: transparent;
+}
+
+html[data-app-shell] .bg-page {
+  background-color: hsl(var(--background));
+}
+
+/* Preferences -> Page Layout: Full Width. Pages centre themselves in a max
+   width; this lifts it from the wide page containers only. Narrow reading
+   columns (max-w-2xl and below -- the Paper Trail, forms) keep theirs. */
+html[data-app-shell][data-content-layout="full-width"] main[data-app-content] > div > :is(.max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-\[1200px\]),
+html[data-app-shell][data-content-layout="full-width"] main[data-app-content] > div > * > :is(.max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-\[1200px\]),
+html[data-app-shell][data-content-layout="full-width"] main[data-app-content] > div > * > * > :is(.max-w-5xl, .max-w-6xl, .max-w-7xl, .max-w-\[1200px\]) {
+  max-width: none;
+}
+
+/* Tables: the template's header row -- sentence case, medium weight, on the
+   card rather than on a grey band. */
+html[data-app-shell] thead,
+html[data-app-shell].dark thead {
+  background-color: transparent;
+}
+
+html[data-app-shell] th {
+  text-transform: none;
+  letter-spacing: normal;
+  font-size: 0.875rem;
+  font-weight: 500;
+}
+
+html[data-app-shell] thead tr {
+  border-bottom: 1px solid hsl(var(--border));
+}
+
+html[data-app-shell] tbody tr:hover,
+html[data-app-shell].dark tbody tr:hover {
+  background-color: hsl(var(--muted) / 0.5);
+}
+
+/* Form fields: the template's quieter focus -- a ring in the ring colour,
+   no border colour jump. */
+html[data-app-shell] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,
+html[data-app-shell] textarea:focus,
+html[data-app-shell] select:focus {
+  border-color: hsl(var(--ring));
+  box-shadow: 0 0 0 3px hsl(var(--ring) / 0.5);
+}
+
+/* Read by tailwind.config.js (rounded-xl/2xl/3xl, font-extrabold/black).
+ *
+ * Radii: the template's scale hangs off --radius, so a preset can square the
+ * whole app off (Brutalist) or round it. The old design's 1rem-1.5rem cards
+ * come down to the template's 14px.
+ *
+ * Weights: the template's headings are semibold. The app's black (900) was
+ * the old design's and reads as shouting against the template's type, so
+ * both heavy weights step down to bold. */
+html[data-app-shell] {
+  --app-radius-xl: calc(var(--radius) + 2px);
+  --app-radius-2xl: calc(var(--radius) + 4px);
+  --app-radius-3xl: calc(var(--radius) + 6px);
+  --app-font-extrabold: 700;
+  --app-font-black: 700;
+}
+
+/* Buttons and cards keep the template's shape even where a page passes the
+   old design's classes (h-10 rounded-xl, shadow-lg border-none...). Pills
+   (rounded-full) are left as pills. */
+html[data-app-shell] [data-slot="button"]:not(.rounded-full) {
+  border-radius: calc(var(--radius) - 2px);
+}
+
+html[data-app-shell] [data-slot="card"]:is(.shadow-md, .shadow-lg, .shadow-xl, .shadow-2xl) {
+  box-shadow: 0 1px 2px 0 rgb(0 0 0 / 0.05);
+}
+
+html[data-app-shell] [data-slot="card"]:is(.border-none, .border-0) {
+  border: 1px solid hsl(var(--border));
+}

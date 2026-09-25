@@ -1,5 +1,7 @@
 import React from "react";
-import { ArrowDownRight, ArrowUpRight } from "lucide-react";
+import { TrendingDown, TrendingUp } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Card } from "@/components/ui/card";
 import FadeIn from "@/components/analytics/FadeIn";
 
 /** SVG polyline points for the last six months' revenue, or null with too few. */
@@ -19,7 +21,8 @@ function heroSparklinePoints(monthlyData) {
     .join(" ");
 }
 
-/** Total revenue, growth against last month, and a six-month sparkline. */
+/** Total revenue, growth against last month, and a six-month sparkline --
+ * the headline card at the top of the overview. */
 export default function RevenueHeroBanner({
   growthRate,
   monthlyData,
@@ -27,55 +30,48 @@ export default function RevenueHeroBanner({
   totalRevenue,
 }) {
   const sparkline = heroSparklinePoints(monthlyData);
+  const Trend = growthRate >= 0 ? TrendingUp : TrendingDown;
   return (
     <FadeIn>
-      <div className="relative overflow-hidden rounded-2xl bg-success-600 p-4 sm:p-7">
-        <div className="absolute -top-8 -right-8 h-40 w-40 rounded-full bg-surface/10 blur-sm dark:bg-surface-inverted/10" />
-        <div className="absolute -bottom-12 -left-6 h-32 w-32 rounded-full bg-surface/5 dark:bg-surface-inverted/5" />
-
-        <div className="relative flex flex-col sm:flex-row sm:items-end sm:justify-between gap-3 sm:gap-4">
+      <Card className="bg-gradient-to-t from-primary/5 to-card p-4 shadow-sm sm:p-6">
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-end sm:justify-between sm:gap-4">
           <div className="min-w-0">
-            <p className="text-success-100 text-xs font-semibold uppercase tracking-widest mb-1">
-              Total Revenue
-            </p>
-            <p className="text-2xl sm:text-4xl lg:text-5xl font-bold text-content-inverted tracking-tight">
+            <p className="mb-1 text-sm text-muted-foreground">Total Revenue</p>
+            <p className="text-3xl font-semibold tabular-nums tracking-tight sm:text-4xl">
               ${totalRevenue.toLocaleString()}
             </p>
-            <div className="flex flex-wrap items-center gap-2 mt-2">
-              <span className="inline-flex items-center gap-1 rounded-full bg-surface/20 backdrop-blur-sm px-2.5 py-1 text-xs font-bold text-content-inverted whitespace-nowrap dark:bg-surface-inverted/20">
-                {growthRate >= 0 ? (
-                  <ArrowUpRight className="h-3 w-3" />
-                ) : (
-                  <ArrowDownRight className="h-3 w-3" />
-                )}
+            <div className="mt-2 flex flex-wrap items-center gap-2">
+              <Badge
+                variant="outline"
+                className={growthRate >= 0 ? "text-success-700 dark:text-success-400" : "text-danger-600 dark:text-danger-400"}
+              >
+                <Trend />
                 {Math.abs(growthRate).toFixed(1)}% vs last month
-              </span>
-              <span className="text-xs text-success-100 whitespace-nowrap">
+              </Badge>
+              <span className="whitespace-nowrap text-xs text-muted-foreground">
                 {paidInvoices.length} invoices collected
               </span>
             </div>
           </div>
 
           {/* Mini monthly sparkline on desktop */}
-          <div className="hidden sm:block flex-shrink-0">
-            <svg width="140" height="48" className="opacity-60">
+          <div className="hidden flex-shrink-0 text-primary sm:block">
+            <svg width="140" height="48">
               {sparkline && (
                 <polyline
                   points={sparkline}
                   fill="none"
-                  stroke="rgba(255,255,255,0.8)"
+                  stroke="currentColor"
                   strokeWidth="2"
                   strokeLinecap="round"
                   strokeLinejoin="round"
                 />
               )}
             </svg>
-            <p className="text-[10px] text-success-200 mt-0.5 text-right">
-              Last 6 months
-            </p>
+            <p className="mt-0.5 text-right text-[10px] text-muted-foreground">Last 6 months</p>
           </div>
         </div>
-      </div>
+      </Card>
     </FadeIn>
   );
 }

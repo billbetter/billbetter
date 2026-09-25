@@ -1,5 +1,5 @@
-import { useEffect } from "react";
 import { Link, useLocation } from "react-router-dom";
+import { useApplyPreferences } from "@/lib/preferences/app-shell";
 import { useAuth } from "@/lib/AuthContext";
 import { createPageUrl } from "@/utils";
 import { Home, LayoutDashboard, ArrowLeft, Compass } from "lucide-react";
@@ -29,18 +29,11 @@ export default function PageNotFound() {
   const location = useLocation();
   const { isAuthenticated } = useAuth();
 
-  // Layout is what normally toggles the `.dark` class from this preference, and
-  // this page renders OUTSIDE Layout -- so without this a dark-mode user would
-  // get a light 404. Mirror Layout's exact behaviour (key "invoicium-dark-mode")
-  // so the theme is consistent wherever the page is reached from.
-  useEffect(() => {
-    try {
-      const dark = localStorage.getItem("invoicium-dark-mode") === "true";
-      document.documentElement.classList.toggle("dark", dark);
-    } catch {
-      // Storage blocked (private mode); fall back to the default light theme.
-    }
-  }, []);
+  // Layout is what normally applies the theme preference, and this page
+  // renders OUTSIDE Layout -- so without this a dark-mode user would get a
+  // light 404. Same call Layout makes, so the theme is consistent wherever the
+  // page is reached from.
+  useApplyPreferences();
 
   // Pathname only, and bounded -- an attacker or a fat-fingered link should not
   // get to render 4KB of text into the page.

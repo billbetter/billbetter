@@ -7,7 +7,7 @@ export default function InvoiceDesktopStats({
   stats,
 }) {
   return (
-    <div className="grid grid-cols-5 gap-8">
+    <div className="grid grid-cols-5 gap-4">
       <DesktopStatTile
         divided
         icon={Wallet}

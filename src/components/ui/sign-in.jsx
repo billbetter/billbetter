@@ -1,27 +1,25 @@
 import React, { useState } from "react";
 import { Eye, EyeOff, Loader2 } from "lucide-react";
-import { ShaderBackground } from "@/components/ui/shader-background";
-import { useShaderAppearance } from "@/lib/appearance";
+import { Button } from "@/components/ui/button";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Separator } from "@/components/ui/separator";
+import { useAppShell } from "@/lib/preferences/app-shell";
+import { AppShellContext } from "@/lib/preferences/shell-context";
 
 /**
- * Split-screen auth shell used by the Login and Register pages.
+ * The auth screen used by the Login and Register pages, laid out as the
+ * next-shadcn-admin-dashboard template's two-column login: the form centred
+ * on the left, a primary-coloured brand panel on the right.
  *
- * Presentation only — it owns no auth logic. The page passes the field values,
- * the submit handler and the message to show, so both pages share one look
- * while keeping their own Supabase wiring.
- *
- * Converted from the original TSX to JSX because this project is configured for
- * plain JavaScript (components.json -> "tsx": false), and the violet accent was
- * remapped onto the brand tokens so the page matches the rest of the site.
+ * Presentation only -- it owns no auth logic. The page passes the field
+ * values, the submit handler and the message to show, so both pages share one
+ * look while keeping their own Supabase wiring.
  */
 
 const GoogleIcon = () => (
-  <svg
-    xmlns="http://www.w3.org/2000/svg"
-    className="h-5 w-5"
-    viewBox="0 0 48 48"
-    aria-hidden="true"
-  >
+  <svg xmlns="http://www.w3.org/2000/svg" className="size-4" viewBox="0 0 48 48" aria-hidden="true">
     <path
       fill="#FFC107"
       d="M43.611 20.083H42V20H24v8h11.303c-1.649 4.657-6.08 8-11.303 8-6.627 0-12-5.373-12-12s5.373-12 12-12c3.059 0 5.842 1.154 7.961 3.039l5.657-5.657C34.046 6.053 29.268 4 24 4 12.955 4 4 12.955 4 24s8.955 20 20 20 20-8.955 20-20c0-2.641-.21-5.236-.611-7.743z"
@@ -41,50 +39,39 @@ const GoogleIcon = () => (
   </svg>
 );
 
-const GlassInputWrapper = ({ children }) => (
-  <div className="rounded-2xl border border-line bg-surface-sunken/60 backdrop-blur-sm transition-colors focus-within:border-brand-500 focus-within:bg-brand-50/60">
-    {children}
-  </div>
-);
-
-/**
- * One card in the hero panel. Renders as a testimonial when `avatarSrc` is
- * given, and as a product highlight when `icon` is given instead — same shape
- * either way, so the layout doesn't depend on having real customer quotes.
- */
-const HeroCard = ({ item, delay }) => {
-  const Icon = item.icon;
+/** The brand panel: the mark and tagline at the top, the product highlights
+ * (`heroCards`) along the bottom, set the way the template sets its notes. */
+function BrandPanel({ heroCards }) {
+  const notes = heroCards;
   return (
-    <div
-      className={`animate-testimonial ${delay} flex w-64 items-start gap-3 rounded-3xl border border-white/15 bg-white/10 p-5 backdrop-blur-xl`}
-    >
-      {item.avatarSrc ? (
-        <img
-          src={item.avatarSrc}
-          className="h-10 w-10 rounded-2xl object-cover"
-          alt=""
-        />
-      ) : (
-        Icon && (
-          <span className="flex h-10 w-10 flex-shrink-0 items-center justify-center rounded-2xl bg-white/15">
-            <Icon className="h-5 w-5 text-white" />
-          </span>
-        )
-      )}
-      <div className="text-sm leading-snug">
-        <p className="font-bold text-white">{item.name}</p>
-        {item.handle && <p className="text-white/60">{item.handle}</p>}
-        <p className="mt-1 text-white/80">{item.text}</p>
+    <div className="relative order-2 hidden h-full rounded-3xl bg-primary lg:flex">
+      <div className="absolute top-10 space-y-1 px-10 text-primary-foreground">
+        <img src="/logo-mark.png" alt="" className="mb-3 size-10 rounded-lg bg-primary-foreground/95 p-1.5" />
+        <h2 className="text-2xl font-medium">Invoicium</h2>
+        <p className="text-sm text-primary-foreground/80">Invoice, quote and get paid -- built for the trades.</p>
       </div>
+
+      {notes.length > 0 && (
+        <div className="absolute bottom-10 flex w-full justify-between px-10">
+          {notes.map((note, i) => (
+            <React.Fragment key={note.name}>
+              {i > 0 && <Separator orientation="vertical" className="mx-3 !h-auto bg-primary-foreground/20" />}
+              <div className="flex-1 space-y-1 text-primary-foreground">
+                <h3 className="font-medium">{note.name}</h3>
+                <p className="text-sm text-primary-foreground/80">{note.text}</p>
+              </div>
+            </React.Fragment>
+          ))}
+        </div>
+      )}
     </div>
   );
-};
+}
 
 export const SignInPage = ({
   mode = "signin",
   title,
   description,
-  heroImageSrc,
   heroCards = [],
   email = "",
   password = "",
@@ -103,253 +90,165 @@ export const SignInPage = ({
   onResetPassword,
   onToggleMode,
 }) => {
+  // The auth screens wear the app's theme (preset, font, dark mode).
+  useAppShell();
   const [showPassword, setShowPassword] = useState(false);
-  // The same background, and the same choice, the signed-in app uses. Someone
-  // who turned it off in Settings is not shown one here either.
-  const {
-    enabled: shaderEnabled,
-    chosen: shaderChosen,
-    preset: shaderPreset,
-  } = useShaderAppearance();
   const isSignup = mode === "signup";
   const isError = message && message.tone !== "success";
 
   return (
-    <div className="flex min-h-[100dvh] w-full flex-col bg-surface md:flex-row">
-      {/* Left column: the form */}
-      <section className="flex flex-1 items-center justify-center p-6 sm:p-8">
-        <div className="w-full max-w-md">
-          <div className="flex flex-col gap-6">
-            <a
-              href="/"
-              className="animate-element animate-delay-100 flex items-center gap-2.5 self-start"
-            >
-              <img
-                src="/logo-mark.png"
-                alt=""
-                className="h-9 w-9 object-contain"
-              />
-              <span className="text-lg font-black tracking-tight text-content">
-                Invoicium
-              </span>
-            </a>
+    <AppShellContext.Provider value={true}>
+      <main className="bg-background text-foreground">
+        <div className="grid min-h-[100dvh] justify-center p-2 lg:h-[100dvh] lg:grid-cols-2">
+          <BrandPanel heroCards={heroCards} />
 
-            <div>
-              <h1 className="animate-element animate-delay-200 text-4xl font-black leading-tight tracking-tight text-content md:text-5xl">
-                {title}
-              </h1>
-              <p className="animate-element animate-delay-300 mt-3 text-content-body">
-                {description}
+          <div className="relative order-1 flex h-full flex-col">
+            {/* Top bar: the mark (phones, where the panel is hidden) and the
+                switch between signing in and creating an account. */}
+            <div className="flex items-center justify-between gap-4 px-4 pt-3 sm:px-8 lg:justify-end">
+              <a href="/" className="flex items-center gap-2 lg:hidden">
+                <img src="/logo-mark.png" alt="" className="size-7 object-contain" />
+                <span className="font-semibold">Invoicium</span>
+              </a>
+              <p className="text-sm text-muted-foreground">
+                {isSignup ? "Already have an account?" : "New to Invoicium?"}{" "}
+                <button
+                  type="button"
+                  onClick={onToggleMode}
+                  className="font-medium text-foreground underline-offset-4 hover:underline"
+                >
+                  {isSignup ? "Sign in" : "Create an account"}
+                </button>
               </p>
             </div>
 
-            <form className="space-y-5" onSubmit={onSubmit}>
-              <div className="animate-element animate-delay-400">
-                <label
-                  htmlFor="email"
-                  className="text-sm font-semibold text-content-body"
-                >
-                  Email address
-                </label>
-                <div className="mt-1.5">
-                  <GlassInputWrapper>
-                    <input
-                      id="email"
-                      name="email"
-                      type="email"
-                      autoComplete="email"
-                      required
-                      value={email}
-                      onChange={(e) => onEmailChange?.(e.target.value)}
-                      placeholder="you@example.com"
-                      className="w-full rounded-2xl bg-transparent p-4 text-sm text-content placeholder:text-content-subtle focus:outline-none"
-                    />
-                  </GlassInputWrapper>
+            <div className="flex flex-1 items-center justify-center px-4 py-10">
+              <div className="mx-auto flex w-full flex-col justify-center space-y-8 sm:w-[350px]">
+                <div className="space-y-2 text-center">
+                  <h1 className="text-3xl font-medium">{title}</h1>
+                  <p className="text-sm text-muted-foreground">{description}</p>
                 </div>
-              </div>
 
-              <div className="animate-element animate-delay-500">
-                <label
-                  htmlFor="password"
-                  className="text-sm font-semibold text-content-body"
-                >
-                  Password
-                </label>
-                <div className="mt-1.5">
-                  <GlassInputWrapper>
-                    <div className="relative">
-                      <input
-                        id="password"
-                        name="password"
-                        type={showPassword ? "text" : "password"}
-                        autoComplete={
-                          isSignup ? "new-password" : "current-password"
-                        }
-                        required
-                        minLength={6}
-                        value={password}
-                        onChange={(e) => onPasswordChange?.(e.target.value)}
-                        placeholder="Enter your password"
-                        className="w-full rounded-2xl bg-transparent p-4 pr-12 text-sm text-content placeholder:text-content-subtle focus:outline-none"
-                      />
-                      <button
+                <div className="space-y-4">
+                  {showGoogle && (
+                    <>
+                      <Button
                         type="button"
-                        onClick={() => setShowPassword(!showPassword)}
-                        aria-label={
-                          showPassword ? "Hide password" : "Show password"
-                        }
-                        className="absolute inset-y-0 right-3 flex items-center"
+                        variant="outline"
+                        className="w-full"
+                        onClick={onGoogleSignIn}
+                        disabled={googleLoading}
                       >
-                        {showPassword ? (
-                          <EyeOff className="h-5 w-5 text-content-muted transition-colors hover:text-content" />
-                        ) : (
-                          <Eye className="h-5 w-5 text-content-muted transition-colors hover:text-content" />
-                        )}
-                      </button>
-                    </div>
-                  </GlassInputWrapper>
-                </div>
-                {passwordSlot}
-              </div>
-
-              <div className="animate-element animate-delay-600 flex items-center justify-between gap-4 text-sm">
-                <label className="flex cursor-pointer items-center gap-3">
-                  <input
-                    type="checkbox"
-                    name="rememberMe"
-                    className="custom-checkbox"
-                    checked={rememberMe}
-                    onChange={(e) => onRememberMeChange?.(e.target.checked)}
-                  />
-                  <span className="text-content-body">Keep me signed in</span>
-                </label>
-                {!isSignup && (
-                  <button
-                    type="button"
-                    onClick={onResetPassword}
-                    className="font-semibold text-brand-700 transition-colors hover:text-brand-800 hover:underline"
-                  >
-                    Reset password
-                  </button>
-                )}
-              </div>
-
-              {message && (
-                <div
-                  role="status"
-                  className={`animate-element rounded-xl border px-4 py-3 text-sm ${
-                    isError
-                      ? "border-danger-200 bg-danger-50 text-danger-700"
-                      : "border-success-200 bg-success-50 text-success-700"
-                  }`}
-                >
-                  {message.text}
-                </div>
-              )}
-
-              <button
-                type="submit"
-                disabled={loading}
-                className="animate-element animate-delay-700 flex w-full items-center justify-center rounded-2xl bg-brand py-4 font-bold text-content-inverted shadow-lg shadow-brand-600/20 transition-all hover:bg-brand-hover active:scale-[0.99] disabled:opacity-60"
-              >
-                {loading && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-                {loading
-                  ? isSignup
-                    ? "Creating account..."
-                    : "Signing in..."
-                  : submitLabel || (isSignup ? "Create Account" : "Sign In")}
-              </button>
-            </form>
-
-            {showGoogle && (
-              <>
-                <div className="animate-element animate-delay-800 relative flex items-center justify-center">
-                  <span className="w-full border-t border-line" />
-                  <span className="absolute bg-surface px-4 text-sm text-content-muted">
-                    Or continue with
-                  </span>
-                </div>
-
-                <button
-                  type="button"
-                  onClick={onGoogleSignIn}
-                  disabled={googleLoading}
-                  className="animate-element animate-delay-900 flex w-full items-center justify-center gap-3 rounded-2xl border border-line py-4 font-semibold text-content transition-colors hover:bg-surface-sunken disabled:opacity-60"
-                >
-                  {googleLoading ? (
-                    <Loader2 className="h-5 w-5 animate-spin" />
-                  ) : (
-                    <GoogleIcon />
+                        {googleLoading ? <Loader2 className="animate-spin" /> : <GoogleIcon />}
+                        {googleLoading ? "Opening Google..." : "Continue with Google"}
+                      </Button>
+                      <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
+                        <span className="relative z-10 bg-background px-2 text-muted-foreground">
+                          Or continue with
+                        </span>
+                      </div>
+                    </>
                   )}
-                  {googleLoading ? "Opening Google..." : "Continue with Google"}
-                </button>
-              </>
-            )}
 
-            <p className="animate-element animate-delay-1000 text-center text-sm text-content-muted">
-              {isSignup ? "Already have an account?" : "New to Invoicium?"}{" "}
-              <button
-                type="button"
-                onClick={onToggleMode}
-                className="font-semibold text-brand-700 transition-colors hover:underline"
-              >
-                {isSignup ? "Sign in" : "Create an account"}
-              </button>
-            </p>
+                  <form className="flex flex-col gap-4" onSubmit={onSubmit}>
+                    <div className="grid gap-1.5">
+                      <Label htmlFor="email">Email address</Label>
+                      <Input
+                        id="email"
+                        name="email"
+                        type="email"
+                        autoComplete="email"
+                        required
+                        value={email}
+                        onChange={(e) => onEmailChange?.(e.target.value)}
+                        placeholder="you@example.com"
+                      />
+                    </div>
+
+                    <div className="grid gap-1.5">
+                      <div className="flex items-center justify-between">
+                        <Label htmlFor="password">Password</Label>
+                        {!isSignup && (
+                          <button
+                            type="button"
+                            onClick={onResetPassword}
+                            className="text-sm text-muted-foreground underline-offset-4 hover:text-foreground hover:underline"
+                          >
+                            Reset password
+                          </button>
+                        )}
+                      </div>
+                      <div className="relative">
+                        <Input
+                          id="password"
+                          name="password"
+                          type={showPassword ? "text" : "password"}
+                          autoComplete={isSignup ? "new-password" : "current-password"}
+                          required
+                          minLength={6}
+                          value={password}
+                          onChange={(e) => onPasswordChange?.(e.target.value)}
+                          placeholder="Enter your password"
+                          className="pr-10"
+                        />
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          className="absolute inset-y-0 right-3 flex items-center text-muted-foreground transition-colors hover:text-foreground"
+                        >
+                          {showPassword ? <EyeOff className="size-4" /> : <Eye className="size-4" />}
+                        </button>
+                      </div>
+                      {passwordSlot}
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Checkbox
+                        id="rememberMe"
+                        checked={rememberMe}
+                        onCheckedChange={(checked) => onRememberMeChange?.(Boolean(checked))}
+                      />
+                      <Label htmlFor="rememberMe" className="font-normal">
+                        Keep me signed in
+                      </Label>
+                    </div>
+
+                    {message && (
+                      <div
+                        role="status"
+                        className={`rounded-md border px-3 py-2.5 text-sm ${
+                          isError
+                            ? "border-destructive/30 bg-destructive/10 text-destructive"
+                            : "border-success-200 bg-success-50 text-success-700 dark:border-success-800 dark:bg-success-900/30 dark:text-success-300"
+                        }`}
+                      >
+                        {message.text}
+                      </div>
+                    )}
+
+                    <Button type="submit" className="w-full" disabled={loading}>
+                      {loading && <Loader2 className="animate-spin" />}
+                      {loading
+                        ? isSignup
+                          ? "Creating account..."
+                          : "Signing in..."
+                        : submitLabel || (isSignup ? "Create Account" : "Sign In")}
+                    </Button>
+                  </form>
+                </div>
+              </div>
+            </div>
+
+            <div className="flex w-full justify-between px-4 pb-3 text-sm text-muted-foreground sm:px-8">
+              <span>© {new Date().getFullYear()} Invoicium</span>
+              <a href="/PrivacyPolicy" className="hover:text-foreground">
+                Privacy
+              </a>
+            </div>
           </div>
         </div>
-      </section>
-
-      {/* Right column: hero panel + cards */}
-      <section className="relative hidden flex-1 p-4 md:block">
-        <div
-          className="animate-slide-right animate-delay-300 absolute inset-4 overflow-hidden rounded-3xl bg-surface-inverted bg-cover bg-center"
-          style={
-            heroImageSrc
-              ? { backgroundImage: `url(${heroImageSrc})` }
-              : undefined
-          }
-        >
-          {!heroImageSrc &&
-            (shaderEnabled ? (
-              /* bg-surface-inverted on the parent is the floor here: where WebGL
-                 is missing the canvas draws nothing, and the panel stays dark
-                 rather than going blank. Paused by an IntersectionObserver, so
-                 the md:block panel costs nothing while it is hidden on a
-                 phone. respectReducedMotion mirrors Layout -- a default is
-                 nobody's consent, so only someone who actually flipped the
-                 switch overrides the OS setting. */
-              <ShaderBackground
-                className="absolute inset-0 h-full w-full"
-                preset={shaderPreset}
-                respectReducedMotion={!shaderChosen}
-              />
-            ) : (
-              <>
-                <div className="absolute -left-24 -top-24 h-[520px] w-[520px] rounded-full bg-brand-500/25 blur-[130px]" />
-                <div className="absolute -bottom-32 -right-16 h-[460px] w-[460px] rounded-full bg-success-500/20 blur-[130px]" />
-              </>
-            ))}
-          {/* Scrim keeps the cards readable over a photo or a shader alike. */}
-          <div className="absolute inset-0 bg-gradient-to-t from-ink-950/70 via-transparent to-transparent" />
-        </div>
-
-        {heroCards.length > 0 && (
-          <div className="absolute bottom-8 left-1/2 flex w-full -translate-x-1/2 justify-center gap-4 px-8">
-            <HeroCard item={heroCards[0]} delay="animate-delay-1000" />
-            {heroCards[1] && (
-              <div className="hidden xl:flex">
-                <HeroCard item={heroCards[1]} delay="animate-delay-1200" />
-              </div>
-            )}
-            {heroCards[2] && (
-              <div className="hidden 2xl:flex">
-                <HeroCard item={heroCards[2]} delay="animate-delay-1400" />
-              </div>
-            )}
-          </div>
-        )}
-      </section>
-    </div>
+      </main>
+    </AppShellContext.Provider>
   );
 };

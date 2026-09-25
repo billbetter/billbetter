@@ -257,49 +257,23 @@ export default function Jobs() {
           */}
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-3 sm:pt-4">
             <div className="flex items-center justify-between h-16 sm:h-20">
-              <div className="flex items-center gap-3 sm:gap-4">
-                <div className="relative group">
-                  <div className="absolute inset-0 bg-success-500/20 dark:bg-success-500/30 rounded-xl blur-lg group-hover:bg-success-500/30 dark:group-hover:bg-success-500/40 transition-all duration-500" />
-                  <div className="relative w-10 h-10 sm:w-12 sm:h-12 rounded-xl bg-success-500 flex items-center justify-center shadow-lg shadow-success-200/50 dark:shadow-success-900/50 ring-1 ring-content-inverted/20 dark:ring-content-inverted/10">
-                    <Briefcase
-                      className="w-5 h-5 sm:w-6 sm:h-6 text-content-inverted"
-                      strokeWidth={2}
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="flex items-center gap-2 sm:gap-3">
-                    <h1 className="text-xl sm:text-2xl font-black text-content dark:text-content-inverted tracking-tight">
-                      Jobs
-                    </h1>
-                  </div>
-                  <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle font-medium">
-                    Manage projects
-                  </p>
-                </div>
+              <div className="min-w-0 space-y-1">
+                <h1 className="text-2xl font-semibold tracking-tight">
+                  Jobs
+                </h1>
+                <p className="text-sm text-muted-foreground">
+                  Manage projects
+                </p>
               </div>
 
-              <div className="flex items-center gap-2 sm:gap-3">
-                <Button
-                  variant="ghost"
-                  size="sm"
-                  className="hidden sm:flex items-center gap-2 text-content-body dark:text-ink-300 hover:text-content dark:hover:text-content-inverted hover:bg-ink-100/80 dark:hover:bg-ink-800 font-medium h-10"
-                >
-                  <Filter className="w-4 h-4" />
+              <div className="flex items-center gap-2">
+                <Button variant="ghost" className="hidden sm:inline-flex">
+                  <Filter />
                   Filter
                 </Button>
 
-                <Button
-                  onClick={() => setShowCreateModal(true)}
-                  className="bg-surface dark:bg-ink-800 hover:bg-surface-sunken dark:hover:bg-ink-700 text-content dark:text-content-inverted border border-line shadow-sm hover:shadow-md hover:border-line-strong font-semibold h-10 sm:h-11 px-3 sm:px-5 rounded-xl transition-all duration-300 group text-sm sm:text-base dark:border-ink-700 dark:hover:border-ink-600"
-                >
-                  <div className="w-5 h-5 sm:w-6 sm:h-6 rounded-md bg-success-600 flex items-center justify-center mr-2 group-hover:scale-110 transition-transform duration-300">
-                    <Plus
-                      className="w-3 h-3 sm:w-3.5 sm:h-3.5 text-content-inverted"
-                      strokeWidth={3}
-                    />
-                  </div>
+                <Button onClick={() => setShowCreateModal(true)}>
+                  <Plus />
                   <span className="hidden sm:inline">New Job</span>
                   <span className="sm:hidden">New</span>
                 </Button>
