@@ -21,20 +21,21 @@ const PRESET_KEY = "invoicium-shader-preset";
 const EVENT = "invoicium:appearance";
 
 /**
- * Whether the animated background is on. OFF unless explicitly turned on.
+ * Whether the animated background is on. ON unless explicitly turned off.
  *
- * The app's canvas is the dashboard template's flat background, so the
- * animation is now an opt-in again. The three states stay distinct: "true"
- * (chosen on), "false" (chosen off), and absent (default). Anyone who switched
- * it on keeps it on -- flipping the default must not reach into a choice
- * someone already made.
+ * Reads `!== "false"` rather than `=== "true"` so the three states stay
+ * distinct: "true" (chosen on), "false" (chosen off), and absent (default).
+ * Anyone who already switched it off keeps it off -- flipping the default must
+ * not reach into a choice someone already made.
  */
 export function isShaderBackgroundEnabled() {
   try {
-    return window.localStorage.getItem(SHADER_KEY) === "true";
+    return window.localStorage.getItem(SHADER_KEY) !== "false";
   } catch {
-    // Private mode / storage disabled: the default, which is the flat canvas.
-    return false;
+    // Private mode / storage disabled. Match the default: a private window
+    // should look like the product, and the shader falls back to the flat
+    // background on its own where WebGL is missing.
+    return true;
   }
 }
 

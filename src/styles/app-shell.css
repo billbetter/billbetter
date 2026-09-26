@@ -64,6 +64,20 @@ html[data-app-shell].dark tbody tr:hover {
   background-color: hsl(var(--muted) / 0.5);
 }
 
+/* Native <select> lists. The open list is drawn by the browser: it takes
+   the select's light text in dark mode but keeps its own white background,
+   so every option was near-invisible. Give the options the popover colours,
+   and tell the browser the page is dark so the list's chrome follows. */
+html[data-app-shell] select option,
+html[data-app-shell] select optgroup {
+  background-color: hsl(var(--popover));
+  color: hsl(var(--popover-foreground));
+}
+
+html[data-app-shell].dark select {
+  color-scheme: dark;
+}
+
 /* Form fields: the template's quieter focus -- a ring in the ring colour,
    no border colour jump. */
 html[data-app-shell] input:not([type="checkbox"]):not([type="radio"]):not([type="range"]):focus,

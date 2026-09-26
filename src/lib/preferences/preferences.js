@@ -30,9 +30,10 @@ export const PREFERENCE_OPTIONS = {
 };
 
 export const PREFERENCE_DEFAULTS = {
-  // Light, not system: the app has always opened light unless someone chose
-  // dark, and the marketing site it is reached from is light-only.
-  theme_mode: "light",
+  // Follow the device. Safe for the marketing site, which is light-only:
+  // the dark class is only ever set while a themed screen is mounted (see
+  // enterThemedScreen below), never on the public pages.
+  theme_mode: "system",
   theme_preset: "default",
   font: "geist",
   content_layout: "centered",
@@ -101,11 +102,32 @@ export function resolveThemeMode(mode = current.theme_mode) {
   return mode;
 }
 
+// How many mounted screens follow the theme: the app shell, the auth screens,
+// checkout, the paywall, the 404. The marketing site and the client-facing
+// invoice and quote links are designed light-only, so while none of these is
+// mounted the dark class stays off whatever the preference says -- which is
+// what lets the default be "system" without a dark-mode device half-darkening
+// the homepage.
+let themedScreens = 0;
+
+export function enterThemedScreen() {
+  themedScreens += 1;
+  applyPreferences();
+}
+
+export function leaveThemedScreen() {
+  themedScreens = Math.max(0, themedScreens - 1);
+  applyPreferences();
+}
+
 /** Mirror every preference onto <html>. Safe to call repeatedly. */
 export function applyPreferences(values = current) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  root.classList.toggle("dark", resolveThemeMode(values.theme_mode) === "dark");
+  root.classList.toggle(
+    "dark",
+    themedScreens > 0 && resolveThemeMode(values.theme_mode) === "dark",
+  );
   root.dataset.themeMode = values.theme_mode;
   root.dataset.themePreset = values.theme_preset;
   root.dataset.font = values.font;

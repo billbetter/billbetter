@@ -17,13 +17,19 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/layout/AppSidebar";
 import AppHeader from "@/components/layout/AppHeader";
 import MobileBottomNav from "@/components/layout/MobileBottomNav";
-import { useAppShell, useApplyPreferences } from "@/lib/preferences/app-shell";
+import { useAppShell, useThemedScreen } from "@/lib/preferences/app-shell";
 import { usePreferences } from "@/lib/preferences/preferences";
 import { AppShellContext } from "@/lib/preferences/shell-context";
 
 /** Opts the screen into the dashboard theme while it is mounted. */
 function AppShellScope() {
   useAppShell();
+  return null;
+}
+
+/** Lets a screen outside the shell follow light/dark while it is mounted. */
+function ThemedScope() {
+  useThemedScreen();
   return null;
 }
 
@@ -47,8 +53,8 @@ export default function Layout({ children, currentPageName }) {
   const [navigationStack, setNavigationStack] = useState([]);
 
   // Theme mode, preset, font and layout choices (Settings -> Appearance, or
-  // the header's preferences). Applied on every branch, as dark mode was.
-  useApplyPreferences();
+  // the header's preferences). Applied by the branches below that follow the
+  // theme -- the app, checkout, the paywall -- and not by the marketing one.
   const { navbar_style: navbarStyle } = usePreferences();
 
   // Store refs for preserving scroll positions
@@ -436,6 +442,7 @@ export default function Layout({ children, currentPageName }) {
   if (standalonePages.includes(currentPageName)) {
     return (
       <div className="min-h-screen bg-surface-sunken dark:bg-ink-950">
+        <ThemedScope />
         <header className="w-full border-b border-line bg-surface dark:border-ink-800 dark:bg-ink-900">
           <div className="mx-auto flex max-w-4xl items-center justify-between px-4 py-4 sm:px-6">
             <button
@@ -462,7 +469,12 @@ export default function Layout({ children, currentPageName }) {
   // show a sidebar of pages a blocked user cannot reach -- and the brief is
   // that a blocked account gets no peek into the app at all.
   if (currentPageName === "UpgradeRequired") {
-    return <>{children}</>;
+    return (
+      <>
+        <ThemedScope />
+        {children}
+      </>
+    );
   }
 
   // ---------- PUBLIC LAYOUT ----------
