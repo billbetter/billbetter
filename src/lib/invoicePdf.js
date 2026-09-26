@@ -25,6 +25,7 @@ import {
   mapQuoteToComplexPdfData,
 } from "@/lib/invoicePdfData";
 import { loadLogoDataUrl } from "@/lib/invoiceBrand";
+import { profilePhotoOf } from "@/lib/profilePhoto";
 
 // Which layout each BusinessSettings.invoice_template value renders.
 //
@@ -72,6 +73,41 @@ function loadRenderer(templateId) {
 }
 
 /**
+ * The picture a document carries in its header: the business logo, or --
+ * when there is none -- the owner's profile picture (see profilePhoto.js).
+ * `options.photoUrl` overrides the session lookup, for callers that already
+ * know it. Never throws; a null logo is an unbranded header.
+ */
+async function loadBrandImage(settings, options) {
+  if (settings?.logo_url) {
+    return { logo: await loadLogoDataUrl(settings.logo_url), logoIsPhoto: false };
+  }
+  const photoUrl = options.photoUrl !== undefined ? options.photoUrl : await ownerPhotoUrl(settings);
+  const logo = await loadLogoDataUrl(photoUrl);
+  return { logo, logoIsPhoto: Boolean(logo) };
+}
+
+/**
+ * The signed-in user's profile picture, when they own these settings.
+ *
+ * Only the owner's: a crew member rendering the owner's invoice must not put
+ * their own face on it. getSession reads the stored session without a network
+ * call. Imported lazily so this module still loads where the client cannot be
+ * set up -- the PDF test harness bundles it without the app's env.
+ */
+async function ownerPhotoUrl(settings) {
+  try {
+    const { supabase } = await import("@/api/supabaseClient");
+    const { data } = await supabase.auth.getSession();
+    const user = data?.session?.user;
+    if (!user || !settings?.user_id || String(user.id) !== String(settings.user_id)) return null;
+    return profilePhotoOf(user.user_metadata);
+  } catch {
+    return null;
+  }
+}
+
+/**
  * Render an invoice to a Blob.
  *
  * @param {object} invoice   row from public."Invoice"
@@ -94,12 +130,12 @@ export async function renderInvoicePdfBlob(invoice, settings, options = {}) {
   //
   // Both fetched in parallel with the renderer chunk, which is the slower of
   // the two on a first render.
-  const [{ pdf, Template }, logo] = await Promise.all([
+  const [{ pdf, Template }, brandImage] = await Promise.all([
     loadRenderer(templateId),
-    loadLogoDataUrl(settings?.logo_url),
+    loadBrandImage(settings, options),
   ]);
 
-  const withLogo = { ...options, logo };
+  const withLogo = { ...options, ...brandImage };
 
   // The detailed layout takes a different shape -- grouped sections and an array
   // of tax lines -- so it needs its own mapper, not the flat one.
@@ -130,12 +166,12 @@ export async function renderInvoicePdfBlob(invoice, settings, options = {}) {
 export async function renderQuotePdfBlob(quote, settings, options = {}) {
   const templateId = options.templateId || resolveTemplateId(settings);
 
-  const [{ pdf, Template }, logo] = await Promise.all([
+  const [{ pdf, Template }, brandImage] = await Promise.all([
     loadRenderer(templateId),
-    loadLogoDataUrl(settings?.logo_url),
+    loadBrandImage(settings, options),
   ]);
 
-  const withLogo = { ...options, logo };
+  const withLogo = { ...options, ...brandImage };
   const data =
     templateId === "detailed"
       ? mapQuoteToComplexPdfData(quote, settings, withLogo)

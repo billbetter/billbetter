@@ -16,11 +16,16 @@ export function initialsOf(name) {
   return (parts[0][0] + (parts.length > 1 ? parts[parts.length - 1][0] : "")).toUpperCase();
 }
 
-/** The business logo when there is one, else the owner's initials. */
+/**
+ * The business logo when there is one, else the owner's profile picture, else
+ * their initials. The same order sent invoices use, so the picture here is the
+ * one clients see.
+ */
 export function AccountAvatar({ user, settings, className = "" }) {
+  const src = settings?.logo_url || user?.photo_url;
   return (
     <Avatar className={`rounded-lg ${className}`}>
-      {settings?.logo_url ? <AvatarImage src={settings.logo_url} alt="Profile" /> : null}
+      {src ? <AvatarImage src={src} alt="Profile" /> : null}
       <AvatarFallback className="rounded-lg bg-sidebar-accent text-xs font-medium text-sidebar-accent-foreground">
         {initialsOf(user?.full_name)}
       </AvatarFallback>

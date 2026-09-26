@@ -55,7 +55,7 @@ Deno.serve(async (req) => {
     const to = guard.to;
     if (!to) throw new Error('This quote has no client email on file.');
 
-    const { business_name, sender_name, sender_email, sender_phone, sender_address, logo_url } =
+    const { business_name, sender_name, sender_email, sender_phone, sender_address, logo_url, photo_url } =
       guard.business;
 
     // Built from the stored public_id, never accepted from the body -- the body
@@ -114,6 +114,7 @@ Deno.serve(async (req) => {
         sender_phone,
         sender_address,
         logo_url,
+        photo_url,
       },
     });
 

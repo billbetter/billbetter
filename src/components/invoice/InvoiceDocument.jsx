@@ -58,6 +58,9 @@ const makeStyles = (t, fontFamily = "Inter") =>
     // a square badge both come out the right shape. maxWidth stops a banner
     // logo running under the invoice number on the right.
     logo: { height: 34, maxWidth: 180, objectFit: "contain", marginBottom: 6 },
+    // The owner's profile picture, standing in when there is no logo: a
+    // circle at the logo's height.
+    photo: { width: 34, height: 34, borderRadius: 17, objectFit: "cover", marginBottom: 6 },
     small: { fontSize: 9, color: t.mutedTextColor, marginTop: 2 },
     invoiceTitle: { fontSize: 17, fontWeight: "bold", textAlign: "right" },
     metaRow: { fontSize: 9, textAlign: "right", marginTop: 3 },
@@ -199,7 +202,9 @@ export const InvoiceDocument = (data) => {
                 name beneath it in 9pt grey -- so the default template, the one
                 most invoices use, was branded for us rather than for the person
                 whose work it bills. */}
-            {data.logo ? <Image style={styles.logo} src={data.logo} /> : null}
+            {data.logo ? (
+              <Image style={data.logoIsPhoto ? styles.photo : styles.logo} src={data.logo} />
+            ) : null}
             <Text style={styles.brand}>{data.businessName}</Text>
             <Text style={styles.small}>{data.businessAddress}</Text>
             <Text style={styles.small}>{data.businessContact}</Text>

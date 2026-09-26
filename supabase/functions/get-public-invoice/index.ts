@@ -1,5 +1,5 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
-import { db } from '../_shared/supabase-admin.ts';
+import { db, getUserContact } from '../_shared/supabase-admin.ts';
 import { docByToken, dedupeHash, isBotRequest, isRateLimited, recordHit, advanceViewCounters, LINK_UNAVAILABLE } from '../_shared/public-link.ts';
 import { invoiceBalance } from '../_shared/invoice-balance.ts';
 
@@ -163,6 +163,13 @@ Deno.serve(async (req) => {
     const balance = await invoiceBalance(invoice);
     const isPaid = String(invoice.status || '') === 'paid' || balance.settled;
 
+    // The owner's profile picture stands in for a logo, so it is only looked
+    // up when there is no logo. It lives in auth.users, hence the admin call;
+    // a failed lookup answers null and the page shows the name alone.
+    const photoUrl = settings?.logo_url
+      ? null
+      : (await getUserContact(String(invoice.user_id)))?.photo_url ?? null;
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -209,6 +216,7 @@ Deno.serve(async (req) => {
         business: {
           name: settings?.business_name || '',
           logo_url: settings?.logo_url || '',
+          photo_url: photoUrl || '',
           address: settings?.address || '',
           phone: settings?.phone || '',
           email: settings?.email || '',

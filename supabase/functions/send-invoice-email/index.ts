@@ -61,7 +61,7 @@ Deno.serve(async (req) => {
     }
     const to = guard.to;
     if (!to) throw new Error('This invoice has no client email on file.');
-    const { business_name, sender_name, sender_email, sender_phone, sender_address, logo_url } =
+    const { business_name, sender_name, sender_email, sender_phone, sender_address, logo_url, photo_url } =
       guard.business;
 
     // -- Phase A of the deliverability plan (docs/invoice-links-plan.md s.6) --
@@ -185,6 +185,7 @@ Deno.serve(async (req) => {
         sender_phone,
         sender_address,
         logo_url,
+        photo_url,
       },
     });
 

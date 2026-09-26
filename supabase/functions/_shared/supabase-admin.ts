@@ -1,3 +1,5 @@
+import { profilePhotoOf } from './profile-photo.ts';
+
 const SUPABASE_URL = Deno.env.get('SUPABASE_URL')!;
 const SERVICE_ROLE = Deno.env.get('SUPABASE_SERVICE_ROLE_KEY')!;
 
@@ -100,10 +102,13 @@ export const db = {
  * user_id in our Subscription table -- but the address to notify lives in
  * auth.users, which is not reachable through PostgREST. Returns null rather
  * than throwing: a notification must never be the reason a webhook 500s.
+ *
+ * Also the profile picture, which the public invoice and quote pages show in
+ * place of a logo -- see profile-photo.ts.
  */
 export async function getUserContact(
   userId: string,
-): Promise<{ email?: string; name?: string } | null> {
+): Promise<{ email?: string; name?: string; photo_url?: string | null } | null> {
   try {
     const res = await fetch(
       `${SUPABASE_URL}/auth/v1/admin/users/${encodeURIComponent(userId)}`,
@@ -119,6 +124,7 @@ export async function getUserContact(
     return {
       email: user.email,
       name: meta.full_name || meta.name || undefined,
+      photo_url: profilePhotoOf(meta),
     };
   } catch (err) {
     console.warn('getUserContact failed:', err instanceof Error ? err.message : err);
@@ -126,7 +132,9 @@ export async function getUserContact(
   }
 }
 
-export async function getUserFromAuthHeader(req: Request): Promise<{ id: string; email?: string } | null> {
+export async function getUserFromAuthHeader(
+  req: Request,
+): Promise<{ id: string; email?: string; photo_url?: string | null } | null> {
   const authHeader = req.headers.get('Authorization') || req.headers.get('authorization');
   if (!authHeader) return null;
   const token = authHeader.replace(/^Bearer\s+/i, '');
@@ -135,5 +143,7 @@ export async function getUserFromAuthHeader(req: Request): Promise<{ id: string;
   });
   if (!res.ok) return null;
   const user = await res.json();
-  return user?.id ? { id: user.id, email: user.email } : null;
+  return user?.id
+    ? { id: user.id, email: user.email, photo_url: profilePhotoOf(user.user_metadata) }
+    : null;
 }

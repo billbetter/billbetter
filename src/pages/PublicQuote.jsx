@@ -248,13 +248,21 @@ export default function PublicQuote() {
 
       <div className="max-w-3xl mx-auto">
         <header className="mb-8 text-center">
-          {business.logo_url && (
+          {business.logo_url ? (
             <img
               src={business.logo_url}
               alt={business.name}
               className="w-24 h-auto mx-auto mb-4"
             />
-          )}
+          ) : business.photo_url ? (
+            // The contractor's profile picture, when there is no logo. The
+            // heading below names them, so it needs no alt text of its own.
+            <img
+              src={business.photo_url}
+              alt=""
+              className="w-20 h-20 rounded-full object-cover mx-auto mb-4 shadow-sm"
+            />
+          ) : null}
           <h1 className="text-3xl font-black text-content">
             Quote from {business.name || "Us"}
           </h1>

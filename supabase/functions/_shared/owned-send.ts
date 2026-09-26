@@ -43,6 +43,8 @@ export interface TrustedSend {
     sender_phone: string | null;
     sender_address: string | null;
     logo_url: string | null;
+    /** The owner's profile picture, drawn where there is no logo. */
+    photo_url: string | null;
   };
 }
 
@@ -57,7 +59,7 @@ export interface TrustedSend {
 export async function loadOwnedForSend(
   table: 'Invoice' | 'Quote',
   id: string | undefined | null,
-  user: { id: string; email?: string },
+  user: { id: string; email?: string; photo_url?: string | null },
   channel: 'email' | 'sms',
 ): Promise<TrustedSend | null> {
   if (!id) return null;
@@ -83,6 +85,9 @@ export async function loadOwnedForSend(
     sender_phone: settings?.phone || null,
     sender_address: settings?.address || null,
     logo_url: settings?.logo_url || null,
+    // The caller IS the owner -- checked above -- so their photo is the
+    // owner's photo.
+    photo_url: user.photo_url || null,
   };
 
   return { record, to, business };
