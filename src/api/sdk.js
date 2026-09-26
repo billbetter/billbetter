@@ -1,6 +1,7 @@
 import { localDataEngine } from "@/api/localDataEngine";
 import { seedAllDataForUser } from "@/entities/seedData";
 import { supabase } from "./supabaseClient";
+import { profilePhotoOf } from "@/lib/profilePhoto";
 import { Client } from "@/entities/Client";
 import { Invoice } from "@/entities/Invoice";
 import { Quote } from "@/entities/Quote";
@@ -745,6 +746,9 @@ export const sdk = {
         onboarding_completed: profile?.onboarding_completed || false,
         role: profile?.role || "admin",
         ...profile,
+        // From the sign-in provider (Google), not the profiles table -- see
+        // src/lib/profilePhoto.js.
+        photo_url: profilePhotoOf(user.user_metadata),
       };
     },
     logout: async () => {

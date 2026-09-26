@@ -284,11 +284,14 @@ function bytesToBase64(bytes) {
  *
  * `logo` is passed in rather than fetched here, because this is synchronous
  * and the fetch belongs at the one async boundary the render already has.
+ * `logoIsPhoto` says it is the owner's profile picture standing in for a
+ * missing logo, which the templates draw as a small circle instead.
  */
-export function resolveBrand(settings, { logo = null } = {}) {
+export function resolveBrand(settings, { logo = null, logoIsPhoto = false } = {}) {
   return {
     businessName: brandHeading(settings),
     logo: logo || null,
+    logoIsPhoto: Boolean(logo && logoIsPhoto),
     fontFamily: resolvePdfFont(settings).family,
     footerText: resolveFooterText(settings),
     showPoweredBy: showsPoweredBy(settings),

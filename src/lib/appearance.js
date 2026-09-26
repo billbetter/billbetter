@@ -32,9 +32,9 @@ export function isShaderBackgroundEnabled() {
   try {
     return window.localStorage.getItem(SHADER_KEY) !== "false";
   } catch {
-    // Private mode / storage disabled. Match the default rather than the old
-    // off: a private window should look like the product, and the shader
-    // falls back to the flat background on its own where WebGL is missing.
+    // Private mode / storage disabled. Match the default: a private window
+    // should look like the product, and the shader falls back to the flat
+    // background on its own where WebGL is missing.
     return true;
   }
 }

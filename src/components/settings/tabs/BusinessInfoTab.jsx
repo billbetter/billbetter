@@ -6,6 +6,81 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { TabsContent } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
+import { supabase } from "@/api/supabaseClient";
+import { HIDE_PHOTO_KEY, providerPhotoOf } from "@/lib/profilePhoto";
+
+/**
+ * "Show my photo on invoices" -- the owner's profile picture stands in for a
+ * missing logo on everything they send (see src/lib/profilePhoto.js), and
+ * this turns that off.
+ *
+ * Saved on its own, straight to the account's user_metadata, not through the
+ * form's Save: it is not a BusinessSettings column, and an unknown key in the
+ * settings payload fails the whole save. Hidden for an account with no photo
+ * to show.
+ */
+function ProfilePhotoSwitch({ hasLogo }) {
+  const [meta, setMeta] = React.useState(null);
+  const [saving, setSaving] = React.useState(false);
+  const [error, setError] = React.useState(null);
+
+  React.useEffect(() => {
+    let live = true;
+    supabase.auth.getSession().then(({ data }) => {
+      if (live) setMeta(data?.session?.user?.user_metadata || {});
+    });
+    return () => {
+      live = false;
+    };
+  }, []);
+
+  const photo = providerPhotoOf(meta);
+  if (!photo) return null;
+  const shown = meta[HIDE_PHOTO_KEY] !== true;
+
+  const toggle = async (next) => {
+    setSaving(true);
+    setError(null);
+    const { data, error: err } = await supabase.auth.updateUser({
+      data: { [HIDE_PHOTO_KEY]: !next },
+    });
+    if (err) setError("Couldn't save that. Try again.");
+    else setMeta(data?.user?.user_metadata || { ...meta, [HIDE_PHOTO_KEY]: !next });
+    setSaving(false);
+  };
+
+  return (
+    <div className="flex items-start gap-3 rounded-lg border border-line dark:border-ink-700 p-4">
+      <img src={photo} alt="" className="size-10 shrink-0 rounded-full object-cover" />
+      <div className="flex-1">
+        <Label
+          htmlFor="show_profile_photo"
+          className="text-ink-700 dark:text-ink-300 cursor-pointer"
+        >
+          Show my profile picture on invoices and quotes
+        </Label>
+        <p className="text-sm text-content-muted dark:text-content-subtle mt-1">
+          {hasLogo
+            ? "Your logo is used while you have one; your picture stands in if you remove it."
+            : "Used in place of a logo on the email, the client's link and the PDF. Saved right away."}
+        </p>
+        {error ? <p className="mt-1 text-sm text-danger-600">{error}</p> : null}
+      </div>
+      {/* The same toggle as "Let clients approve or decline quotes online". */}
+      <label className="relative inline-flex items-center cursor-pointer flex-shrink-0 mt-1">
+        <input
+          type="checkbox"
+          id="show_profile_photo"
+          checked={shown}
+          disabled={saving}
+          onChange={(e) => toggle(e.target.checked)}
+          className="sr-only peer"
+        />
+        <div className="w-11 h-6 bg-ink-200 dark:bg-ink-700 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-success-300 dark:peer-focus:ring-success-700 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-content-inverted after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-surface after:border-line-strong dark:after:border-ink-600 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-success-600 dark:peer-checked:bg-success-600 dark:after:bg-surface-inverted peer-disabled:opacity-60"></div>
+      </label>
+    </div>
+  );
+}
 
 /** Business details, document defaults, the logo and the review link. */
 export default function BusinessInfoTab({
@@ -338,6 +413,9 @@ export default function BusinessInfoTab({
                 appear on your invoices and quotes.
               </span>
             </p>
+            <div className="mt-3">
+              <ProfilePhotoSwitch hasLogo={Boolean(formData.logo_url)} />
+            </div>
           </div>
 
           <div>

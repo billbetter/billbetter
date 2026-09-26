@@ -51,6 +51,7 @@ const makeStyles = (t, fontFamily = "Inter") =>
     logoText: { fontSize: 7, color: t.mutedTextColor, textAlign: "center" },
     // The real logo, when there is one. Height-only so the aspect ratio holds.
     logo: { height: 46, maxWidth: 170, objectFit: "contain", marginBottom: 6 },
+    photo: { width: 46, height: 46, borderRadius: 23, objectFit: "cover", marginBottom: 6 },
     brand: { fontSize: 15, fontWeight: "bold" },
     small: { fontSize: 8, color: t.mutedTextColor, marginTop: 1 },
 
@@ -258,7 +259,9 @@ export const InvoiceDocumentComplex = (data) => {
                 received, not a design placeholder someone forgot in a mock.
                 With no logo it now renders nothing rather than an empty box
                 announcing the absence. */}
-            {data.logo ? <Image style={styles.logo} src={data.logo} /> : null}
+            {data.logo ? (
+              <Image style={data.logoIsPhoto ? styles.photo : styles.logo} src={data.logo} />
+            ) : null}
             <Text style={styles.brand}>{data.businessName}</Text>
             <Text style={styles.small}>{data.businessAddress}</Text>
             <Text style={styles.small}>{data.businessContact}</Text>

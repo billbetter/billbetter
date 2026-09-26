@@ -9,12 +9,13 @@
   which paints above this flow, hiding the Continue / Send button behind it.
 
   Still fixed -- the step slider below needs a viewport-stable box, not a
-  scrolling one -- but inset off the chrome instead of over it. The two
+  scrolling one -- but inset off the chrome instead of over it. The three
   variables are published by Layout, which is the only thing that knows the
-  current sidebar width and the measured tab-bar height. They default to 0 so
-  the flow still fills the window if it is ever rendered outside the app shell.
+  current sidebar edge, the pinned header's bottom edge and the measured
+  tab-bar height. They default to 0 so the flow still fills the window if it
+  is ever rendered outside the app shell.
 */
 export const SHELL_POSITION =
-  "fixed top-0 right-0 left-0 bottom-[var(--app-bottom-nav-height,0px)] " +
+  "fixed top-[var(--app-header-bottom,0px)] right-0 left-0 bottom-[var(--app-bottom-nav-height,0px)] " +
   "lg:bottom-0 lg:left-[var(--app-sidebar-width,0px)] " +
   "transition-[left,bottom] duration-300";

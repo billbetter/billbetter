@@ -44,6 +44,8 @@ export interface EmailBranding {
   website?: string;
   /** Public URL of the business's logo. Rendered in place of the name. */
   logo_url?: string | null;
+  /** The owner's profile picture. Rendered beside the name when there is no logo. */
+  photo_url?: string | null;
 }
 
 interface LayoutOptions {
@@ -132,6 +134,24 @@ export function renderEmailLayout(opts: LayoutOptions): string {
   const logoSrc = String(branding.logo_url || "").trim();
   const logoHtml = /^https?:\/\//i.test(logoSrc)
     ? `<img src="${escapeHtml(logoSrc)}" alt="${businessName}" style="display:block;border:0;outline:none;text-decoration:none;max-width:180px;max-height:44px;width:auto;height:auto;" />`
+    : "";
+
+  /*
+    No logo: the owner's profile picture, round, beside the business name.
+
+    Beside rather than instead of, unlike the logo -- a face does not say who
+    the business is, a logo usually does. Sized with width/height attributes,
+    which the logo avoids, because a profile photo is square (Google's is
+    cropped to one) and Outlook needs the attributes to size an image at all.
+    Outlook also ignores border-radius, so there it is square; nowhere is it
+    missing. alt is empty because the name sits right next to it.
+  */
+  const photoSrc = String(branding.photo_url || "").trim();
+  const photoHtml = !logoHtml && /^https?:\/\//i.test(photoSrc)
+    ? `<table role="presentation" cellpadding="0" cellspacing="0"><tr>
+        <td style="padding-right:12px;vertical-align:middle;"><img src="${escapeHtml(photoSrc)}" alt="" width="40" height="40" style="display:block;border:0;outline:none;text-decoration:none;width:40px;height:40px;border-radius:50%;object-fit:cover;" /></td>
+        <td style="color:${TEXT};font-size:18px;font-weight:700;letter-spacing:-0.01em;vertical-align:middle;">${businessName}</td>
+      </tr></table>`
     : "";
 
   const detailsHtml = detailsRows
@@ -237,7 +257,7 @@ export function renderEmailLayout(opts: LayoutOptions): string {
           <td style="padding:28px 32px 20px;border-bottom:1px solid ${BORDER};">
             <table role="presentation" width="100%" cellpadding="0" cellspacing="0">
               <tr>
-                <td style="color:${TEXT};font-size:18px;font-weight:700;letter-spacing:-0.01em;">${logoHtml || businessName}</td>
+                <td style="color:${TEXT};font-size:18px;font-weight:700;letter-spacing:-0.01em;">${logoHtml || photoHtml || businessName}</td>
                 <td align="right" style="color:${MUTED};font-size:12px;font-weight:500;letter-spacing:0.08em;text-transform:uppercase;">${escapeHtml(heading)}</td>
               </tr>
             </table>

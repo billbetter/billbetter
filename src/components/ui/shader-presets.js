@@ -506,7 +506,7 @@ export const SHADER_PRESETS = {
 };
 
 /** The one used when nothing has been chosen, or a stored id no longer exists. */
-export const DEFAULT_PRESET_ID = "waves";
+export const DEFAULT_PRESET_ID = "smoke";
 
 /** @param {string} [id] @returns {typeof SHADER_PRESETS[keyof typeof SHADER_PRESETS]} */
 export function getPreset(id) {

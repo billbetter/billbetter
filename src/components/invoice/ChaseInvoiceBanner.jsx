@@ -59,20 +59,20 @@ export default function ChaseInvoiceBanner({
         to={createPageUrl("ChaseInvoice")}
         className={`group block ${className}`}
       >
-        <div className="relative overflow-hidden rounded-2xl bg-success-700 p-4 sm:p-5 text-content-inverted shadow-lg shadow-success-200/50 dark:shadow-success-900/30 transition-all hover:shadow-xl hover:-translate-y-0.5">
+        <div className="rounded-xl border bg-card surface-gradient p-4 text-card-foreground shadow-sm transition-shadow group-hover:shadow-md sm:p-5">
           <div className="flex items-center gap-3 sm:gap-4">
-            <div className="flex h-10 w-10 sm:h-11 sm:w-11 flex-shrink-0 items-center justify-center rounded-xl bg-surface/15 backdrop-blur-sm ring-1 ring-content-inverted/20 dark:bg-surface-inverted/15">
-              <Zap className="h-5 w-5 text-content-inverted" />
+            <div className="flex size-10 flex-shrink-0 items-center justify-center rounded-lg bg-primary text-primary-foreground">
+              <Zap className="size-5" />
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[10px] sm:text-[11px] font-bold uppercase tracking-widest text-success-100">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 {copy.eyebrow}
               </p>
-              <p className="mt-0.5 text-sm sm:text-base font-bold leading-tight truncate">
+              <p className="mt-0.5 truncate text-sm font-semibold leading-tight sm:text-base">
                 {copy.title}
               </p>
             </div>
-            <ArrowRight className="h-5 w-5 flex-shrink-0 text-content-inverted transition-transform group-hover:translate-x-1" />
+            <ArrowRight className="size-5 flex-shrink-0 text-muted-foreground transition-transform group-hover:translate-x-1" />
           </div>
         </div>
       </Link>
@@ -85,37 +85,35 @@ export default function ChaseInvoiceBanner({
       className={`group block ${className}`}
       aria-label="Open Chase Invoice"
     >
-      <div className="relative overflow-hidden rounded-2xl bg-success-700 p-5 sm:p-7 text-content-inverted shadow-lg shadow-success-200/40 dark:shadow-success-900/30 transition-all hover:shadow-xl hover:-translate-y-0.5">
-        {/* Decorative glow */}
-        <div className="pointer-events-none absolute -right-12 -top-12 h-48 w-48 rounded-full bg-surface/10 blur-3xl transition-transform duration-500 group-hover:scale-125 dark:bg-surface-inverted/10" />
-        <div className="pointer-events-none absolute -bottom-16 -left-12 h-40 w-40 rounded-full bg-accent-300/20 blur-3xl" />
-
-        <div className="relative flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-start gap-4 min-w-0 flex-1">
-            <div className="flex h-11 w-11 sm:h-12 sm:w-12 flex-shrink-0 items-center justify-center rounded-xl bg-surface/15 backdrop-blur-sm ring-1 ring-content-inverted/20 dark:bg-surface-inverted/15">
-              {variant === "urgent" ? (
-                <AlertCircle className="h-5 w-5 sm:h-6 sm:w-6 text-content-inverted" />
-              ) : (
-                <Sparkles className="h-5 w-5 sm:h-6 sm:w-6 text-content-inverted" />
-              )}
+      <div className="rounded-xl border bg-card surface-gradient p-5 text-card-foreground shadow-sm transition-shadow group-hover:shadow-md sm:p-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div className="flex min-w-0 flex-1 items-start gap-4">
+            <div
+              className={`flex size-10 flex-shrink-0 items-center justify-center rounded-lg ${
+                variant === "urgent"
+                  ? "bg-destructive/10 text-destructive"
+                  : "bg-primary text-primary-foreground"
+              }`}
+            >
+              {variant === "urgent" ? <AlertCircle className="size-5" /> : <Sparkles className="size-5" />}
             </div>
             <div className="min-w-0 flex-1">
-              <p className="text-[11px] font-bold uppercase tracking-widest text-success-100">
+              <p className="text-[11px] font-medium uppercase tracking-wider text-muted-foreground">
                 {copy.eyebrow}
               </p>
-              <h3 className="mt-1 text-lg sm:text-xl font-bold tracking-tight leading-tight">
+              <h3 className="mt-1 text-base font-semibold leading-tight tracking-tight sm:text-lg">
                 {copy.title}
               </h3>
-              <p className="mt-1.5 text-sm text-success-50/90 leading-relaxed max-w-xl">
+              <p className="mt-1.5 max-w-xl text-sm leading-relaxed text-muted-foreground">
                 {copy.body}
               </p>
             </div>
           </div>
 
           <div className="flex sm:flex-shrink-0">
-            <span className="inline-flex h-11 items-center justify-center gap-2 rounded-xl bg-surface px-5 text-sm font-bold text-success-700 shadow-md ring-1 ring-content-inverted/30 transition-all group-hover:bg-success-50 group-hover:shadow-lg w-full sm:w-auto dark:bg-surface-inverted dark:text-success-400 dark:group-hover:bg-success-900/20">
+            <span className="inline-flex h-9 w-full items-center justify-center gap-2 rounded-md bg-primary px-4 text-sm font-medium text-primary-foreground shadow-sm transition-colors group-hover:bg-primary/90 sm:w-auto">
               {copy.cta}
-              <ArrowRight className="h-4 w-4 transition-transform group-hover:translate-x-1" />
+              <ArrowRight className="size-4 transition-transform group-hover:translate-x-1" />
             </span>
           </div>
         </div>

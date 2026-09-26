@@ -164,7 +164,7 @@ export default function PaymentPlans() {
           <ArrowLeft className="h-3.5 w-3.5" /> Payment plans
         </button>
 
-        <h1 className="text-2xl font-black tracking-tight text-content dark:text-content-inverted sm:text-3xl">
+        <h1 className="text-2xl font-semibold tracking-tight text-content dark:text-content-inverted">
           New payment plan
         </h1>
         <p className="mt-1 text-sm text-content-body dark:text-content-subtle">
@@ -333,7 +333,7 @@ export default function PaymentPlans() {
 
         <div className="flex flex-wrap items-start justify-between gap-3">
           <div>
-            <h1 className="text-2xl font-black tracking-tight text-content dark:text-content-inverted sm:text-3xl">
+            <h1 className="text-2xl font-semibold tracking-tight text-content dark:text-content-inverted">
               {plan.title || "Payment plan"}
             </h1>
             <p className="mt-1 text-sm text-content-body dark:text-content-subtle">
@@ -423,7 +423,7 @@ export default function PaymentPlans() {
     <div className="mx-auto w-full max-w-4xl px-4 py-6 sm:py-10">
       <div className="flex flex-wrap items-start justify-between gap-3">
         <div>
-          <h1 className="flex items-center gap-2 text-2xl font-black tracking-tight text-content dark:text-content-inverted sm:text-3xl">
+          <h1 className="flex items-center gap-2 text-2xl font-semibold tracking-tight text-content dark:text-content-inverted">
             <ClipboardList className="h-7 w-7 text-brand-600" />
             Payment plans
           </h1>

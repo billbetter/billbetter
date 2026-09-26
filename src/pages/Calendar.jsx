@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from "react";
 import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
+import PageHeader from "@/components/layout/PageHeader";
 import {
   Calendar as CalendarIcon,
   ExternalLink,
@@ -369,56 +370,49 @@ export default function Calendar() {
       <div className="lg:hidden bg-surface dark:bg-surface-inverted border-b border-line-subtle dark:border-ink-800 sticky top-0 z-30">
         <div className="px-4 pt-4 pb-3 space-y-3">
           {/* Title row */}
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="w-9 h-9 rounded-xl bg-success-600 flex items-center justify-center shadow-md">
-                <CalendarIcon
-                  className="w-4.5 h-4.5 text-content-inverted"
-                  style={{ width: 18, height: 18 }}
-                />
-              </div>
-              <div>
-                <h1 className="text-xl font-black text-content dark:text-content-inverted leading-tight">
-                  Schedule
-                </h1>
-                <p className="text-xs text-content-muted dark:text-content-subtle font-medium">
-                  {todayCount > 0
-                    ? `${todayCount} today`
-                    : upcomingCount > 0
-                      ? `${upcomingCount} upcoming`
-                      : "No upcoming events"}
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <button
-                onClick={() => loadCalendarData(true)}
-                disabled={refreshing}
-                className="w-9 h-9 rounded-xl bg-ink-100 dark:bg-ink-800 flex items-center justify-center text-content-body dark:text-ink-300 active:bg-ink-200 dark:active:bg-ink-700 transition-colors"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-                />
-              </button>
-              <button
-                onClick={() => setMobileFiltersOpen(true)}
-                className="w-9 h-9 rounded-xl bg-ink-100 dark:bg-ink-800 flex items-center justify-center text-content-body dark:text-ink-300 active:bg-ink-200 dark:active:bg-ink-700 transition-colors"
-              >
-                <FilterIcon className="w-4 h-4" />
-              </button>
-            </div>
-          </div>
+          <PageHeader
+            className="flex-row items-center sm:items-center"
+            title="Schedule"
+            description={
+              todayCount > 0
+                ? `${todayCount} today`
+                : upcomingCount > 0
+                  ? `${upcomingCount} upcoming`
+                  : "No upcoming events"
+            }
+            actions={
+              <>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => loadCalendarData(true)}
+                  disabled={refreshing}
+                  aria-label="Refresh"
+                >
+                  <RefreshCw className={refreshing ? "animate-spin" : ""} />
+                </Button>
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => setMobileFiltersOpen(true)}
+                  aria-label="Filters"
+                >
+                  <FilterIcon />
+                </Button>
+              </>
+            }
+          />
 
-          {/* View mode pills */}
-          <div className="flex gap-1.5 bg-ink-100 dark:bg-ink-800 rounded-xl p-1">
+          {/* View mode pills: the template's tab strip */}
+          <div className="flex gap-1 rounded-lg bg-muted p-[3px]">
             {viewModes.map((v) => (
               <button
                 key={v.id}
                 onClick={() => setViewMode(v.id)}
-                className={`flex-1 flex items-center justify-center gap-1.5 py-2 px-2 rounded-lg text-xs font-semibold transition-all ${
+                className={`flex-1 flex items-center justify-center gap-1.5 py-1.5 px-2 rounded-md text-xs font-medium transition-colors ${
                   viewMode === v.id
-                    ? "bg-surface dark:bg-ink-700 text-content dark:text-content-inverted shadow-sm"
-                    : "text-content-muted dark:text-content-subtle active:bg-surface/50 dark:active:bg-ink-700/50"
+                    ? "bg-background text-foreground shadow-sm"
+                    : "text-muted-foreground"
                 }`}
               >
                 <v.icon className="w-3.5 h-3.5" />
@@ -431,53 +425,39 @@ export default function Calendar() {
 
       {/* ── Desktop Header ── */}
       <div className="hidden lg:block px-6 pt-6 pb-0 max-w-7xl mx-auto">
-        <div className="bg-surface dark:bg-surface-inverted rounded-2xl border border-line-subtle dark:border-ink-800 p-5 mb-5 shadow-sm">
-          <div className="flex items-center justify-between gap-4">
-            <div className="flex items-center gap-4">
-              <div className="w-11 h-11 rounded-xl bg-success-600 flex items-center justify-center shadow-md">
-                <CalendarIcon className="w-5 h-5 text-content-inverted" />
-              </div>
-              <div>
-                <h1 className="text-2xl font-black text-content dark:text-content-inverted">
-                  My Schedule
-                </h1>
-                <p className="text-sm text-content-muted dark:text-content-subtle">
-                  {upcomingCount} upcoming · {todayCount} today
-                </p>
-              </div>
-            </div>
-            <div className="flex items-center gap-2">
-              <div className="flex bg-ink-100 dark:bg-ink-800 rounded-xl p-1 gap-1">
+        <PageHeader
+          className="mb-5"
+          title="My Schedule"
+          description={`${upcomingCount} upcoming · ${todayCount} today`}
+          actions={
+            <>
+              <div className="flex h-9 gap-1 rounded-lg bg-muted p-[3px]">
                 {viewModes.map((v) => (
                   <button
                     key={v.id}
                     onClick={() => setViewMode(v.id)}
-                    className={`flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium transition-all ${
+                    className={`flex items-center gap-1.5 px-3 rounded-md text-sm font-medium transition-colors ${
                       viewMode === v.id
-                        ? "bg-surface dark:bg-ink-700 text-content dark:text-content-inverted shadow-sm"
-                        : "text-content-muted dark:text-content-subtle hover:text-ink-700 dark:hover:text-ink-300"
+                        ? "bg-background text-foreground shadow-sm"
+                        : "text-muted-foreground hover:text-foreground"
                     }`}
                   >
-                    <v.icon className="w-4 h-4" />
+                    <v.icon className="size-4" />
                     {v.label}
                   </button>
                 ))}
               </div>
               <Button
                 variant="outline"
-                size="sm"
                 onClick={() => loadCalendarData(true)}
                 disabled={refreshing}
-                className="gap-2 dark:border-ink-700 dark:bg-ink-800 dark:text-ink-300"
               >
-                <RefreshCw
-                  className={`w-4 h-4 ${refreshing ? "animate-spin" : ""}`}
-                />
+                <RefreshCw className={refreshing ? "animate-spin" : ""} />
                 Sync
               </Button>
-            </div>
-          </div>
-        </div>
+            </>
+          }
+        />
       </div>
 
       {/* ── Main Content ── */}

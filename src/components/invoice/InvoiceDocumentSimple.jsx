@@ -36,6 +36,7 @@ const makeStyles = (t, fontFamily = "Inter") =>
     // Height only so react-pdf keeps the aspect ratio; maxWidth keeps a wide
     // wordmark from colliding with the meta block on the right.
     logo: { height: 30, maxWidth: 170, objectFit: "contain", marginBottom: 6 },
+    photo: { width: 30, height: 30, borderRadius: 15, objectFit: "cover", marginBottom: 6 },
     metaBlock: { alignItems: "flex-end" },
     metaTitle: { fontSize: 13, fontWeight: "bold" },
     metaLine: { fontSize: 9, color: t.mutedTextColor, marginTop: 2 },
@@ -120,7 +121,9 @@ export const InvoiceDocumentSimple = (data) => {
       <Page size="LETTER" style={styles.page}>
         <View style={styles.headerRow}>
           <View>
-            {data.logo ? <Image style={styles.logo} src={data.logo} /> : null}
+            {data.logo ? (
+              <Image style={data.logoIsPhoto ? styles.photo : styles.logo} src={data.logo} />
+            ) : null}
             <Text style={styles.brand}>{data.businessName}</Text>
             <Text style={styles.metaLine}>{data.businessContact}</Text>
           </View>

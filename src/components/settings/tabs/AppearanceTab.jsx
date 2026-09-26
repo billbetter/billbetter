@@ -1,177 +1,162 @@
 import React from "react";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { CheckCircle, Info, Monitor, Moon, Palette, Sun, Waves } from "lucide-react";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Check, Info, Monitor, Moon, Sun, Waves } from "lucide-react";
 import { Label } from "@/components/ui/label";
 import { SHADER_PRESETS } from "@/components/ui/shader-presets";
 import { TabsContent } from "@/components/ui/tabs";
-import {
-  useShaderAppearance,
-  setShaderBackgroundEnabled,
-  setShaderPreset,
-} from "@/lib/appearance";
+import { useShaderAppearance, setShaderBackgroundEnabled, setShaderPreset } from "@/lib/appearance";
+import { FONT_OPTIONS } from "@/lib/preferences/fonts";
+import { THEME_PRESET_OPTIONS } from "@/lib/preferences/theme-presets";
+import { setPreference, usePreferences, useResolvedThemeMode } from "@/lib/preferences/preferences";
 
-/** Apply and remember a theme. "system" forgets the choice. */
-const toggleDarkMode = (mode) => {
-  if (mode === "system") {
-    // "System" resets to the product default, which is light — matching the
-    // marketing site. Dark stays available as an explicit choice below.
-    localStorage.removeItem("invoicium-dark-mode");
-    document.documentElement.classList.remove("dark");
-  } else {
-    const isDark = mode === "dark";
-    localStorage.setItem("invoicium-dark-mode", isDark.toString());
-    document.documentElement.classList.toggle("dark", isDark);
-  }
-};
+const THEME_MODES = [
+  { id: "light", icon: Sun, label: "Light Mode", desc: "Clean and bright interface" },
+  { id: "dark", icon: Moon, label: "Dark Mode", desc: "Easy on the eyes" },
+  { id: "system", icon: Monitor, label: "System Default", desc: "Follow device settings" },
+];
 
-/** Light/dark/system theme and the animated background, both saved to this browser. */
+/** A selectable option card, in the template's bordered style. */
+function OptionCard({ active, onClick, children, className = "", ...props }) {
+  return (
+    <button
+      type="button"
+      onClick={onClick}
+      className={`relative rounded-lg border p-4 text-left transition-colors ${
+        active ? "border-primary bg-accent ring-1 ring-primary" : "hover:bg-accent/50"
+      } ${className}`}
+      {...props}
+    >
+      {active && (
+        <span className="absolute right-3 top-3 flex size-5 items-center justify-center rounded-full bg-primary text-primary-foreground">
+          <Check className="size-3" />
+        </span>
+      )}
+      {children}
+    </button>
+  );
+}
+
+/** Theme mode, preset and font, and the animated background -- all saved to
+ * this browser (the same preferences as the header's layout controls). */
 export default function AppearanceTab() {
-  const { enabled: shaderBackground, preset: shaderPreset } =
-    useShaderAppearance();
+  const prefs = usePreferences();
+  const resolved = useResolvedThemeMode();
+  const { enabled: shaderBackground, preset: shaderPreset } = useShaderAppearance();
+
   return (
     <TabsContent value="appearance">
-      <Card className="border-none shadow-lg bg-surface dark:bg-surface-inverted dark:border dark:border-ink-800">
+      <Card>
         <CardHeader>
-          <CardTitle className="flex items-center gap-2 text-content dark:text-content-inverted">
-            <Palette className="w-5 h-5 text-success-600 dark:text-success-400" />
-            Appearance
-          </CardTitle>
-          <p className="text-sm text-content-body dark:text-content-subtle">
-            Customize how Invoicium looks on your device
-          </p>
+          <CardTitle>Appearance</CardTitle>
+          <CardDescription>Customize how Invoicium looks on this device.</CardDescription>
         </CardHeader>
-        <CardContent className="space-y-6">
+        <CardContent className="space-y-8">
           <div>
-            <Label className="text-ink-700 dark:text-ink-300 mb-4 block">
-              Theme Preference
-            </Label>
-            <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-              {[
-                {
-                  id: "light",
-                  icon: Sun,
-                  label: "Light Mode",
-                  desc: "Clean and bright interface",
-                  color: "bg-warning-400",
-                },
-                {
-                  id: "dark",
-                  icon: Moon,
-                  label: "Dark Mode",
-                  desc: "Easy on the eyes",
-                  color: "bg-brand-600",
-                },
-                {
-                  id: "system",
-                  icon: Monitor,
-                  label: "System Default",
-                  desc: "Follow device settings",
-                  color: "bg-ink-600",
-                },
-              ].map((theme) => {
+            <Label className="mb-3 block">Theme Preference</Label>
+            <div className="grid grid-cols-1 gap-3 sm:grid-cols-3">
+              {THEME_MODES.map((theme) => {
                 const Icon = theme.icon;
-                const stored = localStorage.getItem(
-                  "invoicium-dark-mode",
-                );
-                const isSystem = stored === null;
-                const isActive =
-                  (theme.id === "system" && isSystem) ||
-                  (theme.id === "light" &&
-                    !isSystem &&
-                    stored === "false") ||
-                  (theme.id === "dark" &&
-                    !isSystem &&
-                    stored === "true");
-
                 return (
-                  <button
+                  <OptionCard
                     key={theme.id}
-                    type="button"
-                    onClick={() => toggleDarkMode(theme.id)}
-                    className={`relative border-2 rounded-xl p-6 transition-all text-left ${
-                      isActive
-                        ? "border-success-500 bg-success-50 dark:bg-success-900/30"
-                        : "border-line dark:border-ink-700 hover:border-line-strong dark:hover:border-ink-600 bg-surface dark:bg-ink-800"
-                    }`}
+                    active={prefs.theme_mode === theme.id}
+                    onClick={() => setPreference("theme_mode", theme.id)}
                   >
-                    {isActive && (
-                      <div className="absolute top-3 right-3">
-                        <CheckCircle className="w-5 h-5 text-success-600 dark:text-success-400" />
-                      </div>
-                    )}
-
-                    <div
-                      className={`w-12 h-12 rounded-xl ${theme.color} flex items-center justify-center mb-4 shadow-lg`}
-                    >
-                      <Icon className="w-6 h-6 text-content-inverted" />
-                    </div>
-
-                    <h3 className="font-black text-content dark:text-content-inverted mb-1">
-                      {theme.label}
-                    </h3>
-                    <p className="text-sm text-content-body dark:text-content-subtle">
-                      {theme.desc}
-                    </p>
-                  </button>
+                    <span className="mb-3 flex size-9 items-center justify-center rounded-md border bg-background">
+                      <Icon className="size-4" />
+                    </span>
+                    <span className="block font-medium">{theme.label}</span>
+                    <span className="block text-sm text-muted-foreground">{theme.desc}</span>
+                  </OptionCard>
                 );
               })}
             </div>
           </div>
 
-          <div className="p-4 bg-brand-50 dark:bg-brand-900/20 rounded-lg border border-info-200 dark:border-info-800">
+          <div>
+            <Label className="mb-3 block">Theme Preset</Label>
+            <div role="radiogroup" aria-label="Theme preset" className="grid grid-cols-2 gap-3 sm:grid-cols-5">
+              {THEME_PRESET_OPTIONS.map((preset) => (
+                <OptionCard
+                  key={preset.value}
+                  role="radio"
+                  aria-checked={prefs.theme_preset === preset.value}
+                  active={prefs.theme_preset === preset.value}
+                  onClick={() => setPreference("theme_preset", preset.value)}
+                  className="p-3"
+                >
+                  <span
+                    aria-hidden
+                    className="mb-2 block h-8 w-full rounded-md border"
+                    style={{ backgroundColor: preset.primary[resolved] }}
+                  />
+                  <span className="block text-sm font-medium">{preset.label}</span>
+                </OptionCard>
+              ))}
+            </div>
+          </div>
+
+          <div className="rounded-lg border bg-muted/40 p-4">
             <div className="flex items-start gap-2">
-              <Info className="w-4 h-4 mt-0.5 flex-shrink-0 text-brand-700 dark:text-brand-400" />
-              <div className="text-sm text-info-800 dark:text-info-200">
-                <p className="font-medium mb-1">
-                  Theme applies across all devices
-                </p>
-                <p className="text-xs text-brand-800 dark:text-brand-300">
-                  Your theme preference is saved to your browser. Use
-                  "System Default" to automatically match your
-                  device's dark mode setting.
+              <Info className="mt-0.5 size-4 flex-shrink-0 text-muted-foreground" />
+              <div className="text-sm">
+                <p className="mb-1 font-medium">Saved to this browser</p>
+                <p className="text-xs text-muted-foreground">
+                  Your theme preference is saved to your browser. Use &quot;System Default&quot; to
+                  automatically match your device&apos;s dark mode setting.
                 </p>
               </div>
             </div>
           </div>
 
+          <div className="max-w-xs">
+            <Label htmlFor="appearance-font" className="mb-3 block">
+              Font
+            </Label>
+            <select
+              id="appearance-font"
+              value={prefs.font}
+              onChange={(e) => setPreference("font", e.target.value)}
+              className="h-9 w-full cursor-pointer rounded-md border border-input bg-transparent text-sm shadow-sm"
+            >
+              {FONT_OPTIONS.map((font) => (
+                <option key={font.key} value={font.key}>
+                  {font.label}
+                </option>
+              ))}
+            </select>
+          </div>
+
           {/* Animated background ------------------------------- */}
           <div>
-            <Label className="text-ink-700 dark:text-ink-300 mb-4 block">
-              Background
-            </Label>
+            <Label className="mb-3 block">Background</Label>
             <button
               type="button"
               role="switch"
               aria-checked={shaderBackground}
               onClick={() => setShaderBackgroundEnabled(!shaderBackground)}
-              className={`flex w-full items-center gap-4 rounded-xl border-2 p-6 text-left transition-all ${
-                shaderBackground
-                  ? "border-success-500 bg-success-50 dark:bg-success-900/30"
-                  : "border-line bg-surface hover:border-line-strong dark:border-ink-700 dark:bg-ink-800 dark:hover:border-ink-600"
+              className={`flex w-full items-center gap-4 rounded-lg border p-4 text-left transition-colors ${
+                shaderBackground ? "border-primary bg-accent ring-1 ring-primary" : "hover:bg-accent/50"
               }`}
             >
-              <span className="flex h-12 w-12 flex-shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-[#1b6ba8] to-[#5ad2f4] shadow-lg">
-                <Waves className="h-5 w-5 text-white" />
+              <span className="flex size-10 flex-shrink-0 items-center justify-center rounded-md bg-gradient-to-br from-[#1b6ba8] to-[#5ad2f4]">
+                <Waves className="size-5 text-white" />
               </span>
               <span className="min-w-0 flex-1">
-                <span className="block font-bold text-content dark:text-content-inverted">
-                  Animated background
-                </span>
-                <span className="block text-sm text-content-body dark:text-content-subtle">
-                  Slow movement behind your pages instead of the flat
-                  colour. Your cards and text are unchanged.
+                <span className="block font-medium">Animated background</span>
+                <span className="block text-sm text-muted-foreground">
+                  Slow movement behind your pages instead of the flat colour. Your cards and text
+                  are unchanged.
                 </span>
               </span>
               <span
-                className={`relative h-6 w-11 flex-shrink-0 rounded-full transition-colors ${
-                  shaderBackground
-                    ? "bg-success-600"
-                    : "bg-ink-300 dark:bg-ink-600"
+                className={`relative h-5 w-9 flex-shrink-0 rounded-full transition-colors ${
+                  shaderBackground ? "bg-primary" : "bg-input"
                 }`}
               >
                 <span
-                  className={`absolute top-0.5 h-5 w-5 rounded-full bg-white shadow transition-all ${
-                    shaderBackground ? "left-[1.375rem]" : "left-0.5"
+                  className={`absolute top-0.5 size-4 rounded-full bg-background shadow transition-all ${
+                    shaderBackground ? "left-[1.125rem]" : "left-0.5"
                   }`}
                 />
               </span>
@@ -184,50 +169,37 @@ export default function AppearanceTab() {
               for a decision blind.
             */}
             {shaderBackground && (
-              <div
-                role="radiogroup"
-                aria-label="Background style"
-                className="mt-3 grid gap-3 sm:grid-cols-2"
-              >
+              <div role="radiogroup" aria-label="Background style" className="mt-3 grid gap-3 sm:grid-cols-2">
                 {Object.values(SHADER_PRESETS).map((option) => {
                   const active = shaderPreset === option.id;
                   return (
-                    <button
+                    <OptionCard
                       key={option.id}
-                      type="button"
                       role="radio"
                       aria-checked={active}
+                      active={active}
                       onClick={() => setShaderPreset(option.id)}
-                      className={`flex items-center gap-3 rounded-xl border-2 p-4 text-left transition-all ${
-                        active
-                          ? "border-success-500 bg-success-50 dark:bg-success-900/30"
-                          : "border-line bg-surface hover:border-line-strong dark:border-ink-700 dark:bg-ink-800 dark:hover:border-ink-600"
-                      }`}
+                      className="flex items-center gap-3"
                     >
                       <span
                         aria-hidden
-                        className="h-10 w-10 flex-shrink-0 rounded-lg shadow-inner"
+                        className="size-10 flex-shrink-0 rounded-md"
                         style={{
                           backgroundImage: `linear-gradient(135deg, ${option.swatch[0]}, ${option.swatch[1]})`,
                         }}
                       />
-                      <span className="min-w-0 flex-1">
-                        <span className="block text-sm font-bold text-content dark:text-content-inverted">
-                          {option.label}
-                        </span>
-                        <span className="block text-xs text-content-body dark:text-content-subtle">
-                          {option.description}
-                        </span>
+                      <span className="min-w-0 flex-1 pr-6">
+                        <span className="block text-sm font-medium">{option.label}</span>
+                        <span className="block text-xs text-muted-foreground">{option.description}</span>
                       </span>
-                    </button>
+                    </OptionCard>
                   );
                 })}
               </div>
             )}
-            <p className="mt-2 text-xs text-content-muted dark:text-content-subtle">
-              Saved to this browser, like your theme. It pauses when
-              the tab is hidden or scrolled out of view, so it costs
-              nothing while you are not looking at it.
+            <p className="mt-2 text-xs text-muted-foreground">
+              Saved to this browser, like your theme. It pauses when the tab is hidden or scrolled
+              out of view, so it costs nothing while you are not looking at it.
             </p>
           </div>
         </CardContent>

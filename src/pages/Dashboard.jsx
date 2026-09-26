@@ -1,5 +1,8 @@
 import React, { useState, useEffect, useMemo } from "react";
-import { token } from "@/lib/tokens";
+import { hslToken } from "@/lib/tokens";
+import PageHeader from "@/components/layout/PageHeader";
+import KpiCard from "@/components/layout/KpiCard";
+import { Badge } from "@/components/ui/badge";
 import { Link, useNavigate } from "react-router-dom";
 import QuickActionCard from "@/components/dashboard/QuickActionCard";
 import { createPageUrl } from "@/utils";
@@ -79,24 +82,22 @@ const InvoiceRow = ({ invoice, onClick }) => {
   return (
     <div
       onClick={onClick}
-      className="dash-invoice-row flex items-center justify-between p-3 sm:p-4 rounded-xl hover:bg-surface-sunken dark:hover:bg-ink-700/50 transition-all cursor-pointer border border-transparent hover:border-line dark:hover:border-ink-600 group"
+      className="dash-invoice-row flex items-center justify-between px-2 py-3 rounded-lg hover:bg-muted/50 transition-colors cursor-pointer group"
     >
-      <div className="flex items-center gap-3 sm:gap-4 min-w-0 flex-1">
-        <div
-          className={`w-10 h-10 sm:w-11 sm:h-11 rounded-lg ${invoice.status === "paid" ? "bg-success-100 dark:bg-success-900/30" : "bg-ink-100 dark:bg-ink-700"} flex items-center justify-center flex-shrink-0`}
-        >
+      <div className="flex items-center gap-3 min-w-0 flex-1">
+        <div className="size-9 rounded-lg border bg-background flex items-center justify-center flex-shrink-0">
           <Receipt
-            className={`w-5 h-5 sm:w-6 sm:h-6 ${invoice.status === "paid" ? "text-success-600 dark:text-success-400" : "text-content-body dark:text-content-subtle"}`}
+            className={`size-4 ${invoice.status === "paid" ? "text-success-600 dark:text-success-400" : "text-muted-foreground"}`}
           />
         </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2 flex-wrap">
-            <p className="font-bold text-content dark:text-content-inverted text-sm sm:text-base truncate">
+            <p className="font-medium text-sm truncate">
               {invoice.invoice_number ||
                 `INV-${invoice.id.slice(0, 6).toUpperCase()}`}
             </p>
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-semibold border ${status.bg} ${status.text} ${status.border} flex-shrink-0`}
+              className={`px-1.5 py-0.5 rounded-md text-xs font-medium border capitalize ${status.bg} flex-shrink-0`}
             >
               {invoice.status}
             </span>
@@ -105,16 +106,16 @@ const InvoiceRow = ({ invoice, onClick }) => {
                 only two clicks away. Renders nothing until there is one. */}
             <ReadReceiptBadge document={invoice} className="flex-shrink-0" />
           </div>
-          <p className="text-sm text-content-muted dark:text-content-subtle truncate">
+          <p className="text-sm text-muted-foreground truncate">
             {invoice.client_name}
           </p>
         </div>
       </div>
       <div className="dash-invoice-row-amount text-right flex-shrink-0 ml-3">
-        <p className="font-bold text-content dark:text-content-inverted text-base sm:text-lg whitespace-nowrap">
+        <p className="font-medium tabular-nums text-sm sm:text-base whitespace-nowrap">
           ${invoice.total?.toFixed(2)}
         </p>
-        <p className="text-xs text-content-subtle dark:text-content-muted">
+        <p className="text-xs text-muted-foreground">
           {invoice.created_date &&
             format(new Date(invoice.created_date), "MMM d")}
         </p>
@@ -456,34 +457,27 @@ export default function Dashboard() {
 
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8 space-y-6">
           {/* Header */}
-          <div className="flex items-center justify-between gap-4">
-            <div className="min-w-0 flex-1">
-              <p className="text-xs font-medium text-content-subtle dark:text-content-muted uppercase tracking-widest mb-1.5">
-                Dashboard
-              </p>
-              <h1 className="text-2xl sm:text-3xl font-black text-content dark:text-content-inverted tracking-tight truncate">
-                {settings?.business_name || "Invoicium"}
-              </h1>
-            </div>
-            <div className="flex items-center gap-2 flex-shrink-0">
-              <span className="hidden sm:inline-flex items-center bg-success-50 dark:bg-success-900/30 text-success-700 dark:text-success-400 px-2.5 py-1 rounded-full text-xs font-semibold border border-success-100 dark:border-success-800">
+          <PageHeader
+            className="flex-row items-end sm:items-end"
+            eyebrow="Dashboard"
+            title={settings?.business_name || "Invoicium"}
+            badge={
+              <Badge variant="outline" className="hidden sm:inline-flex">
                 Owner
-              </span>
+              </Badge>
+            }
+            actions={
               <Button
                 onClick={handleExportAll}
                 disabled={exporting}
                 variant="outline"
-                className="rounded-lg border-line dark:border-ink-700 h-9 px-3 bg-surface dark:bg-ink-800 hover:bg-surface-sunken dark:hover:bg-ink-700 text-ink-700 dark:text-ink-300 hidden sm:flex text-sm font-medium"
+                className="hidden sm:inline-flex"
               >
-                {exporting ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin mr-1.5" />
-                ) : (
-                  <Download className="w-3.5 h-3.5 mr-1.5" />
-                )}
+                {exporting ? <Loader2 className="animate-spin" /> : <Download />}
                 Export
               </Button>
-            </div>
-          </div>
+            }
+          />
 
           {/*
             Demand-letter prompt.
@@ -508,6 +502,58 @@ export default function Dashboard() {
             onDismissed={loadData}
           />
 
+          {/* Overview: the template's section cards, first under the header. */}
+          <section aria-labelledby="dash-overview">
+            <p id="dash-overview" className="text-sm font-medium text-muted-foreground mb-3">
+              Overview
+            </p>
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
+            <KpiCard
+              label="Total Revenue"
+              icon={DollarSign}
+              value={`$${stats.totalRevenue.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`}
+              valueClassName="truncate"
+              badgeReserve="sm:pr-16"
+              badge={
+                <Badge variant="outline" className="hidden sm:inline-flex">
+                  <TrendingUp />
+                  All time
+                </Badge>
+              }
+              hint={<span className="sm:hidden">All time</span>}
+            />
+            <KpiCard
+              label="Pending"
+              icon={Clock}
+              value={`$${stats.pendingAmount.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`}
+              valueClassName="truncate"
+              hint={`${invoices.filter((inv) => inv.status === "sent").length} invoices`}
+            />
+            <KpiCard
+              label="Invoices"
+              icon={FileText}
+              value={`${transactionStats.used}/${transactionStats.unlimited ? "∞" : transactionStats.limit}`}
+              hint="This month"
+            />
+            <KpiCard
+              label="This Month"
+              icon={TrendingUp}
+              value={`$${stats.thisMonthRevenue.toLocaleString("en-US", {
+                minimumFractionDigits: 2,
+                maximumFractionDigits: 2,
+              })}`}
+              valueClassName="truncate"
+              hint={`${stats.thisMonthCount} invoices`}
+            />
+            </div>
+          </section>
+
           {/* Daily Digest */}
           <div>
             <DailyDigest
@@ -520,178 +566,72 @@ export default function Dashboard() {
 
           {/* Quick Actions */}
           <div>
-            <p className="text-xs font-semibold text-content-muted uppercase tracking-widest mb-3">
+            <p className="text-sm font-medium text-muted-foreground mb-3">
               Quick Actions
             </p>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
+            <div className="grid grid-cols-2 gap-3 sm:gap-4 xl:grid-cols-4">
               {QUICK_ACTIONS.map((action) => (
                 <QuickActionCard key={action.title} {...action} />
               ))}
             </div>
           </div>
 
-          {/* Stats Cards - 2x2 Grid */}
-          <div>
-            <p className="text-xs font-semibold text-content-subtle dark:text-content-muted uppercase tracking-widest mb-3">
-              Overview
-            </p>
-            <div className="grid grid-cols-2 gap-3 sm:gap-4">
-              {/* Total Revenue */}
-              <div className="bg-surface dark:bg-surface-inverted rounded-2xl p-4 sm:p-5 shadow-sm border border-line-subtle dark:border-ink-800 hover:shadow-md transition-shadow flex flex-col justify-between h-full">
-                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-success-100 dark:bg-success-900/30 flex items-center justify-center flex-shrink-0">
-                    <DollarSign className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-success-600 dark:text-success-400" />
-                  </div>
-                  <p className="text-xs sm:text-sm lg:text-base font-medium text-content-body dark:text-content-subtle truncate leading-tight">
-                    Total Revenue
-                  </p>
-                </div>
-                <div className="mt-auto">
-                  <p className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-content dark:text-content-inverted mb-1 sm:mb-2 tracking-tight truncate">
-                    $
-                    {stats.totalRevenue.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                  <p className="text-xs sm:text-sm text-success-600 dark:text-success-400 flex items-center gap-1 font-medium">
-                    <TrendingUp className="w-3 h-3 sm:w-4 sm:h-4 flex-shrink-0" />
-                    <span className="truncate">All time</span>
-                  </p>
-                </div>
-              </div>
-
-              {/* Pending */}
-              <div className="bg-surface dark:bg-surface-inverted rounded-2xl p-4 sm:p-5 shadow-sm border border-line-subtle dark:border-ink-800 hover:shadow-md transition-shadow flex flex-col justify-between h-full">
-                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-info-100 dark:bg-info-900/30 flex items-center justify-center flex-shrink-0">
-                    <Clock className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-brand-700 dark:text-brand-400" />
-                  </div>
-                  <p className="text-xs sm:text-sm lg:text-base font-medium text-content-body dark:text-content-subtle truncate leading-tight">
-                    Pending
-                  </p>
-                </div>
-                <div className="mt-auto">
-                  <p className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-content dark:text-content-inverted mb-1 sm:mb-2 tracking-tight truncate">
-                    $
-                    {stats.pendingAmount.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                  <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
-                    {invoices.filter((inv) => inv.status === "sent").length}{" "}
-                    invoices
-                  </p>
-                </div>
-              </div>
-
-              {/* Invoices Used */}
-              <div className="bg-surface dark:bg-surface-inverted rounded-2xl p-4 sm:p-5 shadow-sm border border-line-subtle dark:border-ink-800 hover:shadow-md transition-shadow flex flex-col justify-between h-full">
-                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-brand-100 dark:bg-brand-900/30 flex items-center justify-center flex-shrink-0">
-                    <FileText className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-brand-600 dark:text-brand-400" />
-                  </div>
-                  <p className="text-xs sm:text-sm lg:text-base font-medium text-content-body dark:text-content-subtle truncate leading-tight">
-                    Invoices
-                  </p>
-                </div>
-                <div className="mt-auto">
-                  <p className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-content dark:text-content-inverted mb-1 sm:mb-2 tracking-tight truncate">
-                    {transactionStats.used}/
-                    {transactionStats.unlimited ? "∞" : transactionStats.limit}
-                  </p>
-                  <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
-                    This month
-                  </p>
-                </div>
-              </div>
-
-              {/* This Month Revenue */}
-              <div className="bg-surface dark:bg-surface-inverted rounded-2xl p-4 sm:p-5 shadow-sm border border-line-subtle dark:border-ink-800 hover:shadow-md transition-shadow flex flex-col justify-between h-full">
-                <div className="flex items-center gap-2 sm:gap-3 mb-2 sm:mb-3">
-                  <div className="w-9 h-9 sm:w-10 sm:h-10 lg:w-12 lg:h-12 rounded-full bg-alert-100 dark:bg-alert-900/30 flex items-center justify-center flex-shrink-0">
-                    <TrendingUp className="w-4 h-4 sm:w-5 sm:h-5 lg:w-6 lg:h-6 text-alert-600 dark:text-alert-400" />
-                  </div>
-                  <p className="text-xs sm:text-sm lg:text-base font-medium text-content-body dark:text-content-subtle truncate leading-tight">
-                    This Month
-                  </p>
-                </div>
-                <div className="mt-auto">
-                  <p className="text-xl sm:text-2xl lg:text-3xl xl:text-4xl font-bold text-content dark:text-content-inverted mb-1 sm:mb-2 tracking-tight truncate">
-                    $
-                    {stats.thisMonthRevenue.toLocaleString("en-US", {
-                      minimumFractionDigits: 2,
-                      maximumFractionDigits: 2,
-                    })}
-                  </p>
-                  <p className="text-xs sm:text-sm text-content-muted dark:text-content-subtle truncate">
-                    {stats.thisMonthCount} invoices
-                  </p>
-                </div>
-              </div>
-            </div>
-          </div>
-
           {/* Charts & Recent Activity */}
           <div>
-            <p className="text-xs font-semibold text-content-subtle dark:text-content-muted uppercase tracking-widest mb-3">
+            <p className="text-sm font-medium text-muted-foreground mb-3">
               Activity
             </p>
-            <div className="grid lg:grid-cols-3 gap-5 sm:gap-6">
+            <div className="grid lg:grid-cols-3 gap-4 sm:gap-6">
               {/* Revenue Chart */}
-              <Card className="lg:col-span-2 border border-line dark:border-ink-800 shadow-sm bg-surface dark:bg-surface-inverted">
+              <Card className="lg:col-span-2 surface-gradient">
                 <CardHeader className="pb-4">
                   <div className="flex items-center justify-between gap-4">
-                    <div>
-                      <CardTitle className="text-lg sm:text-xl font-black text-content dark:text-content-inverted">
-                        Revenue Overview
-                      </CardTitle>
-                      <CardDescription className="text-sm text-content-muted dark:text-content-subtle">
-                        Last 6 months
-                      </CardDescription>
+                    <div className="space-y-1.5">
+                      <CardTitle>Revenue Overview</CardTitle>
+                      <CardDescription>Last 6 months</CardDescription>
                     </div>
-                    <Link to={createPageUrl("Analytics")}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="text-success-700 dark:text-success-400 flex-shrink-0 hover:bg-success-50 dark:hover:bg-success-900/20"
-                      >
+                    <Button asChild variant="outline" size="sm" className="flex-shrink-0">
+                      <Link to={createPageUrl("Analytics")}>
                         <span className="hidden sm:inline">View Analytics</span>
                         <span className="sm:hidden">View</span>
-                        <ArrowRight className="w-4 h-4 ml-1" />
-                      </Button>
-                    </Link>
+                        <ArrowRight />
+                      </Link>
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="pt-0">
                   <div className="h-[250px] sm:h-[300px] w-full">
                     <ResponsiveContainer width="100%" height="100%">
                       <AreaChart data={chartData}>
-                        <CartesianGrid
-                          strokeDasharray="3 3"
-                          stroke={token("ink-700")}
-                          opacity={0.1}
-                        />
+                        <defs>
+                          <linearGradient id="dashRevenueFill" x1="0" y1="0" x2="0" y2="1">
+                            <stop offset="5%" stopColor={hslToken("primary")} stopOpacity={0.35} />
+                            <stop offset="95%" stopColor={hslToken("primary")} stopOpacity={0.02} />
+                          </linearGradient>
+                        </defs>
+                        <CartesianGrid vertical={false} stroke={hslToken("border")} />
                         <XAxis
                           dataKey="month"
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fill: token("ink-500"), fontSize: 12 }}
+                          tickMargin={8}
+                          tick={{ fill: hslToken("muted-foreground"), fontSize: 12 }}
                         />
                         <YAxis
                           axisLine={false}
                           tickLine={false}
-                          tick={{ fill: token("ink-500"), fontSize: 12 }}
+                          tick={{ fill: hslToken("muted-foreground"), fontSize: 12 }}
                           tickFormatter={(value) => `$${value / 1000}k`}
                         />
                         <Tooltip
+                          cursor={{ stroke: hslToken("border") }}
                           contentStyle={{
                             borderRadius: "8px",
-                            border: "none",
+                            border: `1px solid ${hslToken("border")}`,
                             boxShadow: "0 4px 6px -1px rgb(0 0 0 / 0.1)",
-                            backgroundColor: "rgb(var(--ink-800))",
-                            color: "rgb(var(--color-text-inverted))",
+                            backgroundColor: hslToken("popover"),
+                            color: hslToken("popover-foreground"),
+                            fontSize: 12,
                           }}
                           formatter={(value) => [
                             `$${value.toFixed(2)}`,
@@ -699,12 +639,11 @@ export default function Dashboard() {
                           ]}
                         />
                         <Area
-                          type="monotone"
+                          type="natural"
                           dataKey="paid"
-                          stroke={token("success-500")}
+                          stroke={hslToken("primary")}
                           strokeWidth={2}
-                          fillOpacity={0.08}
-                          fill={token("success-500")}
+                          fill="url(#dashRevenueFill)"
                         />
                       </AreaChart>
                     </ResponsiveContainer>
@@ -713,44 +652,36 @@ export default function Dashboard() {
               </Card>
 
               {/* Recent Invoices */}
-              <Card className="border border-line dark:border-ink-800 shadow-sm bg-surface dark:bg-surface-inverted">
+              <Card className="surface-gradient">
                 <CardHeader className="pb-3">
                   <div className="flex items-center justify-between gap-4">
-                    <CardTitle className="text-lg sm:text-xl font-black text-content dark:text-content-inverted">
-                      Recent Invoices
-                    </CardTitle>
-                    <Link to={createPageUrl("Invoices")}>
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        className="flex-shrink-0 text-content-body dark:text-content-subtle hover:bg-ink-100 dark:hover:bg-ink-700"
-                      >
-                        View All
-                      </Button>
-                    </Link>
+                    <CardTitle>Recent Invoices</CardTitle>
+                    <Button asChild variant="ghost" size="sm" className="flex-shrink-0">
+                      <Link to={createPageUrl("Invoices")}>View All</Link>
+                    </Button>
                   </div>
                 </CardHeader>
                 <CardContent className="p-0 px-4 pb-4">
                   {recentInvoices.length === 0 ? (
                     <div className="py-12 text-center">
-                      <div className="w-16 h-16 bg-ink-100 dark:bg-ink-700 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <FileText className="w-8 h-8 text-content-subtle dark:text-content-muted" />
+                      <div className="size-12 rounded-lg border bg-muted/50 flex items-center justify-center mx-auto mb-4">
+                        <FileText className="size-5 text-muted-foreground" />
                       </div>
-                      <p className="text-content-body dark:text-content-subtle font-medium mb-2">
+                      <p className="font-medium mb-1">
                         No invoices yet
                       </p>
-                      <p className="text-sm text-content-muted dark:text-content-muted mb-4">
+                      <p className="text-sm text-muted-foreground mb-4">
                         Create your first invoice to get started
                       </p>
-                      <Link to={createPageUrl("CreateInvoice")}>
-                        <Button className="bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover">
-                          <Plus className="w-4 h-4 mr-2" />
+                      <Button asChild>
+                        <Link to={createPageUrl("CreateInvoice")}>
+                          <Plus />
                           Create Invoice
-                        </Button>
-                      </Link>
+                        </Link>
+                      </Button>
                     </div>
                   ) : (
-                    <div className="dash-invoice-list divide-y divide-line-subtle dark:divide-ink-700 space-y-0">
+                    <div className="dash-invoice-list divide-y space-y-0">
                       {recentInvoices.map((invoice) => (
                         <InvoiceRow
                           key={invoice.id}
@@ -771,27 +702,18 @@ export default function Dashboard() {
 
           {/* Upcoming Recurring */}
           {upcomingRecurring.length > 0 && (
-            <Card className="shadow-sm bg-brand-50 border border-brand-200 dark:border-brand-800 dark:bg-brand-900/20">
+            <Card className="surface-gradient">
               <CardHeader className="pb-4">
                 <div className="flex items-center justify-between gap-4">
                   <div className="flex items-center gap-2 min-w-0">
-                    <RefreshCw className="w-5 h-5 text-brand-700 dark:text-brand-400 flex-shrink-0" />
-                    <CardTitle className="text-lg sm:text-xl font-black text-content dark:text-content-inverted truncate">
+                    <RefreshCw className="size-4 text-muted-foreground flex-shrink-0" />
+                    <CardTitle className="truncate">
                       Upcoming Recurring
                     </CardTitle>
                   </div>
-                  <Link
-                    to={createPageUrl("RecurringInvoices")}
-                    className="flex-shrink-0"
-                  >
-                    <Button
-                      variant="outline"
-                      size="sm"
-                      className="border-info-300 dark:border-info-700 hover:bg-info-100 dark:hover:bg-info-900/30 dark:text-info-300"
-                    >
-                      Manage
-                    </Button>
-                  </Link>
+                  <Button asChild variant="outline" size="sm" className="flex-shrink-0">
+                    <Link to={createPageUrl("RecurringInvoices")}>Manage</Link>
+                  </Button>
                 </div>
               </CardHeader>
               <CardContent className="pt-0">
@@ -799,20 +721,20 @@ export default function Dashboard() {
                   {upcomingRecurring.map((rec) => (
                     <div
                       key={rec.id}
-                      className="bg-surface dark:bg-ink-800 rounded-xl p-5 shadow-sm border border-brand-200 dark:border-brand-800/50 hover:shadow-md transition-shadow"
+                      className="rounded-lg border bg-card surface-gradient p-4"
                     >
                       <div className="flex items-start justify-between mb-3 gap-2">
-                        <p className="font-bold text-content dark:text-content-inverted truncate flex-1">
+                        <p className="font-medium truncate flex-1">
                           {rec.client_name}
                         </p>
-                        <span className="text-xs font-semibold text-brand-700 dark:text-brand-400 bg-info-50 dark:bg-info-900/30 px-2.5 py-1 rounded-full capitalize flex-shrink-0">
+                        <Badge variant="outline" className="capitalize flex-shrink-0">
                           {rec.frequency}
-                        </span>
+                        </Badge>
                       </div>
-                      <p className="text-2xl sm:text-3xl font-black text-content dark:text-content-inverted mb-2">
+                      <p className="text-2xl font-semibold tabular-nums tracking-tight mb-1">
                         ${rec.total?.toFixed(2)}
                       </p>
-                      <p className="text-sm text-content-muted dark:text-content-subtle">
+                      <p className="text-sm text-muted-foreground">
                         Next:{" "}
                         {formatCalendarDay(
                           rec.next_generation_date,
@@ -832,13 +754,10 @@ export default function Dashboard() {
               onClick={handleExportAll}
               disabled={exporting}
               variant="outline"
-              className="w-full border-line-strong dark:border-ink-600 h-12 bg-surface dark:bg-ink-800 text-content dark:text-content-inverted"
+              size="lg"
+              className="w-full"
             >
-              {exporting ? (
-                <Loader2 className="w-4 h-4 animate-spin mr-2" />
-              ) : (
-                <Download className="w-4 h-4 mr-2" />
-              )}
+              {exporting ? <Loader2 className="animate-spin" /> : <Download />}
               Export Business Data
             </Button>
           </div>
@@ -852,18 +771,13 @@ export default function Dashboard() {
         className="lg:hidden fixed left-1/2 -translate-x-1/2 z-40 group"
         style={{ bottom: "calc(5.25rem + env(safe-area-inset-bottom))" }}
       >
-        {/* Soft pulsing glow */}
-        <span className="absolute inset-0 rounded-full bg-success-500/50 blur-2xl scale-110 animate-pulse" />
-        {/* Pill */}
-        <span className="relative inline-flex items-center gap-2 h-14 pl-5 pr-6 rounded-full bg-success-700 text-content-inverted font-bold text-sm shadow-2xl shadow-success-500/50 ring-1 ring-content-inverted/30 active:scale-95 transition-transform whitespace-nowrap">
-          <span className="flex items-center justify-center w-7 h-7 rounded-full bg-surface/25 backdrop-blur-sm dark:bg-surface-inverted/25">
-            <Sparkles
-              className="w-4 h-4 text-content-inverted"
-              strokeWidth={2.5}
-            />
+        {/* Pill: the theme's primary, the template's one strong colour. */}
+        <span className="relative inline-flex items-center gap-2 h-12 pl-4 pr-5 rounded-full bg-primary text-primary-foreground font-medium text-sm shadow-lg ring-1 ring-border active:scale-95 transition-transform whitespace-nowrap">
+          <span className="flex items-center justify-center size-7 rounded-full bg-primary-foreground/15">
+            <Sparkles className="size-4" strokeWidth={2.25} />
           </span>
           <span className="tracking-tight">AI Quick Bill</span>
-          <span className="ml-1 px-1.5 py-0.5 rounded-md bg-surface/25 text-[9px] font-bold tracking-widest dark:bg-surface-inverted/25">
+          <span className="ml-1 px-1.5 py-0.5 rounded-md bg-primary-foreground/15 text-[9px] font-semibold tracking-widest">
             NEW
           </span>
         </span>

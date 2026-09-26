@@ -1,5 +1,5 @@
 import { handleCors, getCorsHeaders } from '../_shared/cors.ts';
-import { db } from '../_shared/supabase-admin.ts';
+import { db, getUserContact } from '../_shared/supabase-admin.ts';
 import { docByToken, dedupeHash, isBotRequest, isRateLimited, recordHit, advanceViewCounters, LINK_UNAVAILABLE } from '../_shared/public-link.ts';
 
 /**
@@ -138,6 +138,12 @@ Deno.serve(async (req) => {
     // than the one it replaced. Only an explicit false turns it off.
     const acceptsResponses = settings?.allow_client_quote_approval !== false;
 
+    // As get-public-invoice: the owner's profile picture, only when there is
+    // no logo for it to stand in for.
+    const photoUrl = settings?.logo_url
+      ? null
+      : (await getUserContact(String(quote.user_id)))?.photo_url ?? null;
+
     return new Response(
       JSON.stringify({
         success: true,
@@ -167,6 +173,7 @@ Deno.serve(async (req) => {
         business: {
           name: settings?.business_name || '',
           logo_url: settings?.logo_url || '',
+          photo_url: photoUrl || '',
           address: settings?.address || '',
           phone: settings?.phone || '',
           email: settings?.email || '',

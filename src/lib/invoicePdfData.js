@@ -122,7 +122,7 @@ export function mapInvoiceToPdfData(invoice = {}, settings = {}, options = {}) {
     // font, the footer line, and whether our name appears at all. resolveBrand
     // also supplies businessName, which the Professional template used to
     // print in 9pt grey under a hardcoded 17pt "INVOICIUM".
-    ...resolveBrand(settings, { logo: options.logo }),
+    ...resolveBrand(settings, { logo: options.logo, logoIsPhoto: options.logoIsPhoto }),
 
     // What kind of document this is. Defaulted here rather than inside each
     // template, so a quote reuses all three layouts by overriding four strings

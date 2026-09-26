@@ -17,7 +17,7 @@ const LIVE_STATUSES = new Set(['active', 'trial', 'trialing']);
 
 export interface AccessResult {
   ok: boolean;
-  user?: { id: string; email?: string };
+  user?: { id: string; email?: string; photo_url?: string | null };
   status?: string;
   reason?: string;
 }

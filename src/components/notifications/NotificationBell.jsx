@@ -134,29 +134,32 @@ export default function NotificationBell() {
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
-        <button className="relative p-2 rounded-lg hover:bg-ink-100 transition-colors dark:hover:bg-ink-800">
-          <Bell className="w-5 h-5 text-ink-700 dark:text-ink-300" />
+        <Button
+          variant="ghost"
+          size="icon"
+          className="relative size-8"
+          aria-label={unreadCount > 0 ? `Notifications, ${unreadCount} unread` : "Notifications"}
+        >
+          <Bell className="size-4" />
           {unreadCount > 0 && (
-            <Badge className="absolute -top-1 -right-1 w-5 h-5 flex items-center justify-center p-0 bg-danger-600 text-content-inverted text-xs">
+            <Badge className="absolute -right-1 -top-1 flex h-4 min-w-4 items-center justify-center rounded-full border-0 bg-destructive px-1 py-0 text-[10px] leading-none text-destructive-foreground">
               {unreadCount}
             </Badge>
           )}
-        </button>
+        </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent
         align="end"
-        className="w-80 max-h-96 overflow-y-auto bg-surface dark:bg-surface-inverted border border-line dark:border-ink-700"
+        className="w-80 max-h-96 overflow-y-auto"
       >
-        <div className="px-3 py-2 border-b border-line dark:border-ink-700 flex items-center justify-between">
-          <h3 className="font-semibold text-content dark:text-content-inverted">
-            Notifications
-          </h3>
+        <div className="px-3 py-2 border-b flex items-center justify-between">
+          <h3 className="text-sm font-medium">Notifications</h3>
           {unreadCount > 0 && (
             <Button
               variant="ghost"
               size="sm"
               onClick={markAllAsRead}
-              className="text-xs text-success-600 hover:text-success-700 dark:text-success-400 dark:hover:text-success-300"
+              className="h-7 text-xs text-muted-foreground"
             >
               <Check className="w-3 h-3 mr-1" />
               Mark all read

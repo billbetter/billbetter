@@ -8,6 +8,19 @@ module.exports = {
         lg: "var(--radius)",
         md: "calc(var(--radius) - 2px)",
         sm: "calc(var(--radius) - 4px)",
+        // The large radii follow the dashboard theme inside the signed-in app
+        // (src/styles/app-shell.css defines these). Everywhere else the
+        // variables are unset and the fallbacks are Tailwind's own values, so
+        // the marketing site renders exactly as before.
+        xl: "var(--app-radius-xl, 0.75rem)",
+        "2xl": "var(--app-radius-2xl, 1rem)",
+        "3xl": "var(--app-radius-3xl, 1.5rem)",
+      },
+      fontWeight: {
+        // Same arrangement: the app steps the old design's heaviest weights
+        // down to the template's; outside it these are 800 and 900 as ever.
+        extrabold: "var(--app-font-extrabold, 800)",
+        black: "var(--app-font-black, 900)",
       },
       colors: {
         ink: {

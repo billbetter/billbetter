@@ -304,14 +304,14 @@ function Header({ onRefresh, refreshing }) {
       </Link>
       <div className="flex items-start justify-between gap-4">
         <div className="flex items-center gap-4">
-          <div className="w-12 h-12 rounded-2xl bg-content dark:bg-ink-700 flex items-center justify-center flex-shrink-0">
-            <ShieldCheck className="w-6 h-6 text-content-inverted" />
+          <div className="size-10 rounded-lg border bg-background shadow-sm flex items-center justify-center flex-shrink-0">
+            <ShieldCheck className="size-5" />
           </div>
           <div>
-            <h1 className="text-2xl lg:text-3xl font-black text-content dark:text-content-inverted tracking-tight">
+            <h1 className="text-2xl font-semibold tracking-tight">
               Paper Trail
             </h1>
-            <p className="text-sm text-content-muted dark:text-content-subtle mt-1 font-medium max-w-2xl">
+            <p className="text-sm text-muted-foreground mt-1 max-w-2xl">
               A record of what you sent and when, kept by Invoicium. You cannot
               edit it and neither can we -- which is the only reason it is worth
               anything to anyone else.

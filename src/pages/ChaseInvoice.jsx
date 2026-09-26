@@ -22,9 +22,10 @@ import {
   Wallet,
   TrendingUp,
   TimerReset,
-  Zap,
 } from "lucide-react";
 import PullToRefresh from "@/components/utils/PullToRefresh";
+import PageHeader from "@/components/layout/PageHeader";
+import KpiCard from "@/components/layout/KpiCard";
 
 import { sdk } from "@/api/sdk";
 import { createPageUrl } from "@/utils";
@@ -631,36 +632,26 @@ export default function ChaseInvoice() {
       <div className="min-h-screen bg-surface-sunken dark:bg-surface-inverted-deep">
         <div className="max-w-[1200px] mx-auto px-4 sm:px-6 lg:px-8 py-6 lg:py-8 space-y-6">
           {/* Mobile Header */}
-          <div className="lg:hidden">
-            <div className="flex items-center justify-between mb-6">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-xl bg-success-600 flex items-center justify-center shadow-lg shadow-success-200 dark:shadow-success-900/30">
-                  <Zap className="w-5 h-5 text-content-inverted" />
-                </div>
-                <div>
-                  <h1 className="text-2xl font-black text-content dark:text-content-inverted tracking-tight">
-                    Get Paid
-                  </h1>
-                  <p className="text-sm text-content-muted dark:text-content-subtle font-medium">
-                    {chaseInvoices.length} open · {stats.overdueCount} overdue
-                  </p>
-                </div>
-              </div>
-              <Button
-                onClick={() => loadData(true)}
-                variant="outline"
-                size="icon"
-                disabled={refreshing}
-                className="h-10 w-10 rounded-xl border-line dark:border-ink-700 bg-surface dark:bg-ink-800 shadow-sm active:scale-95 transition-all hover:bg-surface-sunken dark:hover:bg-ink-700"
-              >
-                <RefreshCw
-                  className={`w-4 h-4 text-content-body dark:text-content-subtle ${refreshing ? "animate-spin" : ""}`}
-                />
-              </Button>
-            </div>
+          <div className="lg:hidden space-y-4">
+            <PageHeader
+              className="flex-row items-center sm:items-center"
+              title="Get Paid"
+              description={`${chaseInvoices.length} open · ${stats.overdueCount} overdue`}
+              actions={
+                <Button
+                  onClick={() => loadData(true)}
+                  variant="outline"
+                  size="icon"
+                  disabled={refreshing}
+                  aria-label="Refresh"
+                >
+                  <RefreshCw className={refreshing ? "animate-spin" : ""} />
+                </Button>
+              }
+            />
 
             {/* Mobile Stats */}
-            <div className="grid grid-cols-2 gap-3 mb-6">
+            <div className="grid grid-cols-2 gap-3">
               <MobileStat
                 icon={Wallet}
                 tone="emerald"
@@ -691,13 +682,10 @@ export default function ChaseInvoice() {
             <Button
               onClick={sendBulk}
               disabled={bulkSending || stats.contactReady === 0}
-              className="w-full h-12 bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover text-content-inverted rounded-xl font-semibold shadow-sm active:scale-[0.98] transition-all disabled:opacity-50"
+              size="lg"
+              className="w-full"
             >
-              {bulkSending ? (
-                <Loader2 className="w-5 h-5 mr-2 animate-spin" />
-              ) : (
-                <PlayCircle className="w-5 h-5 mr-2" />
-              )}
+              {bulkSending ? <Loader2 className="animate-spin" /> : <PlayCircle />}
               {bulkSending
                 ? "Sending Reminders..."
                 : stats.contactReady > 0
@@ -707,115 +695,55 @@ export default function ChaseInvoice() {
           </div>
 
           {/* Desktop Header */}
-          <div className="hidden lg:block">
-            <div className="bg-surface dark:bg-surface-inverted rounded-2xl border border-line-subtle dark:border-ink-800 p-6 shadow-sm">
-              <div className="flex items-start justify-between mb-8">
-                <div className="flex items-center gap-4">
-                  <div className="w-12 h-12 rounded-2xl bg-success-600 flex items-center justify-center shadow-lg shadow-success-200 dark:shadow-success-900/30">
-                    <Zap className="w-6 h-6 text-content-inverted" />
-                  </div>
-                  <div>
-                    <h1 className="text-3xl font-black text-content dark:text-content-inverted tracking-tight">
-                      Get Paid
-                    </h1>
-                    <p className="text-sm text-content-muted dark:text-content-subtle mt-1 font-medium">
-                      Recover outstanding invoices with one-click reminders
-                    </p>
-                  </div>
-                </div>
-
-                <div className="flex gap-3">
-                  <Button
-                    onClick={() => loadData(true)}
-                    variant="outline"
-                    disabled={refreshing}
-                    className="h-10 px-4 rounded-xl border-line dark:border-ink-700 text-sm font-medium shadow-sm hover:bg-surface-sunken dark:hover:bg-ink-700 active:scale-95 transition-all dark:bg-ink-800 dark:text-ink-300"
-                  >
-                    <RefreshCw
-                      className={`w-4 h-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
-                    />
+          <div className="hidden lg:block space-y-4">
+            <PageHeader
+              title="Get Paid"
+              description="Recover outstanding invoices with one-click reminders"
+              actions={
+                <>
+                  <Button onClick={() => loadData(true)} variant="outline" disabled={refreshing}>
+                    <RefreshCw className={refreshing ? "animate-spin" : ""} />
                     Refresh
                   </Button>
-                  <Button
-                    onClick={sendBulk}
-                    disabled={bulkSending || stats.contactReady === 0}
-                    className="bg-brand hover:bg-brand-hover dark:bg-brand dark:hover:bg-brand-hover text-content-inverted h-10 px-5 text-sm font-semibold rounded-xl shadow-sm active:scale-95 transition-all disabled:opacity-50"
-                  >
-                    {bulkSending ? (
-                      <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                    ) : (
-                      <PlayCircle className="w-4 h-4 mr-2" />
-                    )}
+                  <Button onClick={sendBulk} disabled={bulkSending || stats.contactReady === 0}>
+                    {bulkSending ? <Loader2 className="animate-spin" /> : <PlayCircle />}
                     {bulkSending
                       ? "Sending..."
                       : `Chase ${stats.contactReady} ${stats.contactReady === 1 ? "Invoice" : "Invoices"}`}
                   </Button>
-                </div>
-              </div>
+                </>
+              }
+            />
 
-              {/* Desktop Stats with Icons */}
-              <div className="grid grid-cols-4 gap-8">
-                <div className="border-r border-line-subtle dark:border-ink-700 pr-8">
-                  <div className="flex items-center gap-2 mb-2">
-                    <Wallet className="w-4 h-4 text-content-subtle dark:text-content-muted" />
-                    <p className="text-xs font-bold text-content-subtle dark:text-content-muted uppercase tracking-wider">
-                      Outstanding
-                    </p>
-                  </div>
-                  <p className="text-3xl font-bold text-content dark:text-content-inverted">
-                    {formatCurrencyShort(stats.totalOutstanding)}
-                  </p>
-                  <p className="text-xs text-content-muted dark:text-content-subtle mt-1 font-medium">
-                    {chaseInvoices.length} open invoices
-                  </p>
-                </div>
-                <div className="border-r border-line-subtle dark:border-ink-700 pr-8">
-                  <div className="flex items-center gap-2 mb-2">
-                    <AlertCircle className="w-4 h-4 text-danger-400 dark:text-danger-500" />
-                    <p className="text-xs font-bold text-content-subtle dark:text-content-muted uppercase tracking-wider">
-                      Overdue
-                    </p>
-                  </div>
-                  <p
-                    className={`text-3xl font-bold ${stats.overdueCount > 0 ? "text-danger-600 dark:text-danger-400" : "text-content dark:text-content-inverted"}`}
-                  >
-                    {formatCurrencyShort(stats.totalOverdue)}
-                  </p>
-                  <p className="text-xs text-content-muted dark:text-content-subtle mt-1 font-medium">
-                    {stats.overdueCount} late
-                  </p>
-                </div>
-                <div className="border-r border-line-subtle dark:border-ink-700 pr-8">
-                  <div className="flex items-center gap-2 mb-2">
-                    <TimerReset className="w-4 h-4 text-warning-400 dark:text-warning-500" />
-                    <p className="text-xs font-bold text-content-subtle dark:text-content-muted uppercase tracking-wider">
-                      Oldest Overdue
-                    </p>
-                  </div>
-                  <p
-                    className={`text-3xl font-bold ${stats.oldest > 30 ? "text-warning-600 dark:text-warning-400" : "text-content dark:text-content-inverted"}`}
-                  >
-                    {stats.oldest > 0 ? `${stats.oldest}d` : "—"}
-                  </p>
-                  <p className="text-xs text-content-muted dark:text-content-subtle mt-1 font-medium">
-                    {stats.oldest > 0 ? "needs attention" : "all current"}
-                  </p>
-                </div>
-                <div>
-                  <div className="flex items-center gap-2 mb-2">
-                    <TrendingUp className="w-4 h-4 text-success-400 dark:text-success-500" />
-                    <p className="text-xs font-bold text-content-subtle dark:text-content-muted uppercase tracking-wider">
-                      Recovered
-                    </p>
-                  </div>
-                  <p className="text-3xl font-bold text-success-600 dark:text-success-400">
-                    {formatCurrencyShort(stats.paidTotal)}
-                  </p>
-                  <p className="text-xs text-content-muted dark:text-content-subtle mt-1 font-medium">
-                    all-time paid
-                  </p>
-                </div>
-              </div>
+            {/* Desktop Stats */}
+            <div className="grid grid-cols-4 gap-4">
+              <KpiCard
+                icon={Wallet}
+                label="Outstanding"
+                value={formatCurrencyShort(stats.totalOutstanding)}
+                hint={`${chaseInvoices.length} open invoices`}
+              />
+              <KpiCard
+                icon={AlertCircle}
+                label="Overdue"
+                value={formatCurrencyShort(stats.totalOverdue)}
+                valueClassName={stats.overdueCount > 0 ? "text-danger-600 dark:text-danger-400" : undefined}
+                hint={`${stats.overdueCount} late`}
+              />
+              <KpiCard
+                icon={TimerReset}
+                label="Oldest Overdue"
+                value={stats.oldest > 0 ? `${stats.oldest}d` : "—"}
+                valueClassName={stats.oldest > 30 ? "text-warning-600 dark:text-warning-400" : undefined}
+                hint={stats.oldest > 0 ? "needs attention" : "all current"}
+              />
+              <KpiCard
+                icon={TrendingUp}
+                label="Recovered"
+                value={formatCurrencyShort(stats.paidTotal)}
+                valueClassName="text-success-600 dark:text-success-400"
+                hint="all-time paid"
+              />
             </div>
           </div>
 
@@ -1022,45 +950,34 @@ const PaperTrailCard = () => (
   </Link>
 );
 
-const MobileStat = ({ icon: Icon, tone, label, value, emphasize = false }) => {
+const MobileStat = ({ icon, tone, label, value, emphasize = false }) => {
   const t = MOBILE_STAT_TONES[tone] || MOBILE_STAT_TONES.emerald;
   return (
-    <div className="bg-surface dark:bg-surface-inverted rounded-2xl border border-line-subtle dark:border-ink-800 p-4 shadow-sm">
-      <div className="flex items-center gap-2 mb-2">
-        <div
-          className={`w-8 h-8 rounded-lg ${t.bg} flex items-center justify-center`}
-        >
-          <Icon className={`w-4 h-4 ${t.icon}`} />
-        </div>
-        <p className="text-xs font-semibold text-content-subtle dark:text-content-muted uppercase tracking-wider">
-          {label}
-        </p>
-      </div>
-      <p
-        className={`text-xl font-bold ${emphasize ? t.emphasizedValue : t.value}`}
-      >
-        {value}
-      </p>
-    </div>
+    <KpiCard
+      compact
+      icon={icon}
+      label={label}
+      value={value}
+      valueClassName={emphasize ? t.emphasizedValue : t.value}
+    />
   );
 };
 
+// The template's filter chips: the selected one in the theme's primary.
 const BucketTab = ({ label, count, active, onClick }) => (
   <button
     type="button"
     onClick={onClick}
-    className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-xs font-semibold transition-all active:scale-95 ${
+    className={`inline-flex h-8 items-center gap-1.5 rounded-md border px-3 text-xs font-medium transition-colors active:scale-95 ${
       active
-        ? "bg-success-600 text-content-inverted shadow-sm"
-        : "bg-surface-sunken dark:bg-ink-800 text-ink-700 dark:text-ink-300 hover:bg-ink-100 dark:hover:bg-ink-700 border border-line-subtle dark:border-ink-700"
+        ? "border-primary bg-primary text-primary-foreground shadow-sm"
+        : "bg-background text-foreground hover:bg-accent hover:text-accent-foreground"
     }`}
   >
     <span>{label}</span>
     <span
-      className={`rounded-full px-1.5 py-0.5 text-[10px] font-bold ${
-        active
-          ? "bg-surface/20 text-content-inverted"
-          : "bg-surface dark:bg-surface-inverted text-content-body dark:text-content-subtle"
+      className={`rounded-sm px-1.5 py-0.5 text-[10px] font-semibold tabular-nums ${
+        active ? "bg-primary-foreground/20 text-primary-foreground" : "bg-muted text-muted-foreground"
       }`}
     >
       {count}

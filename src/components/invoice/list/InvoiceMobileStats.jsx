@@ -12,7 +12,7 @@ export default function InvoiceMobileStats({
   stats,
 }) {
   return (
-    <div className="grid grid-cols-2 gap-3 mb-6">
+    <div className="grid grid-cols-2 gap-3">
       <MobileStatTile
         className={MOBILE_TILE}
         icon={DollarSign}
