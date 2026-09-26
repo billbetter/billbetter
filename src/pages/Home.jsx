@@ -9,6 +9,7 @@ import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
 import { SaasHero, heroButtonClasses } from "@/components/ui/saa-s-template";
 import { TestimonialsMarquee } from "@/components/ui/testimonials-columns";
+import AnimatedTextCycle from "@/components/ui/animated-text-cycle";
 import SEO from "@/components/seo/SEO";
 import InstallPWA from "@/components/pwa/InstallPWA";
 import {
@@ -417,7 +418,13 @@ export default function Home() {
                 The Reality
               </p>
               <h2 className="text-3xl sm:text-5xl lg:text-6xl font-black text-content mb-6 leading-tight">
-                You finished the job.
+                You finished the{" "}
+                <AnimatedTextCycle
+                  words={["job", "kitchen", "roof", "rewire", "deck", "bathroom"]}
+                  interval={2800}
+                  className="text-brand-700"
+                />
+                .
                 <br />
                 <span className="text-content-subtle">
                   Why haven't you been paid?
@@ -727,7 +734,7 @@ export default function Home() {
                 <Button
                   onClick={handleGetStarted}
                   size="lg"
-                  className="bg-brand text-content-inverted h-14 px-10 rounded-2xl font-black shadow-2xl shadow-brand-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
+                  className="bg-brand text-white dark:text-ink-950 h-14 px-10 rounded-2xl font-black shadow-2xl shadow-brand-600/20 hover:scale-[1.02] active:scale-[0.98] transition-all"
                 >
                   Start Getting Paid Today{" "}
                   <ArrowRight className="ml-2 w-5 h-5" />
@@ -830,8 +837,8 @@ export default function Home() {
                         }
                         className={`w-full h-10 rounded-xl text-xs font-bold transition-all ${
                           plan.popular
-                            ? "bg-brand text-content-inverted shadow-lg"
-                            : "bg-surface-inverted hover:bg-ink-800 text-content-inverted"
+                            ? "bg-brand text-white dark:text-ink-950 shadow-lg"
+                            : "bg-surface-inverted hover:bg-ink-800 text-white dark:bg-ink-700 dark:hover:bg-ink-600"
                         }`}
                       >
                         {plan.cta}
@@ -873,7 +880,7 @@ export default function Home() {
                   </div>
                   <Button
                     onClick={handleViewPricing}
-                    className="w-full h-12 rounded-xl font-black bg-brand text-content-inverted"
+                    className="w-full h-12 rounded-xl font-black bg-brand text-white dark:text-ink-950"
                   >
                     {featuredPlan.cta}
                   </Button>
@@ -913,7 +920,7 @@ export default function Home() {
                               ? handleContactSales
                               : handleViewPricing
                           }
-                          className="w-full h-9 rounded-lg text-xs font-bold bg-surface-inverted hover:bg-ink-800 text-content-inverted"
+                          className="w-full h-9 rounded-lg text-xs font-bold bg-surface-inverted hover:bg-ink-800 text-white dark:bg-ink-700 dark:hover:bg-ink-600"
                         >
                           {plan.cta}
                         </Button>
