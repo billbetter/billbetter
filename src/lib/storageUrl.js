@@ -1,5 +1,6 @@
 import { supabase } from "@/api/supabaseClient";
 import { PRIVATE_BUCKET } from "@/api/sdk";
+import { notify } from "@/lib/notify";
 
 /**
  * Turn a stored file reference back into something a browser can open.
@@ -97,7 +98,7 @@ export async function openStorageRef(ref) {
   const url = await resolveStorageUrl(ref);
   if (!url) {
     if (win) win.close();
-    alert("That file could not be opened. It may have been removed.");
+    notify.error("That file could not be opened. It may have been removed.");
     return;
   }
   if (win) win.location.href = url;

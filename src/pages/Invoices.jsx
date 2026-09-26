@@ -43,6 +43,7 @@ import useRecordPayment from "@/components/invoice/list/useRecordPayment";
 import useInvoiceSelection from "@/components/invoice/list/useInvoiceSelection";
 import { exportInvoicesCsv } from "@/components/invoice/list/exportInvoicesCsv";
 import { downloadInvoicePdfById } from "@/components/invoice/list/downloadInvoicePdfById";
+import { notify } from "@/lib/notify";
 
 export default function Invoices() {
   const {
@@ -155,13 +156,13 @@ export default function Invoices() {
       const response = await sdk.functions.invoke("checkOverdueInvoices");
       if (response.data.success) {
         await loadData(true);
-        alert(
+        notify.success(
           `Updated ${response.data.updated_count} invoice(s) to overdue status.`,
         );
       }
     } catch (error) {
       console.error("Error checking overdue invoices:", error);
-      alert("Failed to check overdue invoices. Please try again.");
+      notify.error("Failed to check overdue invoices. Please try again.");
     }
     setCheckingOverdue(false);
   };
@@ -175,20 +176,20 @@ export default function Invoices() {
       });
 
       if (response.data.success) {
-        alert(`Overdue notification sent via ${method}!`);
+        notify.success(`Overdue notification sent via ${method}!`);
         setNotificationDialog({ open: false, invoice: null });
       } else if (response.data.not_implemented) {
         // Was silently treated as sent. Chasing is the product's core promise,
         // so saying nothing here is worse than admitting it is not built.
-        alert(
+        notify.info(
           `Automatic ${method} reminders aren't available yet. The invoice detail screen has the client's contact details so you can chase them directly.`,
         );
       } else {
-        alert(`Couldn't send that reminder: ${response.data.error || "unknown error"}`);
+        notify.error(`Couldn't send that reminder: ${response.data.error || "unknown error"}`);
       }
     } catch (error) {
       console.error("Error sending overdue notification:", error);
-      alert("Failed to send notification. Please try again.");
+      notify.error("Failed to send notification. Please try again.");
     }
     setSendingNotification(null);
   };

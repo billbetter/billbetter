@@ -19,6 +19,7 @@ import TourStripePanel from "@/components/onboarding/tour/TourStripePanel";
 import TourTips from "@/components/onboarding/tour/TourTips";
 import TourFooter from "@/components/onboarding/tour/TourFooter";
 import TourDemoOverlay from "@/components/onboarding/tour/TourDemoOverlay";
+import { notify } from "@/lib/notify";
 
 export default function FeatureTour({ isOpen, onClose, onComplete }) {
   const [currentSection, setCurrentSection] = useState(0);
@@ -194,7 +195,7 @@ export default function FeatureTour({ isOpen, onClose, onComplete }) {
       );
       if (response.data?.url) window.open(response.data.url, "_blank");
     } catch (error) {
-      alert("Failed to connect Stripe. Please try again.");
+      notify.error("Failed to connect Stripe. Please try again.");
     } finally {
       setConnectingStripe(false);
     }

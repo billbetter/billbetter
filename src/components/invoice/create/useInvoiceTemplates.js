@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { sdk } from "@/api/sdk";
 import { calculateTotals } from "@/components/documentForm/lineItemMath";
+import { notify } from "@/lib/notify";
 
 /**
  * Saved line-item templates: the list, applying one to the form, and the
@@ -35,7 +36,7 @@ export default function useInvoiceTemplates({ user, formData, setFormData }) {
 
   const handleSaveAsTemplate = async () => {
     if (!templateName.trim()) {
-      alert("Please enter a template name");
+      notify.warning("Please enter a template name");
       return;
     }
 
@@ -57,10 +58,10 @@ export default function useInvoiceTemplates({ user, formData, setFormData }) {
 
       setSaveTemplateDialog(false);
       setTemplateName("");
-      alert("Template saved successfully!");
+      notify.success("Template saved successfully!");
     } catch (error) {
       console.error("Error saving template:", error);
-      alert("Failed to save template. Please try again.");
+      notify.error("Failed to save template. Please try again.");
     }
     setSavingTemplate(false);
   };
@@ -73,7 +74,7 @@ export default function useInvoiceTemplates({ user, formData, setFormData }) {
 
   const handleUpdateTemplate = async () => {
     if (!templateName.trim()) {
-      alert("Please enter a template name");
+      notify.warning("Please enter a template name");
       return;
     }
 
@@ -95,10 +96,10 @@ export default function useInvoiceTemplates({ user, formData, setFormData }) {
       setEditTemplateDialog(false);
       setEditingTemplate(null);
       setTemplateName("");
-      alert("Template updated successfully!");
+      notify.success("Template updated successfully!");
     } catch (error) {
       console.error("Error updating template:", error);
-      alert("Failed to update template. Please try again.");
+      notify.error("Failed to update template. Please try again.");
     }
     setSavingTemplate(false);
   };
@@ -119,7 +120,7 @@ export default function useInvoiceTemplates({ user, formData, setFormData }) {
       setDeleteTemplateDialog({ open: false, template: null });
     } catch (error) {
       console.error("Error deleting template:", error);
-      alert("Failed to delete template. Please try again.");
+      notify.error("Failed to delete template. Please try again.");
     }
     setDeletingTemplate(false);
   };

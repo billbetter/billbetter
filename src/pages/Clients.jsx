@@ -24,6 +24,7 @@ import {
 } from "lucide-react";
 import PhoneInput from "../components/ui/PhoneInput";
 import PullToRefresh from "@/components/utils/PullToRefresh";
+import { notify } from "@/lib/notify";
 
 /**
  * Helper: some projects model the owner field as `user_id` (string),
@@ -190,7 +191,7 @@ export default function Clients() {
         error?.response?.data?.error ||
         error?.message ||
         "Failed to save client.";
-      alert("⚠️ Failed to save client.\n\n" + serverMsg);
+      notify.error("Failed to save client.\n\n" + serverMsg);
     } finally {
       setSaving(false);
     }
@@ -205,7 +206,7 @@ export default function Clients() {
       setDeleteDialog({ open: false, client: null });
     } catch (error) {
       console.error("❌ ERROR DELETING CLIENT:", error);
-      alert("Failed to delete client. You might not have permission.");
+      notify.error("Failed to delete client. You might not have permission.");
     } finally {
       setDeleting(false);
     }

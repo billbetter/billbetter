@@ -1,5 +1,6 @@
 import { format } from "date-fns";
 import { formatCalendarDay } from "@/lib/calendarDate";
+import { notify } from "@/lib/notify";
 
 /**
  * Download the given quotes as a CSV, one row each.
@@ -12,7 +13,7 @@ import { formatCalendarDay } from "@/lib/calendarDate";
  */
 export function exportQuotesCsv(quotes) {
   if (quotes.length === 0) {
-    alert("No quotes to export.");
+    notify.warning("No quotes to export.");
     return;
   }
 

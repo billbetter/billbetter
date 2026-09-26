@@ -1,6 +1,7 @@
 import React from "react";
 import { Ban, Download, Loader2, Send, Trash2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { notify } from "@/lib/notify";
 
 /** The phone layout's fixed action bar: the same actions as the desktop header. */
 export default function InvoiceMobileActionBar({
@@ -32,7 +33,7 @@ export default function InvoiceMobileActionBar({
               size="sm"
               onClick={() => {
                 copyToClipboard(invoice.pdf_url);
-                alert("PDF link copied!");
+                notify.success("PDF link copied!");
               }}
               className="flex-1 h-11"
             >

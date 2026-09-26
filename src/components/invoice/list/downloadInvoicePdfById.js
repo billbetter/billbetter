@@ -1,5 +1,6 @@
 import { sdk } from "@/api/sdk";
 import { deliverPdf } from "@/lib/pdfDelivery";
+import { notify } from "@/lib/notify";
 
 /**
  * Fetch one invoice's PDF and hand it to the browser.
@@ -49,6 +50,6 @@ export async function downloadInvoicePdfById(invoiceId, settings) {
     });
   } catch (err) {
     console.error("PDF download failed:", err);
-    alert("Could not download the PDF. Please try again.");
+    notify.error("Could not download the PDF. Please try again.");
   }
 }

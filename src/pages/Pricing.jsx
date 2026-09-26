@@ -36,6 +36,7 @@ import {
 import { sdk } from "@/api/sdk";
 import { format } from "date-fns";
 import SEO from "@/components/seo/SEO";
+import { notify } from "@/lib/notify";
 
 export default function Pricing() {
   const navigate = useNavigate();
@@ -96,7 +97,7 @@ export default function Pricing() {
         `${createPageUrl("Checkout")}?plan=${encodeURIComponent(plan.id)}&cycle=${encodeURIComponent(cycle)}`,
       );
     } catch (error) {
-      alert(error.message || "Failed to start subscription. Please try again.");
+      notify.error(error.message || "Failed to start subscription. Please try again.");
     } finally {
       setLoading(null);
     }
@@ -111,7 +112,7 @@ export default function Pricing() {
   const confirmTrial = async () => {
     if (!selectedPlanForTrial) return;
     if (!termsAccepted) {
-      alert("Please accept the Terms of Service to continue.");
+      notify.warning("Please accept the Terms of Service to continue.");
       return;
     }
     setLoading(selectedPlanForTrial.plan.id);
@@ -129,7 +130,7 @@ export default function Pricing() {
         )}&cycle=${encodeURIComponent(selectedPlanForTrial.cycle)}&trial=1`,
       );
     } catch (error) {
-      alert(error.message || "Failed to start trial. Please try again.");
+      notify.error(error.message || "Failed to start trial. Please try again.");
     } finally {
       setLoading(null);
       setShowTrialModal(false);

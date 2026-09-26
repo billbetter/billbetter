@@ -25,6 +25,7 @@ import {
   Clock,
   Mail,
 } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 export default function NotificationSettings() {
   const [preferences, setPreferences] = useState({
@@ -133,13 +134,13 @@ export default function NotificationSettings() {
         // is what reads them on the way out.
         notification_preferences: preferences,
       });
-      alert("Settings saved successfully!");
+      notify.success("Settings saved successfully!");
     } catch (error) {
       console.error(
         "Error saving notification settings:",
         error?.message || error,
       );
-      alert(`Failed to save: ${error?.message || "Unknown error"}`);
+      notify.error(`Failed to save: ${error?.message || "Unknown error"}`);
     }
     setSaving(false);
   };
@@ -156,7 +157,7 @@ export default function NotificationSettings() {
   };
 
   const disableNotifications = () => {
-    alert(
+    notify.info(
       "To disable notifications, please update your browser or device notification settings for this app.",
     );
   };
@@ -172,12 +173,12 @@ export default function NotificationSettings() {
     setSendingTest(true);
     try {
       const response = await sdk.functions.invoke("sendTestAnalyticsEmail", {});
-      alert(
-        "✅ Test email sent! Check your inbox for a preview of your analytics report.",
+      notify.success(
+        "Test email sent! Check your inbox for a preview of your analytics report.",
       );
     } catch (error) {
       console.error("Error sending test email:", error);
-      alert("❌ Failed to send test email. Please try again.");
+      notify.error("Failed to send test email. Please try again.");
     } finally {
       setSendingTest(false);
     }

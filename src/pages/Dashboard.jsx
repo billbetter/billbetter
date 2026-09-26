@@ -56,6 +56,7 @@ import {
   isPastDay,
   parseCalendarDay,
 } from "@/lib/calendarDate";
+import { notify } from "@/lib/notify";
 
 // Invoice Row Component
 const InvoiceRow = ({ invoice, onClick }) => {
@@ -280,7 +281,7 @@ export default function Dashboard() {
     } catch (error) {
       console.error("Error loading data:", error);
       if (error.response?.status === 429) {
-        alert("Too many requests. Please wait a moment and refresh.");
+        notify.warning("Too many requests. Please wait a moment and refresh.");
       }
     }
     setLoading(false);
@@ -288,7 +289,7 @@ export default function Dashboard() {
 
   const handleExportAll = async () => {
     if (!canAccessFeature(subscription, "excel_export")) {
-      alert(
+      notify.warning(
         "Excel export is available on Essential plan and higher. Please upgrade.",
       );
       return;
@@ -338,7 +339,7 @@ export default function Dashboard() {
       document.body.removeChild(link);
     } catch (error) {
       console.error("Export error:", error);
-      alert("Export failed. Please try again.");
+      notify.error("Export failed. Please try again.");
     }
     setExporting(false);
   };

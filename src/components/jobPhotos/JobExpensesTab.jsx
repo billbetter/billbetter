@@ -46,6 +46,7 @@ import {
   X,
 } from "lucide-react";
 import { format } from "date-fns";
+import { notify } from "@/lib/notify";
 
 const CATEGORIES = [
   {
@@ -208,7 +209,7 @@ export default function JobExpensesTab({ job, user }) {
       setForm((prev) => ({ ...prev, receipt_url: file_ref }));
     } catch (err) {
       console.error("Receipt upload failed:", err);
-      alert(aiFailureMessage(err, "this receipt"));
+      notify.error(aiFailureMessage(err, "this receipt"));
     } finally {
       setUploadingReceipt(false);
     }
@@ -223,7 +224,7 @@ export default function JobExpensesTab({ job, user }) {
     // that comes back empty or invented.
     const reason = unscannableReason(file);
     if (reason) {
-      alert(reason);
+      notify.warning(reason);
       e.target.value = "";
       return;
     }
@@ -239,7 +240,7 @@ export default function JobExpensesTab({ job, user }) {
       setScanImageRef(file_ref);
     } catch (err) {
       console.error("Upload failed:", err);
-      alert("Failed to upload image.");
+      notify.error("Failed to upload image.");
     } finally {
       setUploadingForScan(false);
     }
@@ -275,13 +276,13 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
         setScannedDate(result.receipt_date || format(new Date(), "yyyy-MM-dd"));
         setSelectedItems(result.items.map((_, i) => i)); // select all by default
       } else {
-        alert(
+        notify.error(
           "Could not extract items from this receipt. Please try a clearer photo or add manually.",
         );
       }
     } catch (err) {
       console.error("AI scan failed:", err);
-      alert("AI scan failed. Please try again.");
+      notify.error("AI scan failed. Please try again.");
     } finally {
       setScanning(false);
     }
@@ -328,7 +329,7 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
       setSelectedItems([]);
     } catch (err) {
       console.error("Error saving scanned items:", err);
-      alert("Failed to save some items. Please try again.");
+      notify.error("Failed to save some items. Please try again.");
     } finally {
       setSavingScanned(false);
     }
@@ -336,11 +337,11 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
 
   const handleSave = async () => {
     if (!form.description.trim()) {
-      alert("Please enter a description.");
+      notify.warning("Please enter a description.");
       return;
     }
     if (!form.amount && form.amount !== 0) {
-      alert("Please enter an amount.");
+      notify.warning("Please enter an amount.");
       return;
     }
 
@@ -375,7 +376,7 @@ Be accurate with prices. If a price is ambiguous, use your best reading.`,
       setEditingExpense(null);
     } catch (err) {
       console.error("Error saving expense:", err);
-      alert("Failed to save expense.");
+      notify.error("Failed to save expense.");
     } finally {
       setSaving(false);
     }

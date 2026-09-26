@@ -26,6 +26,7 @@ import QuotesDesktopHeader from "@/components/quote/list/QuotesDesktopHeader";
 import QuotesMobileHeader from "@/components/quote/list/QuotesMobileHeader";
 import useQuoteListData from "@/components/quote/list/useQuoteListData";
 import { exportQuotesCsv } from "@/components/quote/list/exportQuotesCsv";
+import { notify } from "@/lib/notify";
 
 export default function Quotes() {
   const { quotes, loading, refreshing, loadData } = useQuoteListData();
@@ -56,7 +57,7 @@ export default function Quotes() {
       loadData(true);
     } catch (error) {
       console.error("Error deleting quote:", error);
-      alert("Failed to delete quote. Please try again.");
+      notify.error("Failed to delete quote. Please try again.");
     }
     setDeleting(false);
   };
@@ -103,7 +104,7 @@ export default function Quotes() {
       await loadData(true);
     } catch (error) {
       console.error("Error updating status:", error);
-      alert("Failed to update status. Please try again.");
+      notify.error("Failed to update status. Please try again.");
     }
     setUpdatingStatus(null);
   };
@@ -132,7 +133,7 @@ export default function Quotes() {
       navigate(createPageUrl("CreateInvoice") + "?" + params.toString());
     } catch (error) {
       console.error("Error converting quote:", error);
-      alert("Failed to convert quote. Please try again.");
+      notify.error("Failed to convert quote. Please try again.");
     } finally {
       setConverting(null);
       setConvertDialog({ open: false, quote: null });

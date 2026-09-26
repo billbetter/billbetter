@@ -2,6 +2,7 @@ import React from "react";
 import { AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { notify } from "@/lib/notify";
 
 /** What happened when the invoice was resent: per-channel success or the
  * reason it failed, plus the PDF link to copy. */
@@ -160,7 +161,7 @@ export default function InvoiceNotificationResultDialog({
             <Button
               onClick={() => {
                 copyToClipboard(invoice.pdf_url);
-                alert("PDF link copied to clipboard!");
+                notify.success("PDF link copied to clipboard!");
               }}
               variant="outline"
               className="w-full"

@@ -18,6 +18,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Loader2, Plus } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 export default function CreateJobModal({
   isOpen,
@@ -39,7 +40,7 @@ export default function CreateJobModal({
     e.preventDefault();
 
     if (!formData.job_title || !formData.client_id) {
-      alert("Please fill in job title and select a client");
+      notify.warning("Please fill in job title and select a client");
       return;
     }
 
@@ -64,7 +65,7 @@ export default function CreateJobModal({
       handleClose();
     } catch (error) {
       console.error("Error creating job:", error);
-      alert("Failed to create job. Please try again.");
+      notify.error("Failed to create job. Please try again.");
     } finally {
       setLoading(false);
     }

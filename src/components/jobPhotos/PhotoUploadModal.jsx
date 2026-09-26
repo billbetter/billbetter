@@ -21,6 +21,7 @@ import {
   Check,
   AlertCircle,
 } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 export default function PhotoUploadModal({
   isOpen,
@@ -101,7 +102,7 @@ export default function PhotoUploadModal({
     } catch (error) {
       if (error.name === "NotAllowedError") {
         setCameraPermission("denied");
-        alert(
+        notify.error(
           "Camera access denied. Please enable camera permissions in your browser settings.",
         );
       }
@@ -123,7 +124,7 @@ export default function PhotoUploadModal({
         (error) => {
           if (error.code === error.PERMISSION_DENIED) {
             setLocationPermission("denied");
-            alert(
+            notify.error(
               "Location access denied. Please enable location permissions in your browser settings.",
             );
           }
@@ -138,7 +139,7 @@ export default function PhotoUploadModal({
 
   const handleUpload = async () => {
     if (files.length === 0) {
-      alert("Please select at least one photo");
+      notify.warning("Please select at least one photo");
       return;
     }
 
@@ -198,7 +199,7 @@ export default function PhotoUploadModal({
       handleClose();
     } catch (error) {
       console.error("Error uploading photos:", error);
-      alert("Failed to upload photos. Please try again.");
+      notify.error("Failed to upload photos. Please try again.");
     } finally {
       setUploading(false);
     }

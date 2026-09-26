@@ -22,6 +22,7 @@ import ClientStep from "@/components/billing/quickBill/ClientStep";
 import DescribeStep from "@/components/billing/quickBill/DescribeStep";
 import ReviewStep from "@/components/billing/quickBill/ReviewStep";
 import QuickBillCta from "@/components/billing/quickBill/QuickBillCta";
+import { notify } from "@/lib/notify";
 
 export default function QuickBillFlow({ mode = "invoice" }) {
   const isQuote = mode === "quote";
@@ -502,7 +503,7 @@ Return JSON only.`;
       // the wrong code path for a round trip -- the real cause was a missing
       // column, which the message had already been told and then discarded.
       const detail = e?.message || e?.error_description || "";
-      alert(
+      notify.error(
         `Couldn't create ${isQuote ? "quote" : "invoice"}.` +
           (detail ? `
 

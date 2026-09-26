@@ -46,6 +46,7 @@ import {
 } from "@/components/invoice/chaseFollowUp";
 import { formatMoney, moneyFormatter } from "@/lib/money";
 import { daysUntilDay, formatCalendarDay } from "@/lib/calendarDate";
+import { notify } from "@/lib/notify";
 
 const STORAGE_KEY = "invoicium_chase_recovery_state_v2";
 
@@ -128,7 +129,6 @@ export default function ChaseInvoice() {
   const [sending, setSending] = useState(false);
   const [bulkSending, setBulkSending] = useState(false);
   const [sequenceStarting, setSequenceStarting] = useState(null);
-  const [toast, setToast] = useState(null);
 
   useEffect(() => {
     const saved = readRecoveryState();
@@ -143,9 +143,9 @@ export default function ChaseInvoice() {
     writeRecoveryState(nextReminders, nextSequences);
   };
 
+  // The app-wide pop-up (lib/notify.js), which this page used to draw itself.
   const showToast = (message, type = "success") => {
-    setToast({ message, type });
-    window.setTimeout(() => setToast(null), 3600);
+    (notify[type] || notify.info)(message);
   };
 
   const loadData = async (isRefresh = false) => {
@@ -864,20 +864,6 @@ export default function ChaseInvoice() {
             setDraft={setDraft}
           />
 
-          {toast && (
-            <div
-              className={`fixed bottom-24 left-1/2 z-50 max-w-[calc(100vw-2rem)] -translate-x-1/2 rounded-xl border px-4 py-3 text-sm font-semibold shadow-lg lg:bottom-6 ${
-                toast.type === "error"
-                  ? "border-danger-200 bg-danger-50 text-danger-800 dark:border-danger-900/60 dark:bg-danger-950/60 dark:text-danger-200"
-                  : toast.type === "warning"
-                    ? "border-warning-200 bg-warning-50 text-warning-900 dark:border-warning-900/60 dark:bg-warning-950/60 dark:text-warning-200"
-                    : "border-line bg-surface text-content dark:border-ink-800 dark:bg-surface-inverted dark:text-content-inverted"
-              }`}
-              role="status"
-            >
-              {toast.message}
-            </div>
-          )}
         </div>
       </div>
     </PullToRefresh>

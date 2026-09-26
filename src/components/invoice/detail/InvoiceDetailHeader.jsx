@@ -2,6 +2,7 @@ import React from "react";
 import { ArrowLeft, Ban, Download, Loader2, Send, Trash2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createPageUrl } from "@/utils";
+import { notify } from "@/lib/notify";
 
 /** Back link and the desktop action buttons (PDF, record payment, resend,
  * void, delete). Resend calls the page's handleResendNotifications, untouched. */
@@ -42,7 +43,7 @@ export default function InvoiceDetailHeader({
               size="sm"
               onClick={() => {
                 copyToClipboard(invoice.pdf_url);
-                alert("PDF link copied to clipboard!");
+                notify.success("PDF link copied to clipboard!");
               }}
             >
               📋 Copy Link

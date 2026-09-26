@@ -6,6 +6,7 @@ import { Link } from "react-router-dom";
 import { TabsContent } from "@/components/ui/tabs";
 import { createPageUrl } from "@/utils";
 import { sdk } from "@/api/sdk";
+import { notify } from "@/lib/notify";
 
 /** Links to the legal documents, and account deletion. */
 export default function LegalTab({
@@ -116,7 +117,7 @@ export default function LegalTab({
                     "Type DELETE to confirm account deletion:",
                   );
                   if (confirmation !== "DELETE") {
-                    alert(
+                    notify.warning(
                       "Account deletion cancelled. You must type DELETE exactly to confirm.",
                     );
                     return;
