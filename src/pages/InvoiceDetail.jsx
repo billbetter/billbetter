@@ -35,6 +35,7 @@ import ListLoadingState from "@/components/documentList/ListLoadingState";
 import useInvoiceDetailData from "@/components/invoice/detail/useInvoiceDetailData";
 import useRecordPayment from "@/components/invoice/detail/useRecordPayment";
 import useVoidInvoice from "@/components/invoice/detail/useVoidInvoice";
+import { notify } from "@/lib/notify";
 
 export default function InvoiceDetail() {
   const [searchParams] = useSearchParams();
@@ -215,7 +216,7 @@ export default function InvoiceDetail() {
       // The real message, not "Please try again". Stripe refuses any charge
       // under $0.50 CAD, and a contractor testing with a 35-cent invoice was
       // told to retry something that can never succeed.
-      alert(error?.message || "Could not create a payment link.");
+      notify.error(error?.message || "Could not create a payment link.");
       return null;
     } finally {
       setGeneratingPaymentLink(false);
@@ -235,7 +236,7 @@ export default function InvoiceDetail() {
     const allowed = canDeleteInvoice(invoice);
     if (!allowed.ok) {
       setDeleteDialog(false);
-      alert(allowed.reason);
+      notify.warning(allowed.reason);
       return;
     }
     setDeleting(true);
@@ -244,7 +245,7 @@ export default function InvoiceDetail() {
       navigate(createPageUrl("Invoices"));
     } catch (error) {
       console.error("Error deleting invoice:", error);
-      alert("Failed to delete invoice");
+      notify.error("Failed to delete invoice");
     }
     setDeleting(false);
   };

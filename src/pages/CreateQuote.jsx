@@ -29,6 +29,7 @@ import LivePreviewPanel from "@/components/documentForm/LivePreviewPanel";
 import QuoteSuccessDialog from "@/components/quote/create/QuoteSuccessDialog";
 import QuotePreview from "@/components/quote/create/QuotePreview";
 import { Quote } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 export default function CreateQuote() {
   const navigate = useNavigate();
@@ -124,7 +125,7 @@ export default function CreateQuote() {
       }
     } catch (error) {
       console.error("Error loading quote:", error);
-      alert("Failed to load quote for editing");
+      notify.error("Failed to load quote for editing");
     }
   };
 
@@ -197,7 +198,7 @@ export default function CreateQuote() {
     if (limit === -1) return true;
 
     if (limit > 0 && transactionsUsed >= totalAvailable) {
-      alert(
+      notify.warning(
         "You have reached your monthly transaction limit. Please upgrade your plan or purchase additional transactions in Settings > Billing.",
       );
       return false;
@@ -314,7 +315,7 @@ as the rate, and skip SUBTOTAL, TAX, TOTAL and card lines.`
     } catch (error) {
       // See CreateInvoice: silently swallowed until the AI could actually fail.
       console.error("Error getting AI suggestions:", error);
-      alert(aiFailureMessage(error, "line items for this quote"));
+      notify.error(aiFailureMessage(error, "line items for this quote"));
     }
   };
 
@@ -441,7 +442,7 @@ as the rate, and skip SUBTOTAL, TAX, TOTAL and card lines.`
         }
       } catch (pdfError) {
         console.error("❌ PDF generation failed:", pdfError);
-        alert(
+        notify.error(
           `PDF generation failed: ${pdfError.response?.data?.error || pdfError.message}`,
         );
         setLoading(false);
@@ -540,7 +541,7 @@ as the rate, and skip SUBTOTAL, TAX, TOTAL and card lines.`
       });
     } catch (error) {
       console.error("❌ Error creating quote:", error);
-      alert(
+      notify.error(
         "Error creating quote. Please try again. Details: " + error.message,
       );
       setLoading(false);

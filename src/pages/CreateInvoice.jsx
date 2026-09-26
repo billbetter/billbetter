@@ -51,6 +51,7 @@ import InvoiceFormActions from "@/components/invoice/create/InvoiceFormActions";
 import LivePreviewPanel from "@/components/documentForm/LivePreviewPanel";
 import InvoicePreview from "@/components/invoice/create/InvoicePreview";
 import { HardHat } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 const STORAGE_KEY = "invoicium_invoice_draft";
 
@@ -197,7 +198,7 @@ export default function CreateInvoice() {
         // has to be here rather than only on the buttons that link to it.
         const editable = canEditInvoice(invoice);
         if (!editable.ok) {
-          alert(editable.reason);
+          notify.warning(editable.reason);
           navigate(createPageUrl("InvoiceDetail") + `?id=${invoice.id}`);
           return;
         }
@@ -210,7 +211,7 @@ export default function CreateInvoice() {
       }
     } catch (error) {
       console.error("Error loading invoice:", error);
-      alert("Failed to load invoice for editing");
+      notify.error("Failed to load invoice for editing");
     }
   };
 
@@ -399,7 +400,7 @@ export default function CreateInvoice() {
       // nothing. It could not fail before -- the stub always "succeeded" -- so
       // making it real makes this path reachable for the first time.
       console.error("Error getting AI suggestions:", error);
-      alert(aiFailureMessage(error, "line items for this job"));
+      notify.error(aiFailureMessage(error, "line items for this job"));
     }
   };
 
@@ -410,14 +411,14 @@ export default function CreateInvoice() {
 
   const validateForm = () => {
     if (!formData.client_id) {
-      alert("Please select a client.");
+      notify.warning("Please select a client.");
       return false;
     }
     if (
       formData.items.length === 0 ||
       formData.items.some((item) => item.quantity <= 0 || item.rate < 0)
     ) {
-      alert(
+      notify.warning(
         "Please ensure all line items have a quantity and a non-negative rate.",
       );
       return false;
@@ -505,14 +506,14 @@ export default function CreateInvoice() {
         });
 
         localStorage.removeItem(STORAGE_KEY);
-        alert("Invoice created and downloaded! (Counted as 0.5 invoice)");
+        notify.success("Invoice created and downloaded! (Counted as 0.5 invoice)");
         navigate(createPageUrl("Invoices"));
       } else {
         throw new Error("PDF generation failed");
       }
     } catch (error) {
       console.error("Error creating invoice:", error);
-      alert("Error creating invoice: " + error.message);
+      notify.error("Error creating invoice: " + error.message);
     } finally {
       setSaving(false);
       setSendingStatus("idle");
@@ -555,14 +556,14 @@ export default function CreateInvoice() {
 
         setSaving(false);
         localStorage.removeItem(STORAGE_KEY);
-        alert(
+        notify.info(
           "Recurring template saved. Automatic generation isn't running yet — you'll need to create each invoice from the template for now.",
         );
         navigate(createPageUrl("RecurringInvoices"));
         return;
       } catch (error) {
         console.error("❌ Error creating recurring invoice:", error);
-        alert(
+        notify.error(
           "Error creating recurring invoice. Please try again. Details: " +
             error.message,
         );
@@ -729,7 +730,7 @@ export default function CreateInvoice() {
         }
       } catch (pdfError) {
         console.error("❌ PDF generation failed:", pdfError);
-        alert(
+        notify.error(
           `PDF generation failed: ${pdfError.response?.data?.error || pdfError.message}. The invoice was created, but no PDF was attached or sent.`,
         );
       }
@@ -847,7 +848,7 @@ export default function CreateInvoice() {
       });
     } catch (error) {
       console.error("❌ Error creating invoice:", error);
-      alert(
+      notify.error(
         "Error creating invoice. Please try again. Details: " + error.message,
       );
       setSaving(false);

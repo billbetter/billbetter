@@ -15,6 +15,7 @@ import QuoteNotesCard from "@/components/quote/detail/QuoteNotesCard";
 import QuoteDetailSidebar from "@/components/quote/detail/QuoteDetailSidebar";
 import QuoteNotificationResultDialog from "@/components/quote/detail/QuoteNotificationResultDialog";
 import DeleteQuoteDialog from "@/components/quote/detail/DeleteQuoteDialog";
+import { notify } from "@/lib/notify";
 
 export default function QuoteDetail() {
   const [searchParams] = useSearchParams();
@@ -122,7 +123,7 @@ export default function QuoteDetail() {
       navigate(createPageUrl("Quotes"));
     } catch (error) {
       console.error("Error deleting quote:", error);
-      alert("Failed to delete quote. Please try again.");
+      notify.error("Failed to delete quote. Please try again.");
     } finally {
       setDeleting(false);
       setDeleteDialog(false);
@@ -171,13 +172,13 @@ export default function QuoteDetail() {
       navigate(createPageUrl("JobPhotos"));
     } catch (error) {
       console.error("Error creating job:", error);
-      alert("Failed to create job. Please try again.");
+      notify.error("Failed to create job. Please try again.");
     }
   };
 
   const copyToClipboard = (text) => {
     navigator.clipboard.writeText(text);
-    alert("Link copied to clipboard!");
+    notify.success("Link copied to clipboard!");
   };
 
   const responseRecord = quoteResponseRecord(quote);

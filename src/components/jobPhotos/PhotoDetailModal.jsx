@@ -24,6 +24,7 @@ import {
   User,
 } from "lucide-react";
 import { format } from "date-fns";
+import { notify } from "@/lib/notify";
 
 export default function PhotoDetailModal({
   isOpen,
@@ -58,7 +59,7 @@ export default function PhotoDetailModal({
       onUpdate();
     } catch (error) {
       console.error("Error updating photo:", error);
-      alert("Failed to update photo");
+      notify.error("Failed to update photo");
     } finally {
       setSaving(false);
       setEditing(false);
@@ -77,7 +78,7 @@ export default function PhotoDetailModal({
       onClose();
     } catch (error) {
       console.error("Error deleting photo:", error);
-      alert("Failed to delete photo");
+      notify.error("Failed to delete photo");
     } finally {
       setDeleting(false);
     }

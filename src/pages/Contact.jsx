@@ -18,6 +18,7 @@ import {
   ArrowRight,
 } from "lucide-react";
 import SEO from "@/components/seo/SEO";
+import { notify } from "@/lib/notify";
 
 export default function Contact() {
   const navigate = useNavigate();
@@ -54,9 +55,9 @@ export default function Contact() {
       // sender was told it had been sent. Keep their text on failure -- losing
       // what someone typed is the second insult after not delivering it.
       if (!response?.data?.success) {
-        // alert() to match the catch block below -- this component has no error
-        // state, and inventing one here would mean restyling the form.
-        alert(
+        // A pop-up to match the catch block below -- this component has no
+        // error state, and inventing one here would mean restyling the form.
+        notify.error(
           response?.data?.not_implemented
             ? "Our contact form isn't available right now. Please email us directly at support@invoicium.ca and we'll get straight back to you."
             : "We couldn't send that. Please try again, or email support@invoicium.ca.",
@@ -68,7 +69,7 @@ export default function Contact() {
       setTimeout(() => setSuccess(false), 6000);
     } catch (error) {
       console.error("Error sending message:", error);
-      alert(
+      notify.error(
         "Failed to send message. Please try again or email us directly at support@invoicium.ca",
       );
     } finally {

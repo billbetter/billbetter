@@ -19,6 +19,7 @@ import RecurringFilterBar from "@/components/invoice/recurring/RecurringFilterBa
 import RecurringDesktopHeader from "@/components/invoice/recurring/RecurringDesktopHeader";
 import RecurringMobileHeader from "@/components/invoice/recurring/RecurringMobileHeader";
 import SchedulerNotRunningNotice from "@/components/invoice/recurring/SchedulerNotRunningNotice";
+import { notify } from "@/lib/notify";
 
 export default function RecurringInvoices() {
   const [recurringInvoices, setRecurringInvoices] = useState([]);
@@ -105,7 +106,7 @@ export default function RecurringInvoices() {
       await loadRecurringInvoices(true);
     } catch (error) {
       console.error("Error updating status:", error);
-      alert("Failed to update status. Please try again.");
+      notify.error("Failed to update status. Please try again.");
     }
     setUpdatingStatus(null);
   };
@@ -119,7 +120,7 @@ export default function RecurringInvoices() {
       loadRecurringInvoices(true);
     } catch (error) {
       console.error("Error deleting recurring invoice:", error);
-      alert("Failed to delete recurring invoice. Please try again.");
+      notify.error("Failed to delete recurring invoice. Please try again.");
     }
     setDeleting(false);
   };

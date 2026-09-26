@@ -17,6 +17,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Share2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
+import { notify } from "@/lib/notify";
 
 export default function ShareAlbumModal({ isOpen, onClose, jobId }) {
   const [generating, setGenerating] = useState(false);
@@ -53,7 +54,7 @@ export default function ShareAlbumModal({ isOpen, onClose, jobId }) {
       setShareLink(link);
     } catch (error) {
       console.error("Error generating share link:", error);
-      alert("Failed to generate share link");
+      notify.error("Failed to generate share link");
     } finally {
       setGenerating(false);
     }

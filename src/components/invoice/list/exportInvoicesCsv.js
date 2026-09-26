@@ -1,10 +1,11 @@
 import { format } from "date-fns";
 import { formatCalendarDay } from "@/lib/calendarDate";
+import { notify } from "@/lib/notify";
 
 /** Download the given invoices as a CSV, one row each. */
 export function exportInvoicesCsv(invoices) {
   if (invoices.length === 0) {
-    alert("No invoices to export.");
+    notify.warning("No invoices to export.");
     return;
   }
 
