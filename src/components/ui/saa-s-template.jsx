@@ -35,7 +35,7 @@ export const heroButtonClasses = {
 export function SaasHero({ announcement, title, description, children, footer, preview, after }) {
   return (
     <section
-      className="saas-hero relative flex min-h-[calc(100vh-64px)] flex-col items-center justify-start overflow-hidden bg-ink-950 px-6 pb-10 pt-16 text-content-inverted md:pt-24"
+      className="saas-hero relative flex min-h-[calc(100vh-64px)] flex-col items-center justify-start overflow-hidden bg-ink-950/75 px-6 pb-10 pt-16 text-content-inverted md:pt-24"
       style={{ animation: "saasHeroFadeIn 0.6s ease-out" }}
     >
       <style>{`

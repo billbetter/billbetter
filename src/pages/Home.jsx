@@ -308,7 +308,7 @@ export default function Home() {
  .live-dot { animation: liveDot 1.4s ease-in-out infinite; }
  `}</style>
 
-      <div className="bg-surface overflow-x-hidden w-full">
+      <div className="overflow-x-hidden w-full">
         {/* ── HERO ─────────────────────────────────────────────── */}
         {/*
           21st.dev's SaaS-template hero (components/ui/saa-s-template.jsx):
@@ -409,7 +409,7 @@ export default function Home() {
         </SaasHero>
 
         {/* ── PROBLEM STATEMENT ────────────────────────────────── */}
-        <section className="py-20 sm:py-32 bg-surface relative overflow-hidden">
+        <section className="py-20 sm:py-32 bg-surface/70 relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none"></div>
           <div className="relative max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
             <FadeIn>
@@ -471,7 +471,7 @@ export default function Home() {
         </section>
 
         {/* ── FEATURES — 3 BIG CARDS ───────────────────────────── */}
-        <section className="py-20 sm:py-32 bg-brand-50 relative overflow-hidden">
+        <section className="py-20 sm:py-32 bg-brand-50/70 relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-0 right-0 w-[600px] h-[500px] bg-brand-200/30 rounded-full blur-[120px]" />
             <div className="absolute bottom-0 left-0 w-[500px] h-[400px] bg-success-200/25 rounded-full blur-[100px]" />
@@ -558,7 +558,7 @@ export default function Home() {
         </section>
 
         {/* ── PAYMENT METHODS ──────────────────────────────────── */}
-        <section className="py-16 sm:py-24 bg-surface border-t border-line-subtle">
+        <section className="py-16 sm:py-24 bg-surface/70 border-t border-line-subtle">
           <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <FadeIn>
               <div className="text-center mb-12">
@@ -660,7 +660,7 @@ export default function Home() {
         </section>
 
         {/* ── HOW IT WORKS ─────────────────────────────────────── */}
-        <section className="py-20 sm:py-32 bg-surface relative overflow-hidden">
+        <section className="py-20 sm:py-32 bg-surface/70 relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none"></div>
           <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
             <FadeIn>
@@ -738,7 +738,7 @@ export default function Home() {
         </section>
 
         {/* ── TESTIMONIALS ─────────────────────────────────────── */}
-        <section className="py-20 sm:py-32 bg-brand-50 relative overflow-hidden">
+        <section className="py-20 sm:py-32 bg-brand-50/70 relative overflow-hidden">
           <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <FadeIn>
               <div className="text-center mb-14">
@@ -758,7 +758,7 @@ export default function Home() {
         </section>
 
         {/* ── PRICING ──────────────────────────────────────────── */}
-        <section className="py-20 sm:py-32 bg-surface relative overflow-hidden">
+        <section className="py-20 sm:py-32 bg-surface/70 relative overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[700px] h-[350px] bg-brand-200/25 rounded-full blur-[100px]" />
           </div>
@@ -938,7 +938,7 @@ export default function Home() {
         </section>
 
         {/* ── FINAL CTA ────────────────────────────────────────── */}
-        <section className="relative py-24 sm:py-40 bg-surface-inverted overflow-hidden">
+        <section className="relative py-24 sm:py-40 bg-surface-inverted/85 overflow-hidden">
           <div className="absolute inset-0 pointer-events-none">
             <div className="absolute bottom-0 left-1/2 -translate-x-1/2 w-[800px] h-[300px] bg-success-500/10 rounded-full blur-[100px]" />
           </div>
@@ -971,7 +971,7 @@ export default function Home() {
                 <Button
                   onClick={() => navigate(createPageUrl("Dashboard"))}
                   size="lg"
-                  className="bg-brand-500 text-content h-16 px-14 rounded-2xl font-black text-lg shadow-2xl shadow-brand-500/30 hover:scale-[1.02] transition-all w-full sm:w-auto"
+                  className="bg-brand-500 text-ink-900 h-16 px-14 rounded-2xl font-black text-lg shadow-2xl shadow-brand-500/30 hover:scale-[1.02] transition-all w-full sm:w-auto"
                 >
                   Go to Dashboard <ArrowRight className="ml-2 w-6 h-6" />
                 </Button>
@@ -979,7 +979,7 @@ export default function Home() {
                 <Button
                   onClick={handleGetStarted}
                   size="lg"
-                  className="bg-brand-500 text-content h-16 px-14 rounded-2xl font-black text-lg shadow-2xl shadow-brand-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all w-full sm:w-auto"
+                  className="bg-brand-500 text-ink-900 h-16 px-14 rounded-2xl font-black text-lg shadow-2xl shadow-brand-500/30 hover:scale-[1.02] active:scale-[0.98] transition-all w-full sm:w-auto"
                 >
                   Create Free Account <ArrowRight className="ml-2 w-6 h-6" />
                 </Button>

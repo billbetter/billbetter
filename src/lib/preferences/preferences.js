@@ -120,14 +120,47 @@ export function leaveThemedScreen() {
   applyPreferences();
 }
 
+// Screens that follow the DEVICE's light/dark setting rather than the app's
+// theme preference: the homepage. A visitor has no preference to honour, and
+// a signed-in owner who picked "light" for the dashboard has not said
+// anything about how the marketing site should look on their phone. A themed
+// screen, when one is mounted, still wins.
+let deviceThemedScreens = 0;
+let detachDeviceListener = null;
+
+export function enterDeviceThemedScreen() {
+  deviceThemedScreens += 1;
+  if (deviceThemedScreens === 1) {
+    // Follow the OS live. subscribe() only does this under theme_mode
+    // "system", and only while something reads the store.
+    const media = darkQuery();
+    const onMedia = () => applyPreferences();
+    media?.addEventListener?.("change", onMedia);
+    detachDeviceListener = () => media?.removeEventListener?.("change", onMedia);
+  }
+  applyPreferences();
+}
+
+export function leaveDeviceThemedScreen() {
+  deviceThemedScreens = Math.max(0, deviceThemedScreens - 1);
+  if (deviceThemedScreens === 0 && detachDeviceListener) {
+    detachDeviceListener();
+    detachDeviceListener = null;
+  }
+  applyPreferences();
+}
+
+function isDark(values) {
+  if (themedScreens > 0) return resolveThemeMode(values.theme_mode) === "dark";
+  if (deviceThemedScreens > 0) return resolveThemeMode("system") === "dark";
+  return false;
+}
+
 /** Mirror every preference onto <html>. Safe to call repeatedly. */
 export function applyPreferences(values = current) {
   if (typeof document === "undefined") return;
   const root = document.documentElement;
-  root.classList.toggle(
-    "dark",
-    themedScreens > 0 && resolveThemeMode(values.theme_mode) === "dark",
-  );
+  root.classList.toggle("dark", isDark(values));
   root.dataset.themeMode = values.theme_mode;
   root.dataset.themePreset = values.theme_preset;
   root.dataset.font = values.font;
