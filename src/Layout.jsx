@@ -17,7 +17,11 @@ import { SidebarInset, SidebarProvider } from "@/components/ui/sidebar";
 import AppSidebar from "@/components/layout/AppSidebar";
 import AppHeader from "@/components/layout/AppHeader";
 import MobileBottomNav from "@/components/layout/MobileBottomNav";
-import { useAppShell, useThemedScreen } from "@/lib/preferences/app-shell";
+import {
+  useAppShell,
+  useDeviceThemedScreen,
+  useThemedScreen,
+} from "@/lib/preferences/app-shell";
 import { usePreferences } from "@/lib/preferences/preferences";
 import { AppShellContext } from "@/lib/preferences/shell-context";
 
@@ -30,6 +34,12 @@ function AppShellScope() {
 /** Lets a screen outside the shell follow light/dark while it is mounted. */
 function ThemedScope() {
   useThemedScreen();
+  return null;
+}
+
+/** Lets the homepage follow the device's light/dark setting while mounted. */
+function DeviceThemedScope() {
+  useDeviceThemedScreen();
   return null;
 }
 
@@ -481,13 +491,43 @@ export default function Layout({ children, currentPageName }) {
   if (isPublicPage) {
     const isLoggedIn = !!user;
     const hasActiveSub = hasAppAccess(subscription);
+    // The homepage follows the device's light/dark setting and sits on the
+    // Smoke background. The other marketing pages stay light and flat.
+    const isHome =
+      currentPageName === "Home" ||
+      location.pathname === "/" ||
+      location.pathname === createPageUrl("Home");
 
     return (
-      /* audit:light-only:start — the signed-out marketing shell renders for
-         visitors who have no theme preference, so it stays light in both. */
-      <div className="min-h-screen bg-surface-sunken">
+      /* audit:light-only:start — the signed-out marketing shell stays light,
+         except on the homepage, which follows the device (see .marketing-home
+         in index.css for the dark palette it switches to). */
+      <div
+        className={
+          isHome
+            ? "marketing-home relative isolate min-h-screen bg-surface-sunken"
+            : "min-h-screen bg-surface-sunken"
+        }
+      >
+        {isHome ? (
+          <>
+            <DeviceThemedScope />
+            {/* The Smoke background from Settings -> Appearance, always Smoke
+                here whatever preset the app is set to: this is the product's
+                front door, not a personal preference. Fixed to the viewport
+                behind everything; each section lays a translucent wash over it
+                so text stays readable. It honours prefers-reduced-motion (one
+                still frame) and pauses when the tab is hidden. */}
+            <div
+              aria-hidden
+              className="pointer-events-none fixed inset-0 z-0"
+            >
+              <ShaderBackground className="h-full w-full" preset="smoke" />
+            </div>
+          </>
+        ) : null}
         <header
-          className={`sticky top-0 z-50 w-full border-b border-line bg-surface transition-shadow duration-300 ${isScrolled ? "shadow-sm" : ""}`}
+          className={`sticky top-0 z-50 w-full border-b border-line transition-shadow duration-300 ${isHome ? "bg-surface/80 backdrop-blur-md" : "bg-surface"} ${isScrolled ? "shadow-sm" : ""}`}
         >
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <div className="flex justify-between items-center h-16">
@@ -561,7 +601,7 @@ export default function Layout({ children, currentPageName }) {
           </div>
         </header>
 
-        <div>{children}</div>
+        <div className={isHome ? "relative z-10" : undefined}>{children}</div>
       </div>
       /* audit:light-only:end */
     );

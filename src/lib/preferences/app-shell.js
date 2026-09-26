@@ -1,5 +1,10 @@
 import { useLayoutEffect } from "react";
-import { enterThemedScreen, leaveThemedScreen } from "./preferences";
+import {
+  enterDeviceThemedScreen,
+  enterThemedScreen,
+  leaveDeviceThemedScreen,
+  leaveThemedScreen,
+} from "./preferences";
 
 /**
  * Let this screen follow the theme preference (light / dark / system).
@@ -16,6 +21,17 @@ export function useThemedScreen() {
   useLayoutEffect(() => {
     enterThemedScreen();
     return leaveThemedScreen;
+  }, []);
+}
+
+/**
+ * Let this screen follow the device's light/dark setting, whatever the app's
+ * theme preference says. For the homepage; see enterDeviceThemedScreen.
+ */
+export function useDeviceThemedScreen() {
+  useLayoutEffect(() => {
+    enterDeviceThemedScreen();
+    return leaveDeviceThemedScreen;
   }, []);
 }
 
