@@ -7,7 +7,7 @@ import { listPlans, getAmount } from "@/config/plans";
 import { TRADES } from "@/config/trades";
 import { sdk } from "@/api/sdk";
 import { Button } from "@/components/ui/button";
-import { ShinyButton } from "@/components/ui/shiny-button";
+import { SaasHero, heroButtonClasses } from "@/components/ui/saa-s-template";
 import { TestimonialsMarquee } from "@/components/ui/testimonials-columns";
 import SEO from "@/components/seo/SEO";
 import InstallPWA from "@/components/pwa/InstallPWA";
@@ -53,32 +53,23 @@ function HeroStart({ loading, user, onDashboard, onLogin }) {
   const navigate = useNavigate();
   const [email, setEmail] = useState("");
 
+  // Styled for the dark hero (SaasHero): the kit's white gradient button.
+  const cta = `${heroButtonClasses.base} ${heroButtonClasses.gradient} ${heroButtonClasses.lg}`;
+
   if (loading) {
     return (
-      <div className="mb-10">
-        <Button
-          disabled
-          size="lg"
-          className="bg-ink-200 text-content-body h-14 px-8 rounded-2xl font-black"
-        >
-          <RefreshCw className="mr-2 w-5 h-5 animate-spin" /> Loading...
-        </Button>
-      </div>
+      <button type="button" disabled className={cta}>
+        <RefreshCw className="w-5 h-5 animate-spin" /> Loading...
+      </button>
     );
   }
 
   // Someone already signed in has no use for a signup box.
   if (user) {
     return (
-      <div className="mb-10">
-        <Button
-          onClick={onDashboard}
-          size="lg"
-          className="bg-brand text-content-inverted h-14 px-8 rounded-2xl font-black shadow-2xl shadow-brand-600/25 transition-all hover:scale-[1.02] active:scale-[0.98]"
-        >
-          Go to Dashboard <ArrowRight className="ml-2 w-5 h-5" />
-        </Button>
-      </div>
+      <button type="button" onClick={onDashboard} className={cta}>
+        Go to Dashboard <ArrowRight className="w-5 h-5" />
+      </button>
     );
   }
 
@@ -93,15 +84,15 @@ function HeroStart({ loading, user, onDashboard, onLogin }) {
   };
 
   return (
-    <div className="mb-10">
-      <p className="text-content font-bold mb-3">
+    <div className="w-full max-w-xl text-center">
+      <p className="text-ink-300 text-sm font-medium mb-3">
         Get access to your new invoicing all-in-one.
       </p>
 
-      <form
-        onSubmit={start}
-        className="flex flex-col sm:flex-row gap-3 max-w-xl"
-      >
+      <form onSubmit={start} className="flex flex-col sm:flex-row gap-3">
+        {/* The ! overrides beat index.css's element rule for every text
+            input (light background, light border), which outranks utilities
+            on specificity -- this one field sits on the dark hero. */}
         <input
           type="email"
           required
@@ -110,22 +101,22 @@ function HeroStart({ loading, user, onDashboard, onLogin }) {
           placeholder="you@yourbusiness.ca"
           aria-label="Your email address"
           autoComplete="email"
-          className="flex-1 h-14 px-5 rounded-2xl bg-surface border border-line text-base text-content placeholder:text-content-muted shadow-sm focus:outline-none focus:ring-2 focus:ring-brand-400 focus:border-brand-400 transition-shadow"
+          className="flex-1 h-12 !px-4 !rounded-lg !bg-ink-900/70 !border-ink-700 !text-content-inverted text-base placeholder:text-ink-500 focus:outline-none focus:!border-ink-500 focus:ring-2 focus:ring-ink-600 transition-shadow"
         />
-        <ShinyButton type="submit" className="flex-shrink-0">
-          Start
-        </ShinyButton>
+        <button type="submit" className={`${cta} flex-shrink-0`}>
+          Get started
+        </button>
       </form>
 
-      <p className="text-content-muted text-sm mt-3">
-        Press start to begin.{" "}
+      <p className="text-ink-400 text-sm mt-3">
+        Press Get started to begin.{" "}
         <button
           type="button"
           onClick={onLogin}
-          className="text-content-body font-semibold hover:text-content transition-colors"
+          className="font-medium text-ink-300 hover:text-content-inverted transition-colors"
         >
           Already a member?{" "}
-          <span className="text-brand-700 underline underline-offset-2">
+          <span className="text-content-inverted underline underline-offset-2">
             Sign in
           </span>
         </button>
@@ -319,131 +310,103 @@ export default function Home() {
 
       <div className="bg-surface overflow-x-hidden w-full">
         {/* ── HERO ─────────────────────────────────────────────── */}
-        <section className="relative min-h-[calc(100vh-64px)] flex items-center overflow-hidden">
-          <div className="absolute inset-0 pointer-events-none">
-            <div className="absolute -top-40 right-0 w-[900px] h-[900px] bg-brand-300/25 rounded-full blur-[160px]" />
-            <div className="absolute bottom-0 left-0 w-[600px] h-[600px] bg-success-200/30 rounded-full blur-[140px]" />
-          </div>
-
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 lg:py-24 w-full">
-            <div className="grid lg:grid-cols-[1fr_auto] gap-10 lg:gap-20 items-center">
-              {/* Copy */}
-              <div className="max-w-2xl">
-                <FadeIn>
-                  <div className="inline-flex items-center gap-2 bg-brand-50 border border-brand-200 text-brand-700 px-4 py-2 rounded-full text-sm font-bold mb-8">
-                    <HardHat className="w-4 h-4 flex-shrink-0" />
-                    Built for the trades. Not accountants.
-                  </div>
-                </FadeIn>
-
-                <FadeIn delay={80}>
-                  {/*
-                    Much longer than the two words this replaced ("GET PAID /
-                    TODAY."), so the clamp starts smaller and the line height
-                    opens up. At the old 10vw the second line wrapped on every
-                    phone in portrait.
-                  */}
-                  <h1 className="text-[clamp(2.5rem,6.2vw,4.5rem)] font-black text-content leading-[0.95] mb-6 tracking-tight">
-                    Paperwork done in minutes.
-                    <br />
-                    <span className="text-brand-700">Not hours.</span>
-                  </h1>
-                </FadeIn>
-
-                <FadeIn delay={160}>
-                  <p className="text-xl sm:text-2xl text-content-body mb-10 leading-relaxed font-medium max-w-xl">
-                    Invoicium turns a job into a paid invoice in under 2
-                    minutes, from any device.
-                  </p>
-                </FadeIn>
-
-                <FadeIn delay={240}>
-                  <HeroStart
-                    loading={loading}
-                    user={user}
-                    onDashboard={() => navigate(createPageUrl("Dashboard"))}
-                    onLogin={handleLogin}
-                  />
-                </FadeIn>
-
-                <FadeIn delay={400}>
-                  <div className="flex flex-wrap gap-5 text-sm">
-                    {[
-                      "No credit card required",
-                      "7-day free trial",
-                      "Cancel anytime",
-                    ].map((t) => (
-                      <div
-                        key={t}
-                        className="flex items-center gap-2 text-success-600 font-semibold"
-                      >
-                        <CheckCircle className="w-4 h-4 flex-shrink-0" /> {t}
-                      </div>
-                    ))}
-                  </div>
-                </FadeIn>
-              </div>
-
-              {/*
-                The thing being sold, shown as itself.
-
-                This replaced an animated phone mockup. A mockup shows that we
-                can draw a phone; an actual invoice shows what the visitor
-                walks away with, which is the only question the hero has to
-                answer. Rendered from the real PDF at 2.5x so it stays sharp on
-                a retina display, with a half-size source for phones -- the
-                full asset is 90KB of WebP and there is no reason to send it to
-                someone holding a 400px-wide screen.
-              */}
-              <div className="flex justify-center relative">
-                <FadeIn delay={200}>
-                  <figure className="relative w-[min(86vw,470px)]">
-                    <div className="absolute -inset-8 bg-brand-300/25 blur-3xl rounded-full pointer-events-none" />
-                    <picture>
-                      <source
-                        type="image/webp"
-                        srcSet="/hero-invoice-small.webp 765w, /hero-invoice.webp 1530w"
-                        sizes="(min-width: 1024px) 470px, 86vw"
-                      />
-                      <img
-                        src="/hero-invoice.png"
-                        srcSet="/hero-invoice-small.png 765w, /hero-invoice.png 1530w"
-                        sizes="(min-width: 1024px) 470px, 86vw"
-                        // Intrinsic size given so the hero does not reflow when
-                        // the image lands -- this is the largest element above
-                        // the fold and a jump here is the whole layout moving.
-                        width={1530}
-                        height={1570}
-                        loading="eager"
-                        decoding="async"
-                        alt="An Invoicium invoice for a kitchen renovation: ten line items including custom cabinetry, quartz countertop and electrical rewiring, totalling $14,490.00 CAD."
-                        className="relative w-full h-auto rounded-2xl bg-white shadow-2xl shadow-ink-900/20 ring-1 ring-ink-900/10 lg:rotate-[-1.2deg]"
-                      />
-                    </picture>
-                  </figure>
-                </FadeIn>
-              </div>
+        {/*
+          21st.dev's SaaS-template hero (components/ui/saa-s-template.jsx):
+          the pill, a gradient headline, the email start, and the product
+          under a glow.
+        */}
+        <SaasHero
+          announcement={{
+            text: "Built for the trades. Not accountants.",
+            linkText: "See features",
+            to: createPageUrl("Features"),
+          }}
+          title={
+            <>
+              Paperwork done in minutes.
+              <br />
+              Not hours.
+            </>
+          }
+          description="Invoicium turns a job into a paid invoice in under 2 minutes, from any device."
+          footer={
+            <div className="flex flex-wrap justify-center gap-x-5 gap-y-2 text-sm">
+              {["No credit card required", "7-day free trial", "Cancel anytime"].map((t) => (
+                <div key={t} className="flex items-center gap-2 font-medium text-ink-300">
+                  <CheckCircle className="w-4 h-4 flex-shrink-0 text-success-400" /> {t}
+                </div>
+              ))}
             </div>
-
-            {/* Trade tags */}
-            <FadeIn delay={480}>
-              <div className="mt-12 pt-8 border-t border-line flex flex-wrap gap-2 items-center">
-                <p className="text-content-muted text-xs font-semibold uppercase tracking-widest mr-2">
-                  Trusted by:
-                </p>
-                {TRADES.map((trade) => (
-                  <span
-                    key={trade}
-                    className="text-xs text-content-body bg-surface-sunken border border-line px-3 py-1.5 rounded-lg hover:border-brand-300 hover:text-content transition-all cursor-default flex items-center gap-1.5"
-                  >
-                    <HardHat className="w-3 h-3 text-brand-600 flex-shrink-0" />{" "}
-                    {trade}
-                  </span>
-                ))}
-              </div>
-            </FadeIn>
-          </div>
-        </section>
+          }
+          preview={
+            /*
+              The thing being sold, shown as itself: the real dashboard (dark
+              theme, sample data, a fictional owner), with a real invoice --
+              rendered from the PDF at 2.5x -- laid over its corner. Each has a
+              half-size source so a phone is not sent the retina asset.
+            */
+            <figure className="relative">
+              <picture>
+                <source
+                  type="image/webp"
+                  srcSet="/hero-dashboard-small.webp 1440w, /hero-dashboard.webp 2880w"
+                  sizes="(min-width: 1024px) 1024px, 92vw"
+                />
+                <img
+                  src="/hero-dashboard.png"
+                  // Intrinsic size given so the hero does not reflow when the
+                  // image lands -- the largest element above the fold.
+                  width={2880}
+                  height={1800}
+                  loading="eager"
+                  decoding="async"
+                  alt="The Invoicium dashboard: total revenue, pending and this month's figures, a daily brief of the overdue invoice and quotes awaiting a reply, and shortcuts to create an invoice or quote."
+                  className="w-full h-auto rounded-lg shadow-2xl ring-1 ring-white/10"
+                />
+              </picture>
+              <picture className="absolute -bottom-8 -right-4 hidden w-[27%] md:block lg:-right-10">
+                <source
+                  type="image/webp"
+                  srcSet="/hero-invoice-small.webp 765w, /hero-invoice.webp 1530w"
+                  sizes="280px"
+                />
+                <img
+                  src="/hero-invoice.png"
+                  srcSet="/hero-invoice-small.png 765w, /hero-invoice.png 1530w"
+                  sizes="280px"
+                  width={1530}
+                  height={1570}
+                  loading="eager"
+                  decoding="async"
+                  alt="An Invoicium invoice for a kitchen renovation: ten line items including custom cabinetry, quartz countertop and electrical rewiring, totalling $14,490.00 CAD."
+                  className="w-full h-auto rounded-xl bg-white shadow-2xl ring-1 ring-black/10 rotate-[-2deg]"
+                />
+              </picture>
+            </figure>
+          }
+          after={
+            <div className="mt-6 flex flex-wrap items-center justify-center gap-2 border-t border-ink-800 pt-8">
+              <p className="mr-2 text-xs font-medium uppercase tracking-widest text-ink-500">
+                Trusted by:
+              </p>
+              {TRADES.map((trade) => (
+                <span
+                  key={trade}
+                  className="flex cursor-default items-center gap-1.5 rounded-lg border border-ink-800 bg-ink-900/60 px-3 py-1.5 text-xs text-ink-300 transition-colors hover:border-ink-600 hover:text-content-inverted"
+                >
+                  <HardHat className="w-3 h-3 flex-shrink-0 text-ink-400" /> {trade}
+                </span>
+              ))}
+            </div>
+          }
+        >
+          <HeroStart
+            loading={loading}
+            user={user}
+            onDashboard={() => navigate(createPageUrl("Dashboard"))}
+            onLogin={handleLogin}
+          />
+        </SaasHero>
 
         {/* ── PROBLEM STATEMENT ────────────────────────────────── */}
         <section className="py-20 sm:py-32 bg-surface relative overflow-hidden">
