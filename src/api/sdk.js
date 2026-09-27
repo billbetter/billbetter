@@ -717,10 +717,35 @@ export const sdk = {
   auth: {
     me: async () => {
       const {
-        data: { user },
+        data: { user: checkedUser },
         error,
       } = await supabase.auth.getUser();
-      if (error || !user) return null;
+      let user = checkedUser;
+      if (error || !user) {
+        // getUser() asks the auth server. Only a refusal (401/403: the
+        // session is gone or revoked) means signed out. A network blip, a
+        // rate limit, or the storage-lock timeout supabase-js hits when a page
+        // fires several of these at once is not -- and treating it as "no
+        // user" made screens that read me().id crash ("Cannot read properties
+        // of null"). Then the locally held session still says who this is;
+        // every query it leads to is checked by RLS on the server anyway.
+        const status = error?.status;
+        if (!error) return null;
+        if (status === 401 || status === 403) {
+          // The server rejected this session. supabase-js drops its stored
+          // copy only for "session not found"; for any other refusal the
+          // stale copy stayed, so Login (which reads the stored session) sent
+          // the user on to the app, the app found no user and sent them back
+          // to Login -- a loop. Drop it here too.
+          await supabase.auth.signOut({ scope: "local" }).catch(() => {});
+          return null;
+        }
+        const {
+          data: { session },
+        } = await supabase.auth.getSession();
+        user = session?.user ?? null;
+        if (!user) return null;
+      }
 
       // Ensure fallback demo data exists for this user locally
       seedAllDataForUser(user.id);

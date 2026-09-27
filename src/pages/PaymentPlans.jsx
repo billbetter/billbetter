@@ -51,6 +51,9 @@ export default function PaymentPlans() {
     setLoading(true);
     try {
       const me = await sdk.auth.me();
+      if (!me) {
+        throw new Error("You've been signed out. Sign in again to see your payment plans.");
+      }
       setUser(me);
       const [planRows, clientRows, settingRows] = await Promise.all([
         sdk.entities.PaymentPlan.filter({ user_id: me.id }).catch(() => []),
