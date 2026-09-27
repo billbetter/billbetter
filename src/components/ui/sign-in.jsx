@@ -5,6 +5,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { ShaderBackground } from "@/components/ui/shader-background";
 import { useAppShell } from "@/lib/preferences/app-shell";
 import { AppShellContext } from "@/lib/preferences/shell-context";
 
@@ -40,25 +41,39 @@ const GoogleIcon = () => (
 );
 
 /** The brand panel: the mark and tagline at the top, the product highlights
- * (`heroCards`) along the bottom, set the way the template sets its notes. */
+ * (`heroCards`) along the bottom, set the way the template sets its notes.
+ *
+ * Drawn on the Smoke background, the same one as the homepage, rather than
+ * the theme's primary colour -- which on the neutral preset is near-white and
+ * left a blank slab beside the form. The text is white in every theme, since
+ * the panel is always the dark smoke; a dark wash at the top and bottom keeps
+ * it readable over the palette's bright crests. Smoke already draws one still
+ * frame for anyone who prefers reduced motion. */
 function BrandPanel({ heroCards }) {
   const notes = heroCards;
   return (
-    <div className="relative order-2 hidden h-full rounded-3xl bg-primary lg:flex">
-      <div className="absolute top-10 space-y-1 px-10 text-primary-foreground">
-        <img src="/logo-mark.png" alt="" className="mb-3 size-10 rounded-lg bg-primary-foreground/95 p-1.5" />
+    <div className="relative order-2 hidden h-full overflow-hidden rounded-3xl bg-ink-950 lg:flex">
+      <div aria-hidden className="pointer-events-none absolute inset-0">
+        <ShaderBackground className="h-full w-full" preset="smoke" />
+      </div>
+      <div
+        aria-hidden
+        className="pointer-events-none absolute inset-0 bg-gradient-to-b from-ink-950/60 via-ink-950/10 to-ink-950/70"
+      />
+      <div className="absolute top-10 space-y-1 px-10 text-white">
+        <img src="/logo-mark.png" alt="" className="mb-3 size-10 rounded-lg bg-white/95 p-1.5" />
         <h2 className="text-2xl font-medium">Invoicium</h2>
-        <p className="text-sm text-primary-foreground/80">Invoice, quote and get paid -- built for the trades.</p>
+        <p className="text-sm text-white/80">Invoice, quote and get paid -- built for the trades.</p>
       </div>
 
       {notes.length > 0 && (
         <div className="absolute bottom-10 flex w-full justify-between px-10">
           {notes.map((note, i) => (
             <React.Fragment key={note.name}>
-              {i > 0 && <Separator orientation="vertical" className="mx-3 !h-auto bg-primary-foreground/20" />}
-              <div className="flex-1 space-y-1 text-primary-foreground">
+              {i > 0 && <Separator orientation="vertical" className="mx-3 !h-auto bg-white/20" />}
+              <div className="flex-1 space-y-1 text-white">
                 <h3 className="font-medium">{note.name}</h3>
-                <p className="text-sm text-primary-foreground/80">{note.text}</p>
+                <p className="text-sm text-white/80">{note.text}</p>
               </div>
             </React.Fragment>
           ))}
@@ -87,6 +102,7 @@ export const SignInPage = ({
   googleLoading = false,
   onSubmit,
   onGoogleSignIn,
+  renderGoogle,
   onResetPassword,
   onToggleMode,
 }) => {
@@ -132,16 +148,26 @@ export const SignInPage = ({
                 <div className="space-y-4">
                   {showGoogle && (
                     <>
-                      <Button
-                        type="button"
-                        variant="outline"
-                        className="w-full"
-                        onClick={onGoogleSignIn}
-                        disabled={googleLoading}
-                      >
-                        {googleLoading ? <Loader2 className="animate-spin" /> : <GoogleIcon />}
-                        {googleLoading ? "Opening Google..." : "Continue with Google"}
-                      </Button>
+                      {(() => {
+                        const redirectButton = (
+                          <Button
+                            type="button"
+                            variant="outline"
+                            className="w-full"
+                            onClick={onGoogleSignIn}
+                            disabled={googleLoading}
+                          >
+                            {googleLoading ? <Loader2 className="animate-spin" /> : <GoogleIcon />}
+                            {googleLoading ? "Signing in with Google..." : "Continue with Google"}
+                          </Button>
+                        );
+                        // renderGoogle swaps in Google's own button, keeping
+                        // this one as its fallback. While a sign-in is being
+                        // finished, this one shows, busy.
+                        return renderGoogle && !googleLoading
+                          ? renderGoogle(redirectButton)
+                          : redirectButton;
+                      })()}
                       <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
                         <span className="relative z-10 bg-background px-2 text-muted-foreground">
                           Or continue with
