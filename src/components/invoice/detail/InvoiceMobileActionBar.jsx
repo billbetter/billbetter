@@ -1,14 +1,13 @@
 import React from "react";
 import { Ban, Download, Loader2, Send, Trash2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { notify } from "@/lib/notify";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /** The phone layout's fixed action bar: the same actions as the desktop header. */
 export default function InvoiceMobileActionBar({
   canRecordPayment,
   canVoid,
   client,
-  copyToClipboard,
   handleResendNotifications,
   invoice,
   sendingNotifications,
@@ -28,17 +27,14 @@ export default function InvoiceMobileActionBar({
       <div className="p-3 flex items-center gap-2">
         {invoice.pdf_url && (
           <>
-            <Button
+            <CopyButton
               variant="outline"
               size="sm"
-              onClick={() => {
-                copyToClipboard(invoice.pdf_url);
-                notify.success("PDF link copied!");
-              }}
+              text={invoice.pdf_url}
               className="flex-1 h-11"
             >
-              📋 Copy
-            </Button>
+              Copy
+            </CopyButton>
             <Button
               variant="outline"
               size="sm"

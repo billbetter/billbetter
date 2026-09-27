@@ -566,10 +566,6 @@ as the rate, and skip SUBTOTAL, TAX, TOTAL and card lines.`
     navigate(createPageUrl("Quotes"));
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-  };
-
   const selectedClient = clients.find((c) => c.id === formData.client_id);
 
   if (isPageLoading) {
@@ -686,7 +682,6 @@ as the rate, and skip SUBTOTAL, TAX, TOTAL and card lines.`
       </div>
 
       <QuoteSuccessDialog
-        copyToClipboard={copyToClipboard}
         handleSuccessClose={handleSuccessClose}
         navigate={navigate}
         setSuccessDialog={setSuccessDialog}

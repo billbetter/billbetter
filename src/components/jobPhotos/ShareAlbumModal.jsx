@@ -16,13 +16,13 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Share2, Copy, Check, Loader2, ExternalLink } from "lucide-react";
+import { Share2, Loader2, ExternalLink } from "lucide-react";
 import { notify } from "@/lib/notify";
+import { CopyButton } from "@/components/ui/copy-button";
 
 export default function ShareAlbumModal({ isOpen, onClose, jobId }) {
   const [generating, setGenerating] = useState(false);
   const [shareLink, setShareLink] = useState(null);
-  const [copied, setCopied] = useState(false);
   const [expirationDays, setExpirationDays] = useState("7");
   const [allowDownload, setAllowDownload] = useState(true);
 
@@ -60,19 +60,9 @@ export default function ShareAlbumModal({ isOpen, onClose, jobId }) {
     }
   };
 
-  const copyToClipboard = async () => {
-    try {
-      await navigator.clipboard.writeText(shareLink);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch (error) {
-      console.error("Failed to copy:", error);
-    }
-  };
 
   const handleClose = () => {
     setShareLink(null);
-    setCopied(false);
     onClose();
   };
 
@@ -155,17 +145,13 @@ export default function ShareAlbumModal({ isOpen, onClose, jobId }) {
                 <Label>Share Link</Label>
                 <div className="flex gap-2 mt-2">
                   <Input value={shareLink} readOnly className="flex-1" />
-                  <Button
-                    onClick={copyToClipboard}
+                  <CopyButton
+                    text={shareLink}
                     variant="outline"
                     className="flex-shrink-0"
                   >
-                    {copied ? (
-                      <Check className="w-4 h-4 text-positive-600" />
-                    ) : (
-                      <Copy className="w-4 h-4" />
-                    )}
-                  </Button>
+                    Copy
+                  </CopyButton>
                 </div>
               </div>
 

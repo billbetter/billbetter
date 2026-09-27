@@ -176,11 +176,6 @@ export default function QuoteDetail() {
     }
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-    notify.success("Link copied to clipboard!");
-  };
-
   const responseRecord = quoteResponseRecord(quote);
 
   if (loading) {
@@ -210,7 +205,6 @@ export default function QuoteDetail() {
     <div className="p-4 sm:p-6 lg:p-8 max-w-5xl mx-auto pb-24 sm:pb-8">
       <QuoteDetailHeader
         client={client}
-        copyToClipboard={copyToClipboard}
         handleResendNotifications={handleResendNotifications}
         navigate={navigate}
         quote={quote}
@@ -220,7 +214,6 @@ export default function QuoteDetail() {
 
       <QuoteMobileActionBar
         client={client}
-        copyToClipboard={copyToClipboard}
         handleResendNotifications={handleResendNotifications}
         quote={quote}
         sendingNotifications={sendingNotifications}
@@ -260,7 +253,6 @@ export default function QuoteDetail() {
 
       <QuoteNotificationResultDialog
         client={client}
-        copyToClipboard={copyToClipboard}
         notificationResult={notificationResult}
         quote={quote}
         setNotificationResult={setNotificationResult}

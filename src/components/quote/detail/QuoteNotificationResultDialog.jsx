@@ -2,12 +2,12 @@ import React from "react";
 import { AlertCircle, CheckCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /** What happened when the quote was resent: per-channel success or the
  * reason it failed, plus the PDF link to copy. */
 export default function QuoteNotificationResultDialog({
   client,
-  copyToClipboard,
   notificationResult,
   quote,
   setNotificationResult,
@@ -131,13 +131,13 @@ export default function QuoteNotificationResultDialog({
           </div>
 
           {quote.pdf_url && (
-            <Button
-              onClick={() => copyToClipboard(quote.pdf_url)}
+            <CopyButton
+              text={quote.pdf_url}
               variant="outline"
               className="w-full"
             >
-              📋 Copy PDF Link to Share
-            </Button>
+              Copy PDF Link to Share
+            </CopyButton>
           )}
 
           <Button

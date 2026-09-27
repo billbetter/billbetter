@@ -4,8 +4,6 @@ import { Quote } from "@/entities/Quote";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
-  Check,
-  Copy,
   Eye,
   ExternalLink,
   Link2,
@@ -16,6 +14,7 @@ import {
 } from "lucide-react";
 import { format } from "date-fns";
 import { readReceipt } from "@/lib/readReceipt";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /**
  * The contractor's controls for the public link on one document.
@@ -63,7 +62,6 @@ const KINDS = {
 
 export default function PublicLinkControls({ document: doc, kind = "invoice", onChange }) {
   const [busy, setBusy] = useState("");
-  const [copied, setCopied] = useState(false);
   const [error, setError] = useState("");
   const [confirmingRegenerate, setConfirmingRegenerate] = useState(false);
 
@@ -88,18 +86,6 @@ export default function PublicLinkControls({ document: doc, kind = "invoice", on
     } finally {
       setBusy("");
       setConfirmingRegenerate(false);
-    }
-  };
-
-  const handleCopy = async () => {
-    try {
-      await navigator.clipboard.writeText(url);
-      setCopied(true);
-      setTimeout(() => setCopied(false), 2000);
-    } catch {
-      // Clipboard access is denied on insecure origins and in some embedded
-      // browsers. Telling them to select it beats a silent no-op.
-      setError("Could not copy. Select the link above and copy it manually.");
     }
   };
 
@@ -134,19 +120,15 @@ export default function PublicLinkControls({ document: doc, kind = "invoice", on
           >
             {url}
           </code>
-          <Button
+          <CopyButton
             variant="outline"
             size="sm"
-            onClick={handleCopy}
+            text={url}
             disabled={revoked}
             title="Copy link"
           >
-            {copied ? (
-              <Check className="w-4 h-4 text-success-600" />
-            ) : (
-              <Copy className="w-4 h-4" />
-            )}
-          </Button>
+            Copy
+          </CopyButton>
         </div>
 
         <div className="flex items-start gap-2 text-sm text-content-muted">
