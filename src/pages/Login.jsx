@@ -5,6 +5,8 @@ import { supabase } from "@/api/supabaseClient";
 import { sdk } from "@/api/sdk";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { SignInPage } from "@/components/ui/sign-in";
+import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
+import { GOOGLE_BUTTON_ENABLED } from "@/lib/googleIdentity";
 import { getSameOriginReturnPath } from "@/lib/auth-redirects";
 
 const isGoogleAuthEnabled = import.meta.env.VITE_ENABLE_GOOGLE_AUTH !== "false";
@@ -128,6 +130,27 @@ export default function Login({ defaultMode = "signin" }) {
     }
   };
 
+  // Google's own button (components/auth/GoogleSignInButton) hands back an ID
+  // token; Supabase turns it into a session, and the onAuthStateChange above
+  // navigates on. The redirect flow above is its fallback.
+  const handleGoogleCredential = async (token, nonce) => {
+    setGoogleLoading(true);
+    setMessage(null);
+    const { error } = await supabase.auth.signInWithIdToken({
+      provider: "google",
+      token,
+      nonce,
+    });
+    if (error) {
+      console.error("Google ID token sign-in error:", error);
+      setGoogleLoading(false);
+      fail(
+        error.message ||
+          "Google sign-in didn't go through. Please try again, or use your email.",
+      );
+    }
+  };
+
   // Fallback way in when the password is forgotten and the Google provider is
   // unavailable — emails a one-time link that signs the user straight in.
   const handleResetPassword = async () => {
@@ -248,6 +271,17 @@ export default function Login({ defaultMode = "signin" }) {
       }
       onSubmit={handleSubmit}
       onGoogleSignIn={handleGoogleSignIn}
+      renderGoogle={
+        GOOGLE_BUTTON_ENABLED
+          ? (fallback) => (
+              <GoogleSignInButton
+                mode={mode}
+                onCredential={handleGoogleCredential}
+                fallback={fallback}
+              />
+            )
+          : undefined
+      }
       onResetPassword={handleResetPassword}
       onToggleMode={toggleMode}
     />
