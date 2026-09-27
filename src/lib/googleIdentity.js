@@ -35,23 +35,26 @@ const DIRECT_ORIGINS = ["https://www.invoicium.ca"];
  * On: a real sign-in through it succeeded on https://www.invoicium.ca
  * (2026-09-26). Only a completed sign-in proves it -- Google refuses an
  * unregistered redirect URI only after the person has picked an account.
- * /Login?googlebutton=off falls back to the Supabase flow in one browser
- * (remembered; ?googlebutton=on undoes it).
+ * /Login?googlebutton=off falls back to the Supabase flow for that page load
+ * only.
  */
 const DIRECT_BY_DEFAULT = true;
 
-const OVERRIDE_KEY = "invoicium-google-button";
+// Where the testing switch used to be remembered. It no longer is: a browser
+// that had once visited ?googlebutton=off stayed on the Supabase flow -- and
+// its "to continue to rcymevdxsizstnopqeow.supabase.co" -- with nothing on
+// the page to say why. Cleared on sight.
+const LEGACY_OVERRIDE_KEY = "invoicium-google-button";
 const PENDING_KEY = "invoicium-google-pending";
 const REDIRECT_PATH = "/Login";
 
 function readOverride() {
   try {
-    const param = new URLSearchParams(window.location.search).get("googlebutton");
-    if (param === "on" || param === "off") window.localStorage.setItem(OVERRIDE_KEY, param);
-    return window.localStorage.getItem(OVERRIDE_KEY);
+    window.localStorage.removeItem(LEGACY_OVERRIDE_KEY);
   } catch {
-    return null;
+    // Storage blocked: nothing was remembered either.
   }
+  return new URLSearchParams(window.location.search).get("googlebutton");
 }
 
 /** Whether "Continue with Google" should go to Google directly here. */
