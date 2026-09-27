@@ -102,7 +102,6 @@ export const SignInPage = ({
   googleLoading = false,
   onSubmit,
   onGoogleSignIn,
-  renderGoogle,
   onResetPassword,
   onToggleMode,
 }) => {
@@ -148,26 +147,16 @@ export const SignInPage = ({
                 <div className="space-y-4">
                   {showGoogle && (
                     <>
-                      {(() => {
-                        const redirectButton = (
-                          <Button
-                            type="button"
-                            variant="outline"
-                            className="w-full"
-                            onClick={onGoogleSignIn}
-                            disabled={googleLoading}
-                          >
-                            {googleLoading ? <Loader2 className="animate-spin" /> : <GoogleIcon />}
-                            {googleLoading ? "Signing in with Google..." : "Continue with Google"}
-                          </Button>
-                        );
-                        // renderGoogle swaps in Google's own button, keeping
-                        // this one as its fallback. While a sign-in is being
-                        // finished, this one shows, busy.
-                        return renderGoogle && !googleLoading
-                          ? renderGoogle(redirectButton)
-                          : redirectButton;
-                      })()}
+                      <Button
+                        type="button"
+                        variant="outline"
+                        className="w-full"
+                        onClick={onGoogleSignIn}
+                        disabled={googleLoading}
+                      >
+                        {googleLoading ? <Loader2 className="animate-spin" /> : <GoogleIcon />}
+                        {googleLoading ? "Signing in with Google..." : "Continue with Google"}
+                      </Button>
                       <div className="relative text-center text-sm after:absolute after:inset-0 after:top-1/2 after:z-0 after:flex after:items-center after:border-t after:border-border">
                         <span className="relative z-10 bg-background px-2 text-muted-foreground">
                           Or continue with

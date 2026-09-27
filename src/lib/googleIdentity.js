@@ -1,50 +1,47 @@
 /**
- * Google Identity Services -- Google's own "Sign in with Google" button.
+ * Google sign-in, full page, straight to Google.
  *
- * Why not supabase.auth.signInWithOAuth: that sends the browser to Google by
- * way of Supabase, so Google's account chooser says "to continue to
- * rcymevdxsizstnopqeow.supabase.co" -- the redirect's domain. Google's button
- * runs on this site instead: the chooser opens as a pop-up naming this site,
- * hands back a signed ID token, and supabase.auth.signInWithIdToken() turns
- * that into a session. No redirect through Supabase at all.
+ * Why not supabase.auth.signInWithOAuth alone: that sends the browser to
+ * Google by way of Supabase, so Google's page says "to continue to
+ * rcymevdxsizstnopqeow.supabase.co" -- the domain Google will return to.
+ * Here the browser goes to Google directly and comes back to this site's own
+ * /Login, so Google's page names this site. Google returns a signed ID token
+ * in the URL fragment, and supabase.auth.signInWithIdToken() turns it into a
+ * session (OpenID Connect implicit flow, response_type=id_token).
  *
- * The client ID is public by design -- Google puts it in every sign-in URL.
- * It must be the one configured on the Supabase Google provider, because
- * Supabase rejects a token issued for any other client ("unacceptable
- * audience"). That is 157344465743-..., as Supabase's own /authorize redirect
- * shows; the GOOGLE_CLIENT_ID in .env is a different, older client.
+ * Not Google Identity Services' button: its pop-up is Chrome's own account
+ * dialog (FedCM), which did not fit the page, and it only proves an origin
+ * works once someone has signed in through it.
  *
- * Google only serves the button on origins listed as "Authorized JavaScript
- * origins" on that client in Google Cloud Console.
+ * The client ID is public by design. It must be the one on the Supabase
+ * Google provider, since Supabase rejects a token issued for any other client
+ * ("unacceptable audience"): 157344465743-..., as Supabase's own /authorize
+ * redirect shows. GOOGLE_CLIENT_ID in .env is a different, older client.
+ *
+ * Google only returns to redirect URIs registered on that client, so this
+ * flow is used only on DIRECT_ORIGINS, whose /Login is registered. Anywhere
+ * else -- a Vercel preview URL, localhost -- the Supabase redirect flow is
+ * used instead, and still works.
  */
 
 export const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
   "157344465743-f1tgl942btn71ea3tnqs9l07df2ja99d.apps.googleusercontent.com";
 
+/** Origins whose `${origin}/Login` is an Authorized redirect URI on the client. */
+const DIRECT_ORIGINS = ["https://www.invoicium.ca"];
+
 /**
- * On. Google accepts https://www.invoicium.ca (and invoicium.ca, which
- * redirects there) as an Authorized JavaScript origin for the client.
- *
- * On an origin Google has NOT authorised -- a Vercel preview URL, or
- * localhost without both http://localhost and http://localhost:<port> listed
- * -- Google still draws its button, but the button cannot sign anyone in, and
- * it reports that only inside its own iframe, so the page cannot detect it
- * and fall back. VITE_GOOGLE_BUTTON=off turns it off for such a build; the
- * redirect button is then the way in.
+ * Off until a real sign-in through it succeeds on the live site: Google
+ * refuses an unregistered redirect URI only after the person has picked an
+ * account. Until then, /Login?googlebutton=on turns it on in one browser
+ * (remembered; ?googlebutton=off turns it off again).
  */
-// ON. A real sign-in through it succeeded on https://www.invoicium.ca
-// (2026-09-26). Note that Google drawing the button without an "origin is not
-// allowed" is NOT proof the origin is accepted: an earlier release did exactly
-// that and the pop-up then failed with Error 400: origin_mismatch, because
-// Google's settings had not finished applying. Only a completed sign-in counts.
-//
-// Per-browser override, remembered: /Login?googlebutton=off falls back to the
-// redirect button in that browser, ?googlebutton=on restores it. VITE_GOOGLE_
-// BUTTON=off turns it off for a whole build -- needed on any origin Google has
-// not authorised (a Vercel preview URL, or localhost unless both
-// http://localhost and http://localhost:<port> are listed).
+const DIRECT_BY_DEFAULT = false;
+
 const OVERRIDE_KEY = "invoicium-google-button";
+const PENDING_KEY = "invoicium-google-pending";
+const REDIRECT_PATH = "/Login";
 
 function readOverride() {
   try {
@@ -56,54 +53,85 @@ function readOverride() {
   }
 }
 
-export const GOOGLE_BUTTON_ENABLED =
-  import.meta.env.VITE_GOOGLE_BUTTON !== "off" &&
-  (typeof window === "undefined" || readOverride() !== "off");
+/** Whether "Continue with Google" should go to Google directly here. */
+export function isDirectGoogleEnabled() {
+  if (typeof window === "undefined") return false;
+  if (import.meta.env.VITE_GOOGLE_BUTTON === "off") return false;
+  if (!DIRECT_ORIGINS.includes(window.location.origin)) return false;
+  const override = readOverride();
+  if (override === "off") return false;
+  return DIRECT_BY_DEFAULT || override === "on";
+}
 
-const SCRIPT_SRC = "https://accounts.google.com/gsi/client";
-const LOAD_TIMEOUT_MS = 8000;
+function randomString(bytes = 32) {
+  const data = crypto.getRandomValues(new Uint8Array(bytes));
+  return btoa(String.fromCharCode(...data)).replace(/[^a-zA-Z0-9]/g, "");
+}
 
-let loading = null;
-
-/** Load Google's script once. Rejects if it is blocked or too slow. */
-export function loadGoogleIdentity() {
-  if (window.google?.accounts?.id) return Promise.resolve(window.google);
-  if (loading) return loading;
-  loading = new Promise((resolve, reject) => {
-    const script = document.createElement("script");
-    script.src = SCRIPT_SRC;
-    script.async = true;
-    script.defer = true;
-    const timer = setTimeout(() => reject(new Error("Google sign-in timed out")), LOAD_TIMEOUT_MS);
-    script.onload = () => {
-      clearTimeout(timer);
-      if (window.google?.accounts?.id) resolve(window.google);
-      else reject(new Error("Google sign-in did not initialise"));
-    };
-    script.onerror = () => {
-      clearTimeout(timer);
-      reject(new Error("Google sign-in could not load"));
-    };
-    document.head.appendChild(script);
-  }).catch((err) => {
-    // Let a later mount try again (a flaky network, an extension toggled off).
-    loading = null;
-    throw err;
-  });
-  return loading;
+async function sha256Hex(text) {
+  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(text));
+  return [...new Uint8Array(digest)].map((b) => b.toString(16).padStart(2, "0")).join("");
 }
 
 /**
- * A nonce pair: Google embeds the hash in the ID token, and Supabase is given
- * the raw value to check against it, so a token lifted from elsewhere cannot
- * be replayed here.
+ * Send the browser to Google's sign-in page.
+ *
+ * The nonce's hash goes to Google, which embeds it in the ID token; the raw
+ * value is kept here for Supabase to check against it, so a token lifted from
+ * elsewhere cannot be replayed. `state` ties Google's answer to this request.
+ * Both live in sessionStorage: this tab only, gone when it closes.
+ *
+ * @param {string} returnUrl same-origin path to land on once signed in
  */
-export async function makeNonce() {
-  const bytes = crypto.getRandomValues(new Uint8Array(32));
-  const raw = btoa(String.fromCharCode(...bytes)).replace(/[^a-zA-Z0-9]/g, "");
-  const digest = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(raw));
-  const hashed = [...new Uint8Array(digest)]
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
-  return { raw, hashed };
+export async function startDirectGoogleSignIn(returnUrl) {
+  const nonce = randomString();
+  const state = randomString(24);
+  sessionStorage.setItem(PENDING_KEY, JSON.stringify({ nonce, state, returnUrl }));
+  const params = new URLSearchParams({
+    client_id: GOOGLE_CLIENT_ID,
+    response_type: "id_token",
+    // profile: the name and photo the app shows (see lib/profilePhoto.js).
+    scope: "openid email profile",
+    redirect_uri: window.location.origin + REDIRECT_PATH,
+    nonce: await sha256Hex(nonce),
+    state,
+    prompt: "select_account",
+  });
+  window.location.assign(`https://accounts.google.com/o/oauth2/v2/auth?${params}`);
+}
+
+/**
+ * Read Google's answer from the URL fragment, if this page load is one.
+ *
+ * Clears the fragment either way, so the token never sits in the address bar
+ * or in history. Returns null when this load is not Google's answer; otherwise
+ * { token, nonce, returnUrl }, { cancelled: true } or { error }.
+ */
+export function takeDirectGoogleResult() {
+  if (typeof window === "undefined" || !window.location.hash) return null;
+  const hash = new URLSearchParams(window.location.hash.slice(1));
+  if (!hash.has("id_token") && !(hash.has("error") && hash.has("state"))) return null;
+
+  const url = new URL(window.location.href);
+  url.hash = "";
+  window.history.replaceState(window.history.state, "", url.toString());
+
+  let pending = null;
+  try {
+    pending = JSON.parse(sessionStorage.getItem(PENDING_KEY) || "null");
+  } catch {
+    pending = null;
+  }
+  sessionStorage.removeItem(PENDING_KEY);
+
+  if (!pending || hash.get("state") !== pending.state) {
+    return { error: "That Google sign-in expired. Please try again." };
+  }
+  if (hash.has("error")) {
+    // Backing out of Google's page is not an error worth a message.
+    return hash.get("error") === "access_denied"
+      ? { cancelled: true }
+      : { error: `Google sign-in failed (${hash.get("error")}). Please try again.` };
+  }
+  return { token: hash.get("id_token"), nonce: pending.nonce, returnUrl: pending.returnUrl };
 }

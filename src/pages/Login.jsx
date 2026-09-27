@@ -5,8 +5,11 @@ import { supabase } from "@/api/supabaseClient";
 import { sdk } from "@/api/sdk";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { SignInPage } from "@/components/ui/sign-in";
-import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
-import { GOOGLE_BUTTON_ENABLED } from "@/lib/googleIdentity";
+import {
+  isDirectGoogleEnabled,
+  startDirectGoogleSignIn,
+  takeDirectGoogleResult,
+} from "@/lib/googleIdentity";
 import { getSameOriginReturnPath } from "@/lib/auth-redirects";
 
 const isGoogleAuthEnabled = import.meta.env.VITE_ENABLE_GOOGLE_AUTH !== "false";
@@ -63,6 +66,35 @@ export default function Login({ defaultMode = "signin" }) {
   const isSignup = mode === "signup";
   const fail = (text) => setMessage({ text, tone: "error" });
   const ok = (text) => setMessage({ text, tone: "success" });
+
+  // Coming back from Google's own sign-in page (lib/googleIdentity.js): the ID
+  // token is in the URL fragment. Runs before the effect below, and takes the
+  // fragment out of the URL, so that effect never sees Google's answer.
+  useEffect(() => {
+    const result = takeDirectGoogleResult();
+    if (!result || result.cancelled) return;
+    if (result.error) {
+      fail(result.error);
+      return;
+    }
+    setGoogleLoading(true);
+    supabase.auth
+      .signInWithIdToken({ provider: "google", token: result.token, nonce: result.nonce })
+      .then(({ error }) => {
+        if (error) {
+          console.error("Google ID token sign-in error:", error);
+          setGoogleLoading(false);
+          fail(
+            error.message ||
+              "Google sign-in didn't go through. Please try again, or use your email.",
+          );
+          return;
+        }
+        navigate(getSameOriginReturnPath(result.returnUrl, "/Dashboard"), { replace: true });
+      });
+    // Once, on arrival.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
 
   // Supabase bounces OAuth failures back to the redirect URL as ?error=... or
   // #error=..., which this page previously ignored — the user just landed back
@@ -122,32 +154,15 @@ export default function Login({ defaultMode = "signin" }) {
     setGoogleLoading(true);
     setMessage(null);
     try {
-      await sdk.auth.signInWithGoogle(returnUrl);
+      if (isDirectGoogleEnabled()) {
+        await startDirectGoogleSignIn(returnUrl);
+      } else {
+        await sdk.auth.signInWithGoogle(returnUrl);
+      }
     } catch (err) {
       console.error("Google auth error:", err);
       setGoogleLoading(false);
       fail(err.message || "Google sign-in could not start. Please try again.");
-    }
-  };
-
-  // Google's own button (components/auth/GoogleSignInButton) hands back an ID
-  // token; Supabase turns it into a session, and the onAuthStateChange above
-  // navigates on. The redirect flow above is its fallback.
-  const handleGoogleCredential = async (token, nonce) => {
-    setGoogleLoading(true);
-    setMessage(null);
-    const { error } = await supabase.auth.signInWithIdToken({
-      provider: "google",
-      token,
-      nonce,
-    });
-    if (error) {
-      console.error("Google ID token sign-in error:", error);
-      setGoogleLoading(false);
-      fail(
-        error.message ||
-          "Google sign-in didn't go through. Please try again, or use your email.",
-      );
     }
   };
 
@@ -271,17 +286,6 @@ export default function Login({ defaultMode = "signin" }) {
       }
       onSubmit={handleSubmit}
       onGoogleSignIn={handleGoogleSignIn}
-      renderGoogle={
-        GOOGLE_BUTTON_ENABLED
-          ? (fallback) => (
-              <GoogleSignInButton
-                mode={mode}
-                onCredential={handleGoogleCredential}
-                fallback={fallback}
-              />
-            )
-          : undefined
-      }
       onResetPassword={handleResetPassword}
       onToggleMode={toggleMode}
     />
