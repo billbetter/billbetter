@@ -469,6 +469,63 @@ const SILK_UNIFORMS = {
 };
 
 /**
+ * Ocean Silk and Mono Silk -- the Silk shader again, from a second 21st.dev
+ * Shader Builder recipe, in two palettes. Same shade(), same main(); only the
+ * numbers differ, and the two share every one of them except the colours.
+ *
+ * Unlike Silk these switch on three branches the others skip: warp (0.02, the
+ * fbm domain warp), drift, and blur (0.002) -- so shade() runs five times per
+ * pixel. Tiny values, but the recipe's, kept as given. Grain is 0 and there is
+ * a 0.28 vignette. Slow: time runs at 0.18.
+ */
+const SILK_FLOW_UNIFORMS = {
+  colorCount: 4,
+  // u_shape
+  scale: 1.38,
+  intensity: 0.43,
+  paramA: 0.8,
+  warp: 0.02,
+  // u_surface
+  detail: 1.57,
+  contrast: 0.96,
+  brightness: 0.0,
+  saturation: 1.0,
+  // u_finish
+  hue: 0.0,
+  vignette: 0.28,
+  blur: 0.002,
+  grain: 0.0,
+  // u_transform
+  seed: 5293.0,
+  rotate: 5.25,
+  drift: 0.01,
+  oklab: 0.0,
+  // u_space
+  offsetX: 0.08,
+  offsetY: -0.07,
+  // u_cursor: off, as for the others.
+  cursorEnabled: false,
+  cursorEffect: 2.0,
+  cursorStrength: 0.65,
+  cursorRadius: 0.46,
+  // u_scene.z is seconds * this.
+  timeScale: 0.18,
+};
+
+const OCEAN_SILK_UNIFORMS = {
+  ...SILK_FLOW_UNIFORMS,
+  // The app's own blues -- the ramp Waves and Smoke use.
+  colors: makePalette("#031C26", "#1B6CA8", "#5AD2F4", "#EAF9FF"),
+};
+
+const MONO_SILK_UNIFORMS = {
+  ...SILK_FLOW_UNIFORMS,
+  // Not a monotonic ramp: dark, near-white, then back down through greys, so
+  // the bands read as folds of light rather than a gradient.
+  colors: makePalette("#101010", "#F5F5F5", "#B0B0B0", "#3A3A3A"),
+};
+
+/**
  * The selectable backgrounds.
  *
  * `id` is what goes in localStorage, so these strings are load-bearing across
@@ -480,7 +537,7 @@ export const SHADER_PRESETS = {
     id: "waves",
     label: "Waves",
     description:
-      "A slow horizontal swell, tinted end to end. The calmer of the two.",
+      "A slow horizontal swell, tinted end to end.",
     swatch: ["#1b6ba8", "#5ad2f4"],
     frag: buildFrag(WAVES_SHADE),
     uniforms: WAVES_UNIFORMS,
@@ -498,10 +555,28 @@ export const SHADER_PRESETS = {
     id: "silk",
     label: "Silk",
     description:
-      "Folded bands of violet on near-black. The darkest of the three, with a little grain.",
+      "Folded bands of violet on near-black. The darkest option, with a little grain.",
     swatch: ["#04052e", "#916bbf"],
     frag: buildFrag(SILK_SHADE),
     uniforms: SILK_UNIFORMS,
+  },
+  "silk-ocean": {
+    id: "silk-ocean",
+    label: "Ocean Silk",
+    description:
+      "Slow folds of silk in the app's blues, softly vignetted. Calm and bright.",
+    swatch: ["#1b6ca8", "#eaf9ff"],
+    frag: buildFrag(SILK_SHADE),
+    uniforms: OCEAN_SILK_UNIFORMS,
+  },
+  "silk-mono": {
+    id: "silk-mono",
+    label: "Mono Silk",
+    description:
+      "The same slow folds in black, white and grey. No colour at all.",
+    swatch: ["#101010", "#f5f5f5"],
+    frag: buildFrag(SILK_SHADE),
+    uniforms: MONO_SILK_UNIFORMS,
   },
 };
 
