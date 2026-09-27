@@ -37,7 +37,25 @@ export const GOOGLE_CLIENT_ID =
 // once an account was picked, although the button itself rendered with no
 // "origin is not allowed" -- so a clean render is NOT proof the origin is
 // accepted. Stay on the redirect button until a real sign-in succeeds.
-export const GOOGLE_BUTTON_ENABLED = import.meta.env.VITE_GOOGLE_BUTTON === "on";
+//
+// Per-browser opt-in for testing on the real origin without touching anyone
+// else: /Login?googlebutton=on turns it on in this browser (remembered),
+// ?googlebutton=off turns it back off.
+const OPT_IN_KEY = "invoicium-google-button";
+
+function readOptIn() {
+  try {
+    const param = new URLSearchParams(window.location.search).get("googlebutton");
+    if (param === "on" || param === "off") window.localStorage.setItem(OPT_IN_KEY, param);
+    return window.localStorage.getItem(OPT_IN_KEY) === "on";
+  } catch {
+    return false;
+  }
+}
+
+export const GOOGLE_BUTTON_ENABLED =
+  import.meta.env.VITE_GOOGLE_BUTTON === "on" ||
+  (typeof window !== "undefined" && readOptIn());
 
 const SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const LOAD_TIMEOUT_MS = 8000;
