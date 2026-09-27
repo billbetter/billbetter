@@ -2,7 +2,7 @@ import React from "react";
 import { ArrowLeft, Ban, Download, Loader2, Send, Trash2, Wallet } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createPageUrl } from "@/utils";
-import { notify } from "@/lib/notify";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /** Back link and the desktop action buttons (PDF, record payment, resend,
  * void, delete). Resend calls the page's handleResendNotifications, untouched. */
@@ -10,7 +10,6 @@ export default function InvoiceDetailHeader({
   canRecordPayment,
   canVoid,
   client,
-  copyToClipboard,
   handleResendNotifications,
   invoice,
   navigate,
@@ -38,16 +37,9 @@ export default function InvoiceDetailHeader({
       <div className="hidden sm:flex flex-wrap items-center justify-end gap-2">
         {invoice.pdf_url && (
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => {
-                copyToClipboard(invoice.pdf_url);
-                notify.success("PDF link copied to clipboard!");
-              }}
-            >
-              📋 Copy Link
-            </Button>
+            <CopyButton variant="outline" size="sm" text={invoice.pdf_url}>
+              Copy Link
+            </CopyButton>
             <Button variant="outline" size="sm" asChild>
               <a
                 href={invoice.pdf_url}

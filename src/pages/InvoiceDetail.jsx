@@ -250,10 +250,6 @@ export default function InvoiceDetail() {
     setDeleting(false);
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-  };
-
   // Null-safe on every one of these, so they can sit above the loading guards
   // rather than being recomputed inside three separate branches.
   const voided = isVoided(invoice);
@@ -297,7 +293,6 @@ export default function InvoiceDetail() {
         canRecordPayment={canRecordPayment}
         canVoid={canVoid}
         client={client}
-        copyToClipboard={copyToClipboard}
         handleResendNotifications={handleResendNotifications}
         invoice={invoice}
         navigate={navigate}
@@ -318,7 +313,6 @@ export default function InvoiceDetail() {
         canRecordPayment={canRecordPayment}
         canVoid={canVoid}
         client={client}
-        copyToClipboard={copyToClipboard}
         handleResendNotifications={handleResendNotifications}
         invoice={invoice}
         sendingNotifications={sendingNotifications}
@@ -360,8 +354,7 @@ export default function InvoiceDetail() {
               anyway, and offering a button that cannot work is worse than not
               offering it. */}
           <PaymentLinkCard
-            copyToClipboard={copyToClipboard}
-            generatingPaymentLink={generatingPaymentLink}
+                generatingPaymentLink={generatingPaymentLink}
             handleGeneratePaymentLink={handleGeneratePaymentLink}
             invoice={invoice}
             publicInvoiceUrl={publicInvoiceUrl}
@@ -388,7 +381,6 @@ export default function InvoiceDetail() {
 
       <InvoiceNotificationResultDialog
         client={client}
-        copyToClipboard={copyToClipboard}
         invoice={invoice}
         notificationResult={notificationResult}
         setNotificationResult={setNotificationResult}

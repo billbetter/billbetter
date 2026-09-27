@@ -1,13 +1,13 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Copy, DollarSign, ExternalLink, Loader2 } from "lucide-react";
+import { DollarSign, ExternalLink, Loader2 } from "lucide-react";
 import { formatMoney } from "@/lib/invoicePayments";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /** The client payment link card. Generating a link is the page's
  * handleGeneratePaymentLink (Stripe), passed in untouched. */
 export default function PaymentLinkCard({
-  copyToClipboard,
   generatingPaymentLink,
   handleGeneratePaymentLink,
   invoice,
@@ -84,14 +84,13 @@ export default function PaymentLinkCard({
                     readOnly
                     className="flex-1 px-3 py-2 text-xs sm:text-sm border border-line-strong dark:border-ink-600 rounded-lg bg-surface dark:bg-ink-800 text-content dark:text-content-inverted"
                   />
-                  <Button
-                    onClick={() => copyToClipboard(publicInvoiceUrl)}
+                  <CopyButton
+                    text={publicInvoiceUrl}
                     variant="outline"
                     className="gap-2 w-full sm:w-auto"
                   >
-                    <Copy className="w-4 h-4" />
                     Copy
-                  </Button>
+                  </CopyButton>
                 </div>
               </div>
             )}

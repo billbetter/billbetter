@@ -15,11 +15,11 @@ import {
   DollarSign,
   Download,
 } from "lucide-react";
+import { CopyButton } from "@/components/ui/copy-button";
 
 export default function InvoiceSuccessDialog({
   successDialog,
   onClose,
-  onCopy,
 }) {
   return (
     <Dialog open={successDialog.open} onOpenChange={onClose}>
@@ -116,13 +116,13 @@ export default function InvoiceSuccessDialog({
                   readOnly
                   className="bg-surface dark:bg-surface-inverted-deep border-info-200 dark:border-info-800 text-xs sm:text-sm text-content dark:text-ink-50"
                 />
-                <Button
-                  onClick={() => onCopy(successDialog.invoice.payment_link)}
+                <CopyButton
+                  text={successDialog.invoice.payment_link}
                   variant="outline"
                   className="shrink-0 border-info-200 dark:border-info-800 hover:bg-info-100 dark:hover:bg-info-900/30 text-brand-800 dark:text-brand-300"
                 >
                   Copy
-                </Button>
+                </CopyButton>
               </div>
             </div>
           )}

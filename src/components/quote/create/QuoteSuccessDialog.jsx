@@ -4,10 +4,10 @@ import { Button } from "@/components/ui/button";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { createPageUrl } from "@/utils";
 import { deliverPdf } from "@/lib/pdfDelivery";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /** After saving: what was sent to the client, the PDF, and the share link. */
 export default function QuoteSuccessDialog({
-  copyToClipboard,
   handleSuccessClose,
   navigate,
   setSuccessDialog,
@@ -118,13 +118,13 @@ export default function QuoteSuccessDialog({
 
           {/* Copy Link */}
           {successDialog.quote?.pdf_url && (
-            <Button
-              onClick={() => copyToClipboard(successDialog.quote.pdf_url)}
+            <CopyButton
+              text={successDialog.quote.pdf_url}
               variant="outline"
               className="w-full border-line-strong dark:border-ink-600 hover:bg-surface-sunken dark:hover:bg-ink-800 text-ink-700 dark:text-ink-300 h-11"
             >
               Copy PDF Link
-            </Button>
+            </CopyButton>
           )}
         </div>
 

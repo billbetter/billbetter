@@ -1,11 +1,11 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { Download, Loader2, Send, Trash2 } from "lucide-react";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /** The phone layout's fixed action bar: the same actions as the desktop header. */
 export default function QuoteMobileActionBar({
   client,
-  copyToClipboard,
   handleResendNotifications,
   quote,
   sendingNotifications,
@@ -19,14 +19,14 @@ export default function QuoteMobileActionBar({
       <div className="p-3 flex items-center gap-2">
         {quote.pdf_url && (
           <>
-            <Button
+            <CopyButton
               variant="outline"
               size="sm"
-              onClick={() => copyToClipboard(quote.pdf_url)}
+              text={quote.pdf_url}
               className="flex-1 h-11"
             >
-              📋 Copy
-            </Button>
+              Copy
+            </CopyButton>
             <Button
               variant="outline"
               size="sm"

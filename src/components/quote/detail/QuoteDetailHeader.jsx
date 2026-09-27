@@ -2,12 +2,12 @@ import React from "react";
 import { ArrowLeft, Download, Loader2, Send, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { createPageUrl } from "@/utils";
+import { CopyButton } from "@/components/ui/copy-button";
 
 /** Back link and the desktop actions: copy link, PDF, resend, delete.
  * Resend is the page's handleResendNotifications, passed in untouched. */
 export default function QuoteDetailHeader({
   client,
-  copyToClipboard,
   handleResendNotifications,
   navigate,
   quote,
@@ -30,13 +30,9 @@ export default function QuoteDetailHeader({
       <div className="hidden sm:flex flex-wrap items-center justify-end gap-2">
         {quote.pdf_url && (
           <>
-            <Button
-              variant="outline"
-              size="sm"
-              onClick={() => copyToClipboard(quote.pdf_url)}
-            >
-              📋 Copy Link
-            </Button>
+            <CopyButton variant="outline" size="sm" text={quote.pdf_url}>
+              Copy Link
+            </CopyButton>
             <Button variant="outline" size="sm" asChild>
               <a
                 href={quote.pdf_url}

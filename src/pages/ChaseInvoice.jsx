@@ -8,7 +8,6 @@ import {
   CalendarClock,
   CheckCircle2,
   Clock,
-  Copy,
   CreditCard,
   Loader2,
   Mail,
@@ -47,6 +46,7 @@ import {
 import { formatMoney, moneyFormatter } from "@/lib/money";
 import { daysUntilDay, formatCalendarDay } from "@/lib/calendarDate";
 import { notify } from "@/lib/notify";
+import { CopyButton } from "@/components/ui/copy-button";
 
 const STORAGE_KEY = "invoicium_chase_recovery_state_v2";
 
@@ -589,14 +589,6 @@ export default function ChaseInvoice() {
     showToast(`Auto-pilot started for ${invoice.client_name}.`);
   };
 
-  const copyToClipboard = async (text) => {
-    try {
-      await navigator.clipboard.writeText(text);
-      showToast("Copied.");
-    } catch {
-      showToast("Could not copy.", "error");
-    }
-  };
 
   if (loading) {
     return (
@@ -854,7 +846,6 @@ export default function ChaseInvoice() {
             currency={settings?.currency}
             composeDialog={composeDialog}
             composeTone={composeTone}
-            copyToClipboard={copyToClipboard}
             draft={draft}
             regenerate={regenerate}
             sendReminder={sendReminder}
@@ -1246,7 +1237,6 @@ const ComposeDialog = ({
   currency,
   composeDialog,
   composeTone,
-  copyToClipboard,
   draft,
   regenerate,
   sendReminder,
@@ -1430,20 +1420,17 @@ const ComposeDialog = ({
         </div>
 
         <footer className="flex flex-col-reverse gap-2 border-t border-line-subtle px-5 py-4 dark:border-ink-800 sm:flex-row sm:justify-end">
-          <Button
+          <CopyButton
             variant="outline"
             className="h-10 rounded-lg border-line text-sm font-medium dark:border-ink-800"
-            onClick={() =>
-              copyToClipboard(
-                composeChannel === "email"
-                  ? `${draft.subject}\n\n${draft.body}`
-                  : draft.sms,
-              )
+            text={
+              composeChannel === "email"
+                ? `${draft.subject}\n\n${draft.body}`
+                : draft.sms
             }
           >
-            <Copy className="mr-2 h-4 w-4" />
             Copy
-          </Button>
+          </CopyButton>
           <Button
             onClick={sendReminder}
             disabled={sending || !hasRecipient}

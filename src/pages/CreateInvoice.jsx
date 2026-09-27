@@ -873,10 +873,6 @@ export default function CreateInvoice() {
     navigate(createPageUrl("Invoices"));
   };
 
-  const copyToClipboard = (text) => {
-    navigator.clipboard.writeText(text);
-  };
-
   const selectedClient = clients.find((c) => c.id === formData.client_id);
 
   if (isPageLoading) {
@@ -1068,7 +1064,6 @@ export default function CreateInvoice() {
       <InvoiceSuccessDialog
         successDialog={successDialog}
         onClose={handleSuccessClose}
-        onCopy={copyToClipboard}
       />
 
       {showVoiceInput && (
