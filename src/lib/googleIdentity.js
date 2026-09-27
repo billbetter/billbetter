@@ -22,6 +22,15 @@ export const GOOGLE_CLIENT_ID =
   import.meta.env.VITE_GOOGLE_CLIENT_ID ||
   "157344465743-f1tgl942btn71ea3tnqs9l07df2ja99d.apps.googleusercontent.com";
 
+/**
+ * Off until Google lists this site as an authorised origin for the client.
+ * Before that, Google still draws its button but the button cannot sign
+ * anyone in -- and it reports that only inside its own iframe, where the page
+ * cannot detect it -- so the redirect button is used instead. Turn on with
+ * VITE_GOOGLE_BUTTON=on (or flip this default) once Google accepts the origin.
+ */
+export const GOOGLE_BUTTON_ENABLED = import.meta.env.VITE_GOOGLE_BUTTON === "on";
+
 const SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const LOAD_TIMEOUT_MS = 8000;
 

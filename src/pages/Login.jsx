@@ -6,6 +6,7 @@ import { sdk } from "@/api/sdk";
 import { PasswordStrength } from "@/components/ui/password-strength";
 import { SignInPage } from "@/components/ui/sign-in";
 import GoogleSignInButton from "@/components/auth/GoogleSignInButton";
+import { GOOGLE_BUTTON_ENABLED } from "@/lib/googleIdentity";
 import { getSameOriginReturnPath } from "@/lib/auth-redirects";
 
 const isGoogleAuthEnabled = import.meta.env.VITE_ENABLE_GOOGLE_AUTH !== "false";
@@ -270,13 +271,17 @@ export default function Login({ defaultMode = "signin" }) {
       }
       onSubmit={handleSubmit}
       onGoogleSignIn={handleGoogleSignIn}
-      renderGoogle={(fallback) => (
-        <GoogleSignInButton
-          mode={mode}
-          onCredential={handleGoogleCredential}
-          fallback={fallback}
-        />
-      )}
+      renderGoogle={
+        GOOGLE_BUTTON_ENABLED
+          ? (fallback) => (
+              <GoogleSignInButton
+                mode={mode}
+                onCredential={handleGoogleCredential}
+                fallback={fallback}
+              />
+            )
+          : undefined
+      }
       onResetPassword={handleResetPassword}
       onToggleMode={toggleMode}
     />
