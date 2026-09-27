@@ -23,13 +23,17 @@ export const GOOGLE_CLIENT_ID =
   "157344465743-f1tgl942btn71ea3tnqs9l07df2ja99d.apps.googleusercontent.com";
 
 /**
- * Off until Google lists this site as an authorised origin for the client.
- * Before that, Google still draws its button but the button cannot sign
- * anyone in -- and it reports that only inside its own iframe, where the page
- * cannot detect it -- so the redirect button is used instead. Turn on with
- * VITE_GOOGLE_BUTTON=on (or flip this default) once Google accepts the origin.
+ * On. Google accepts https://www.invoicium.ca (and invoicium.ca, which
+ * redirects there) as an Authorized JavaScript origin for the client.
+ *
+ * On an origin Google has NOT authorised -- a Vercel preview URL, or
+ * localhost without both http://localhost and http://localhost:<port> listed
+ * -- Google still draws its button, but the button cannot sign anyone in, and
+ * it reports that only inside its own iframe, so the page cannot detect it
+ * and fall back. VITE_GOOGLE_BUTTON=off turns it off for such a build; the
+ * redirect button is then the way in.
  */
-export const GOOGLE_BUTTON_ENABLED = import.meta.env.VITE_GOOGLE_BUTTON === "on";
+export const GOOGLE_BUTTON_ENABLED = import.meta.env.VITE_GOOGLE_BUTTON !== "off";
 
 const SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const LOAD_TIMEOUT_MS = 8000;
