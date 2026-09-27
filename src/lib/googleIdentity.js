@@ -33,7 +33,11 @@ export const GOOGLE_CLIENT_ID =
  * and fall back. VITE_GOOGLE_BUTTON=off turns it off for such a build; the
  * redirect button is then the way in.
  */
-export const GOOGLE_BUTTON_ENABLED = import.meta.env.VITE_GOOGLE_BUTTON !== "off";
+// OFF again: live, Google's pop-up answered "Error 400: origin_mismatch"
+// once an account was picked, although the button itself rendered with no
+// "origin is not allowed" -- so a clean render is NOT proof the origin is
+// accepted. Stay on the redirect button until a real sign-in succeeds.
+export const GOOGLE_BUTTON_ENABLED = import.meta.env.VITE_GOOGLE_BUTTON === "on";
 
 const SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const LOAD_TIMEOUT_MS = 8000;
