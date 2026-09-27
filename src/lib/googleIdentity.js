@@ -32,12 +32,13 @@ export const GOOGLE_CLIENT_ID =
 const DIRECT_ORIGINS = ["https://www.invoicium.ca"];
 
 /**
- * Off until a real sign-in through it succeeds on the live site: Google
- * refuses an unregistered redirect URI only after the person has picked an
- * account. Until then, /Login?googlebutton=on turns it on in one browser
- * (remembered; ?googlebutton=off turns it off again).
+ * On: a real sign-in through it succeeded on https://www.invoicium.ca
+ * (2026-09-26). Only a completed sign-in proves it -- Google refuses an
+ * unregistered redirect URI only after the person has picked an account.
+ * /Login?googlebutton=off falls back to the Supabase flow in one browser
+ * (remembered; ?googlebutton=on undoes it).
  */
-const DIRECT_BY_DEFAULT = false;
+const DIRECT_BY_DEFAULT = true;
 
 const OVERRIDE_KEY = "invoicium-google-button";
 const PENDING_KEY = "invoicium-google-pending";
