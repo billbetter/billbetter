@@ -33,29 +33,32 @@ export const GOOGLE_CLIENT_ID =
  * and fall back. VITE_GOOGLE_BUTTON=off turns it off for such a build; the
  * redirect button is then the way in.
  */
-// OFF again: live, Google's pop-up answered "Error 400: origin_mismatch"
-// once an account was picked, although the button itself rendered with no
-// "origin is not allowed" -- so a clean render is NOT proof the origin is
-// accepted. Stay on the redirect button until a real sign-in succeeds.
+// ON. A real sign-in through it succeeded on https://www.invoicium.ca
+// (2026-09-26). Note that Google drawing the button without an "origin is not
+// allowed" is NOT proof the origin is accepted: an earlier release did exactly
+// that and the pop-up then failed with Error 400: origin_mismatch, because
+// Google's settings had not finished applying. Only a completed sign-in counts.
 //
-// Per-browser opt-in for testing on the real origin without touching anyone
-// else: /Login?googlebutton=on turns it on in this browser (remembered),
-// ?googlebutton=off turns it back off.
-const OPT_IN_KEY = "invoicium-google-button";
+// Per-browser override, remembered: /Login?googlebutton=off falls back to the
+// redirect button in that browser, ?googlebutton=on restores it. VITE_GOOGLE_
+// BUTTON=off turns it off for a whole build -- needed on any origin Google has
+// not authorised (a Vercel preview URL, or localhost unless both
+// http://localhost and http://localhost:<port> are listed).
+const OVERRIDE_KEY = "invoicium-google-button";
 
-function readOptIn() {
+function readOverride() {
   try {
     const param = new URLSearchParams(window.location.search).get("googlebutton");
-    if (param === "on" || param === "off") window.localStorage.setItem(OPT_IN_KEY, param);
-    return window.localStorage.getItem(OPT_IN_KEY) === "on";
+    if (param === "on" || param === "off") window.localStorage.setItem(OVERRIDE_KEY, param);
+    return window.localStorage.getItem(OVERRIDE_KEY);
   } catch {
-    return false;
+    return null;
   }
 }
 
 export const GOOGLE_BUTTON_ENABLED =
-  import.meta.env.VITE_GOOGLE_BUTTON === "on" ||
-  (typeof window !== "undefined" && readOptIn());
+  import.meta.env.VITE_GOOGLE_BUTTON !== "off" &&
+  (typeof window === "undefined" || readOverride() !== "off");
 
 const SCRIPT_SRC = "https://accounts.google.com/gsi/client";
 const LOAD_TIMEOUT_MS = 8000;
